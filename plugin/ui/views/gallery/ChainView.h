@@ -78,6 +78,12 @@ private:
   const ChainItem* itemIn(const Lanes& lanes, const std::string& id) const;
   bool stereo() const { return services_.chain.state().chainRight.has_value(); }
   int tileSize() const;
+  // Fork (fit-to-window): shrink tiles so the whole chain fits the visible
+  // width instead of scrolling, down to gallery::kMinFitTileSize; past that
+  // the stock scroll takes over. Recomputed only off-drag so a tile never
+  // resizes under the pointer. 0 = use the stock fixed size.
+  void updateFitTile();
+  int fitTile_ = 0;
 
   // Drag machinery (pointer and keyboard share it).
   void beginSort(GalleryTile& tile, bool pointer);

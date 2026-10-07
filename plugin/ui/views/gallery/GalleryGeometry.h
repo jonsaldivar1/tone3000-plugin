@@ -30,6 +30,10 @@ inline constexpr int kDragDistance = 6;
 inline constexpr float kDragGhostOpacity = 0.75f;
 
 inline int tileSize(bool stereo) { return stereo ? kStereoTileSize : kTileSize; }
+// Fork (fit-to-window): smallest tile the fit layout shrinks to before the
+// chain falls back to scrolling. Keeps the tile chrome (power / swap /
+// remove row) and the plus ring usable.
+inline constexpr int kMinFitTileSize = 112;
 
 // Plus glyph: 48 on mono tiles (224), 40 on stereo (160). Half of that is
 // the radius the routing lines run edge-to-circle against.

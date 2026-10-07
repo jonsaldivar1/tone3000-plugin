@@ -109,7 +109,37 @@ ChainView::ChainView(Services& services)
 
 ChainView::~ChainView() { services_.chain.removeListener(this); }
 
-int ChainView::tileSize() const { return gallery::tileSize(stereo()); }
+int ChainView::tileSize() const { return fitTile_ > 0 ? fitTile_ : gallery::tileSize(stereo()); }
+
+// Fork (fit-to-window): the widest row decides the size. A branched lane
+// starts indented past the trunk's tap, so its row counts those columns too.
+void ChainView::updateFitTile() {
+  const int base = gallery::tileSize(stereo());
+  const int avail = scroller_->getWidth() - 2 * gallery::kEdgeFadeWidth;
+  int cols = static_cast<int>(lanes_.left.size());
+  if (stereo()) {
+    int rightCols = static_cast<int>(lanes_.right.size());
+    const auto& branch = services_.chain.state().branch;
+    if (branch) {
+      const auto& trunk = lanes_.of(branch->side);
+      int tap = -1;
+      for (int i = 0; i < static_cast<int>(trunk.size()); ++i)
+        if (trunk[static_cast<size_t>(i)].blockId == branch->afterBlockId) tap = i;
+      if (tap != -1) {
+        const int indentCols = tap + 1;
+        if (branch->side == ChainSide::left) rightCols += indentCols;
+        else cols += indentCols;
+      }
+    }
+    cols = std::max(cols, rightCols);
+  }
+  if (avail <= 0 || cols <= 0) {
+    fitTile_ = 0;
+    return;
+  }
+  const int fit = (avail - (cols - 1) * gallery::kTileGap) / cols;
+  fitTile_ = juce::jlimit(gallery::kMinFitTileSize, base, fit);
+}
 
 // State
 void ChainView::chainChanged(const ChainState&) { syncFromNative(); }
@@ -134,6 +164,7 @@ void ChainView::syncFromNative() {
 
 void ChainView::applyLanes() {
   const auto& state = services_.chain.state();
+  if (!dragging_) updateFitTile();
   const int tile = tileSize();
   // A block that changed lanes keeps its tile. Mid-drag this is what keeps
   // the gesture alive: the tile under the pointer is the component JUCE
@@ -178,7 +209,10 @@ void ChainView::resized() {
   if (stereo()) rail_.setBounds(area.removeFromLeft(StereoPanRail::kWidth).withSizeKeepingCentre(
       StereoPanRail::kWidth, rail_.getHeight()));
   scroller_->setBounds(area);
-  layoutColumn();
+  // Fork (fit-to-window): the tile size depends on the visible width, so a
+  // resize re-applies the lanes (off-drag) instead of just re-placing them.
+  if (dragging_) layoutColumn();
+  else applyLanes();
 }
 
 // Branched layout: the branch lane starts at the trunk's tap gap, so its row
