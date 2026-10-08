@@ -24,7 +24,10 @@
 
 namespace t3k::ui {
 
-class ChainView : public juce::Component, public TileDragHost, private ChainStore::Listener {
+class ChainView : public juce::Component,
+                  public TileDragHost,
+                  private ChainStore::Listener,
+                  private UiPrefs::Listener {
 public:
   // Shared 24px under the header and above the faceplate (Plugin.tsx).
   static constexpr int kPadY = 24;
@@ -70,6 +73,7 @@ private:
   static constexpr const char* kStandInId = "__duplicate-stand-in__";
 
   void chainChanged(const ChainState& state) override;
+  void prefChanged(const juce::String& key) override;
   void syncFromNative();
   void applyLanes();
   void layoutColumn();

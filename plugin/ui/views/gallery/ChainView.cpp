@@ -104,10 +104,14 @@ ChainView::ChainView(Services& services)
   }
 
   services_.chain.addListener(this);
+  services_.prefs.addListener(this);
   syncFromNative();
 }
 
-ChainView::~ChainView() { services_.chain.removeListener(this); }
+ChainView::~ChainView() {
+  services_.prefs.removeListener(this);
+  services_.chain.removeListener(this);
+}
 
 int ChainView::tileSize() const { return fitTile_ > 0 ? fitTile_ : gallery::tileSize(stereo()); }
 
@@ -115,6 +119,10 @@ int ChainView::tileSize() const { return fitTile_ > 0 ? fitTile_ : gallery::tile
 // starts indented past the trunk's tap, so its row counts those columns too.
 void ChainView::updateFitTile() {
   const int base = gallery::tileSize(stereo());
+  if (!services_.prefs.getBool(UiPrefs::kFitChainToWindow, true)) {
+    fitTile_ = 0;
+    return;
+  }
   const int avail = scroller_->getWidth() - 2 * gallery::kEdgeFadeWidth;
   int cols = static_cast<int>(lanes_.left.size());
   if (stereo()) {
@@ -143,6 +151,11 @@ void ChainView::updateFitTile() {
 
 // State
 void ChainView::chainChanged(const ChainState&) { syncFromNative(); }
+
+// Fork (fit-to-window): the settings toggle re-lays the chain at once.
+void ChainView::prefChanged(const juce::String& key) {
+  if (key == UiPrefs::kFitChainToWindow && !dragging_) applyLanes();
+}
 
 // Resync the optimistic lanes only when native reports new state and no
 // drag is in flight.
