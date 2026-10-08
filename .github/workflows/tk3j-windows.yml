@@ -1,0 +1,170 @@
+# TK3J (fork of TONE3000): Windows build + nightly upstream sync.
+#
+# - push to main      -> build the Windows installer
+# - nightly / manual  -> merge tone-3000/tone3000-plugin main into this
+#                        fork's main; if anything new came in (or run by
+#                        hand), build. A merge conflict fails the run (GitHub
+#                        emails the repo owner) and nothing is pushed.
+#
+# Output: the installer as a run artifact, and on the rolling pre-release
+# "tk3j-latest" (Releases page) for a one-click download.
+#
+# Optional secret T3K_PUBLISHABLE_KEY (your own key from tone3000.com >
+# Settings > API Keys) enables TONE3000 sign-in and library browsing.
+# Without it, local .nam / IR files work and sign-in shows an error.
+
+name: TK3J Windows build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 11 * * *"   # daily, 4:17 AM Pacific (11:17 UTC)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tk3j-windows
+  cancel-in-progress: false
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  sync:
+    name: Merge upstream TONE3000
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.merge.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - id: merge
+        name: Merge upstream main
+        run: |
+          git config user.name "tk3j-sync"
+          git config user.email "tk3j-sync@users.noreply.github.com"
+          git remote add upstream https://github.com/tone-3000/tone3000-plugin.git
+          git fetch upstream main
+          before=$(git rev-parse HEAD)
+          if ! git merge --no-edit upstream/main; then
+            git merge --abort
+            echo "::error::Upstream TONE3000 changes conflict with TK3J changes. Resolve the merge by hand (or ask Claude), then push to main."
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "$before" ]; then
+            git push origin HEAD:main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  windows:
+    name: Build TK3J (Windows x64)
+    needs: sync
+    if: >-
+      always() && needs.sync.result != 'failure' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch' ||
+       needs.sync.outputs.changed == 'true')
+    runs-on: windows-latest
+    env:
+      T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
+      SCCACHE_GHA_ENABLED: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          submodules: recursive
+
+      - name: Read version
+        shell: bash
+        run: echo "T3K_VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.11
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            libs/juce
+            libs/googletest
+            libs/clap-juce-extensions
+          key: cpm-deps-windows-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+
+      - name: Setup MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # Steinberg's ASIO SDK (headers only) for the standalone's ASIO driver
+      # option. Not redistributable, so fetched at build time (as upstream does).
+      - name: Download ASIO SDK
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o asiosdk.zip https://www.steinberg.net/asiosdk
+          Expand-Archive asiosdk.zip -DestinationPath "$env:RUNNER_TEMP\asiosdk"
+          $sdk = (Get-ChildItem "$env:RUNNER_TEMP\asiosdk" -Directory | Select-Object -First 1).FullName
+          if (-not (Test-Path "$sdk\common\iasiodrv.h")) {
+            Write-Error "ASIO SDK layout unexpected: iasiodrv.h not found under $sdk"
+            exit 1
+          }
+          $sdk = $sdk -replace '\\', '/'
+          "ASIO_SDK_PATH=$sdk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Configure CMake
+        shell: bash
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DT3K_FORK_EDITION=ON \
+            -DBUILD_AAX=OFF \
+            -DASIO_SDK_PATH="$ASIO_SDK_PATH" \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+      - name: Run DSP tests
+        run: ctest --test-dir build/test --output-on-failure
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc /DVersion=$env:T3K_VERSION `
+            /DArtefactsDir="$env:GITHUB_WORKSPACE\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
+            /DOutputDir="$env:GITHUB_WORKSPACE\build" `
+            script\installer\windows\tk3j.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TK3J-v${{ env.T3K_VERSION }}-windows-x64
+          path: build/TK3J-v*-windows-x64.exe
+          if-no-files-found: error
+
+      # Rolling pre-release: always the newest installer at one stable link.
+      - name: Publish tk3j-latest release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exe=$(ls build/TK3J-v*-windows-x64.exe)
+          gh release delete tk3j-latest --cleanup-tag -y || true
+          gh release create tk3j-latest "$exe" \
+            --prerelease \
+            --target "$(git rev-parse HEAD)" \
+            --title "TK3J latest (v${T3K_VERSION}, $(git rev-parse --short HEAD))" \
+            --notes "Built from main at $(git rev-parse --short HEAD). Unsigned personal build: Windows SmartScreen will warn on first run (More info > Run anyway)."
