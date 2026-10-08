@@ -21,6 +21,21 @@ endif()
 set(PLUGIN_NAME "TONE3000")            # Name of the plugin (used in the UI)
 set(PLUGIN_CODE T3K0)                # Unique 4-letter code for the plugin
 
+# Fork (TK3J): its own name, plugin code, IDs and icon, so it installs and
+# shows up in DAWs next to the official TONE3000 instead of replacing it.
+# -DT3K_FORK_EDITION=OFF builds the stock identity.
+option(T3K_FORK_EDITION "Build under the fork's own identity (TK3J)" ON)
+set(T3K_PRODUCT_NAME "TONE3000")
+set(T3K_LV2_URI "https://www.tone3000.com/plugin")
+set(T3K_CLAP_ID "com.tone3000.plugin")
+if(T3K_FORK_EDITION)
+    set(PLUGIN_NAME "TK3J")
+    set(PLUGIN_CODE T3KJ)
+    set(T3K_PRODUCT_NAME "TK3J")
+    set(T3K_LV2_URI "https://www.tone3000.com/plugin/tk3j")
+    set(T3K_CLAP_ID "com.tone3000.plugin.tk3j")
+endif()
+
 # Version comes from the repo-root VERSION file (single source of truth).
 # Read here too so this directory still configures standalone.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../VERSION" T3K_VERSION)
@@ -157,6 +172,9 @@ if(APPLE AND NOT T3K_IOS)
     set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon-macos.png")
 else()
     set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon.png")
+    if(T3K_FORK_EDITION)
+        set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon-tk3j.png")
+    endif()
 endif()
 
 # Extra juce_add_plugin arguments for the iOS app. Kept in one list so the
@@ -236,8 +254,8 @@ juce_add_plugin(${PROJECT_NAME}
     FORMATS ${_plugin_formats}
     # The LV2 URI is the plugin's permanent identity in LV2 hosts (it keys
     # sessions and presets). Never change it once released.
-    LV2URI "https://www.tone3000.com/plugin"
-    PRODUCT_NAME ${PROJECT_NAME}
+    LV2URI "${T3K_LV2_URI}"
+    PRODUCT_NAME ${T3K_PRODUCT_NAME}
     VST3_AUTO_MANIFEST ${VST3_MANIFEST}
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "TONE3000 needs microphone access for audio input processing."
@@ -593,7 +611,7 @@ if (NOT HEADLESS AND BUILD_CLAP)
         EXCLUDE_FROM_ALL YES
     )
     clap_juce_extensions_plugin(TARGET ${PROJECT_NAME}
-        CLAP_ID "com.tone3000.plugin"
+        CLAP_ID "${T3K_CLAP_ID}"
         CLAP_FEATURES audio-effect distortion)
 endif()
 
