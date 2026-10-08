@@ -46,6 +46,7 @@
 #include "browser/ToneBrowser.h"
 #include "core/DelayedCall.h"
 #include "modals/ConnectionModal.h"
+#include "modals/MyGearModal.h"
 #include "modals/UpdateNotice.h"
 #include "settings/SettingsScreen.h"
 #include "services/Services.h"
@@ -155,6 +156,10 @@ private:
   juce::Component overlay_;
   ToastView toast_;
   std::unique_ptr<UpdateNotice> updateNotice_;
+  // Fork (TK3J): My Gear, opened by + / swap before the tone browser.
+  std::unique_ptr<MyGearModal> myGear_;
+  void openMyGear(ChainSide side, const std::string& targetId);
+  void closeMyGear();
   std::unique_ptr<ConnectionModal> connectionModal_;
   HintTracker hintTracker_;
   PointerTracker pointerTracker_;

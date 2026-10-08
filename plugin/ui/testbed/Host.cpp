@@ -14,7 +14,11 @@ void seedPrefs(UiPrefs& prefs, const Scenario& scenario, const juce::var& fixtur
     if (auto* props = obj.getDynamicObject())
       for (const auto& [name, value] : props->getProperties()) put(name.toString(), value.toString());
   };
-  seed(scenario.data["localStorage"], [&](auto k, auto v) { prefs.set(k, v); });
+  // Fork (TK3J): "{fixtures}" in a seeded value is the fixtures folder, so a
+  // scenario can point at files shipped beside it (My Gear's sample tones).
+  const auto fixturesPath = juce::File(T3K_TESTBED_FIXTURES).getFullPathName().replace("\\", "/");
+  seed(scenario.data["localStorage"],
+       [&](auto k, auto v) { prefs.set(k, juce::String(v).replace("{fixtures}", fixturesPath)); });
   seed(scenario.data["sessionStorage"], [&](auto k, auto v) { prefs.session[k] = v; });
   if (static_cast<bool>(scenario.data.getProperty("auth", false))) {
     auto* tokens = new juce::DynamicObject();

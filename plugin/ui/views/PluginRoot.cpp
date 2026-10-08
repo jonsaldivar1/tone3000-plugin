@@ -50,7 +50,10 @@ PluginRoot::PluginRoot(Services& services)
   // The add / swap browse flows: + and ⇄ open the tone browser through the
   // load flow, which remembers the target slot or block for the pick.
   main_.chainScreen().onSelectTone = [this](ChainSide side, const std::string& id) {
-    services_.loadFlow.select(side, id);
+    // Fork (TK3J): local tones first; the picker falls through to this same
+    // browse flow on "Browse TONE3000".
+    if (services_.myGear.openFirst()) openMyGear(side, id);
+    else services_.loadFlow.select(side, id);
   };
   services_.loadFlow.onShowBrowser = [this](bool show) { setBrowserShown(show); };
   // A browse-intent login (a sign-in CTA inside the browser) comes back to
@@ -124,7 +127,33 @@ std::unique_ptr<Modal> PluginRoot::openModal(Args&&... args) {
   return modal;
 }
 
+// Fork (TK3J): My Gear. Below the update notice and the connection modal.
+void PluginRoot::openMyGear(ChainSide side, const std::string& targetId) {
+  closeMyGear();
+  auto modal = openModal<MyGearModal>(services_.myGear);
+  modal->onPick = [this, targetId](const MyGear::Entry& entry) {
+    services_.myGear.noteUsed(entry.file);
+    services_.localFiles.drop(targetId, juce::StringArray(entry.file.getFullPathName()));
+    closeMyGear();
+  };
+  modal->onBrowse = [this, side, targetId] {
+    closeMyGear();
+    services_.loadFlow.select(side, targetId);
+  };
+  modal->onClose = [this] { closeMyGear(); };
+  myGear_ = std::move(modal);
+  restackModals();
+  myGear_->grabKeyboardFocus();
+}
+
+// Posted: the call comes from inside one of the modal's own buttons.
+void PluginRoot::closeMyGear() {
+  if (myGear_ == nullptr) return;
+  juce::MessageManager::callAsync([gone = std::shared_ptr<MyGearModal>(std::move(myGear_))] {});
+}
+
 void PluginRoot::restackModals() {
+  if (myGear_) myGear_->toFront(false);
   if (updateNotice_) updateNotice_->toFront(false);
   if (connectionModal_) connectionModal_->toFront(false);
 }
@@ -290,12 +319,13 @@ bool PluginRoot::FocusPolicy::keyPressed(const juce::KeyPress& key, juce::Compon
 
 SettingsScreen* PluginRoot::settingsInFront() const {
   // A modal over the page takes the keyboard with it.
-  if (updateNotice_ != nullptr || connectionModal_ != nullptr) return nullptr;
+  if (updateNotice_ != nullptr || connectionModal_ != nullptr || myGear_ != nullptr) return nullptr;
   return settings_.get();
 }
 
 DragScroller* PluginRoot::frontScroller() {
-  if (updateNotice_ != nullptr || connectionModal_ != nullptr) return nullptr;  // behind a scrim: nothing moves
+  if (updateNotice_ != nullptr || connectionModal_ != nullptr || myGear_ != nullptr)
+    return nullptr;  // behind a scrim: nothing moves
   if (settings_ != nullptr) return &settings_->scroller();
   if (tunerShown() || signInShown()) return nullptr;  // neither screen scrolls
   if (browserShown()) return &browser_->scroller();
@@ -449,7 +479,8 @@ void PluginRoot::closeSettings() {
 void PluginRoot::resized() {
   overlay_.setBounds(getLocalBounds());
   if (settings_ != nullptr) settings_->setBounds(getLocalBounds());
-  for (auto* modal : {static_cast<ModalLayer*>(updateNotice_.get()), static_cast<ModalLayer*>(connectionModal_.get())})
+  for (auto* modal : {static_cast<ModalLayer*>(updateNotice_.get()), static_cast<ModalLayer*>(connectionModal_.get()),
+                      static_cast<ModalLayer*>(myGear_.get())})
     if (modal != nullptr) modal->setBounds(getLocalBounds());
 
   // The banner strip, then the content column at its full height; while

@@ -93,6 +93,9 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
                  "whammy-style effects."),
       fitChain_("Fit Chain to Window",
                 "Shrinks the signal chain's tiles so every block is visible without scrolling."),
+      myGearFirst_("Open My Gear First",
+                   "Adding or swapping a block shows your own tones folder, pinned and recent tones before the "
+                   "TONE3000 search."),
       namSize_("NAM A2 Size",
                "Default size for new NAM blocks. Existing blocks keep their own, so presets load as saved."),
       lite_("A2-Lite", "Sounds great and uses less CPU"),
@@ -157,6 +160,8 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   add(showPitch_);
   fitChain_.onChange = [this](bool on) { services_.prefs.setBool(UiPrefs::kFitChainToWindow, on); };
   add(fitChain_);
+  myGearFirst_.onChange = [this](bool on) { services_.prefs.setBool(MyGear::kOpenFirst, on); };
+  add(myGearFirst_);
 
   // NAM A2 Size.
   namSize_.setInlineLabel();
@@ -257,7 +262,7 @@ PluginSettingsPage::~PluginSettingsPage() {
 void PluginSettingsPage::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowHints || key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl ||
       key == UiPrefs::kShowBlockSizeControl || key == UiPrefs::kShowBlockNormalizeControl ||
-      key == UiPrefs::kFitChainToWindow)
+      key == UiPrefs::kFitChainToWindow || key == MyGear::kOpenFirst)
     syncPrefs();
 }
 
@@ -266,6 +271,7 @@ void PluginSettingsPage::syncPrefs() {
   showGate_.setValue(services_.prefs.getBool(UiPrefs::kShowGateControl, true));
   showPitch_.setValue(services_.prefs.getBool(UiPrefs::kShowPitchControl, false));
   fitChain_.setValue(services_.prefs.getBool(UiPrefs::kFitChainToWindow, true));
+  myGearFirst_.setValue(services_.myGear.openFirst());
   const bool size = services_.prefs.getBool(UiPrefs::kShowBlockSizeControl, false);
   blockSize_.setValue(size);
   blockSize_.setExpanded(size);

@@ -99,6 +99,12 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Align:", /*right=*/true);
          wait(200);
        }},
+      // Fork (TK3J): + on an empty slot opens My Gear before the browser.
+      {"main-mygear",
+       [](PluginRoot& root, MockBackend&) {
+         clickByHelp(root, "Add Tone:");
+         wait(300);
+       }},
       {"chrome-tile-menu",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "'02 Vox AC30/6 Top Boost.", /*right=*/true);

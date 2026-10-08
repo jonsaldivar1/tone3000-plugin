@@ -15,6 +15,7 @@
 #include "LocalFiles.h"
 #include "MeterStore.h"
 #include "MidiMapStore.h"
+#include "MyGear.h"
 #include "ModelLoads.h"
 #include "Pointer.h"
 #include "PresetStore.h"
@@ -60,6 +61,7 @@ public:
         autoBalance(b, toast, AutoMeasure::Kind::balance),
         autoAlign(b, toast, AutoMeasure::Kind::align),
         localFiles(chain, toast),
+        myGear(p),
         modelLoads(chain, t),
         connection(t),
         loadFlow(chain, connection, t),
@@ -83,6 +85,7 @@ public:
   ImageLoader images;
   BrowserState browser;
   LocalFiles localFiles;
+  MyGear myGear;  // Fork (TK3J): local tones offered before the search
   ModelLoads modelLoads;
   ConnectionGate connection;
   ToneLoadFlow loadFlow;
