@@ -245,6 +245,19 @@ public:
   // deferredRevisionBump) so drag-rate calls never force full chain resyncs.
   bool setBlockParam(const std::string& blockId, const juce::String& param, double value);
 
+  // Fork (TK3J): scenes (A-D = 0-3) and footswitches ("E".."H").
+  // selectScene stores every tone block's current power / knobs / EQ into the
+  // scene being left, then applies the new scene's (blocks never visited in
+  // it keep their state). No model loads, so it is gapless. Not undoable: a
+  // performance action, like a preset switch.
+  bool selectScene(int index);
+  bool renameScene(int index, const juce::String& name);
+  // Assign a block to a footswitch letter ("" clears).
+  bool setBlockFootswitch(const std::string& blockId, const juce::String& letter);
+  // Flip every block on that footswitch together: all on -> all off, else
+  // all on. Undoable like a power click.
+  bool toggleFootswitch(const juce::String& letter);
+
   // Per-block NAM A2 size, in NAM's slimmable-size domain (0..1, clamped;
   // 0.0 = lite, 1.0 = full; see ChainBlock::namSlimSize). Chain state like
   // mix or the active model, so presets/undo/duplication carry each block's
@@ -849,6 +862,16 @@ private:
   // loads. No-op when the lane is shorter than N, and for the Right lane
   // outside stereo mode, so an inert lane is never edited invisibly.
   bool toggleBlockPower(int position, bool rightLane);
+
+  // Fork (TK3J): scenes and footswitches (ProcessorScenes.cpp).
+  // Scene state lives under chainMutex: the active scene index and the four
+  // names ride the chain snapshot (presets, undo, DAW state).
+  int activeScene = 0;
+  std::array<juce::String, ChainBlock::kNumScenes> sceneNames;
+  static juce::ValueTree serializeBlockScenes(const ChainBlock& block);
+  static void applyBlockScenes(ChainBlock& block, const juce::ValueTree& blockState);
+  juce::ValueTree serializeSceneSet() const;
+  void applySceneSet(const juce::ValueTree& snapshot);
 
   // Preset internals (ProcessorPresets.cpp).
   // The faceplate parameters a preset carries. Explicitly scoped: rig

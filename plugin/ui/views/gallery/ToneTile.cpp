@@ -5,6 +5,8 @@
 #include "core/Icons.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "core/Fonts.h"
+#include "core/ForkColors.h"
 #include "services/ToneArt.h"
 
 namespace t3k::ui {
@@ -56,6 +58,7 @@ ToneTile::ToneTile(Services& services, const ChainItem& block, int size)
 }
 
 ToneTile::~ToneTile() {
+  if (picker_ != nullptr) picker_->close();
   services().toneArt.removeChangeListener(this);
   services().pointer.removeListener(this);
   removeMouseListener(&hover_);
@@ -111,6 +114,15 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
   };
   for (auto& item : localLoadItems()) items.push_back(std::move(item));
 
+  // Fork (TK3J): put the block on a footswitch (opens the E-H picker).
+  items.push_back({block_.footswitch.isNotEmpty() ? "Footswitch: " + block_.footswitch : juce::String("Footswitch..."),
+                   Icon::Power, help::Key::footswitchTile, [this] {
+                     // After the menu has gone (this runs inside its row's click).
+                     juce::MessageManager::callAsync([safe = juce::Component::SafePointer<ToneTile>(this)] {
+                       if (safe != nullptr) safe->openFootswitchPicker();
+                     });
+                   }});
+
   // Fork (TK3J): art for tones loaded from disk (ToneArt). Tones loaded
   // before TK3J recorded the source have no path: reload them to enable.
   const auto& tone = block_.tone;
@@ -131,6 +143,21 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
     }
   }
   return items;
+}
+
+void ToneTile::openFootswitchPicker() {
+  if (picker_ != nullptr) picker_->close();
+  picker_ = std::make_unique<FootswitchPicker>(block_.footswitch);
+  picker_->onPick = [this](const juce::String& letter) {
+    this->services().chain.setBlockFootswitch(blockId(), letter);
+  };
+  picker_->openAt(*this, lastMenuPoint().translated(6, 6));
+}
+
+void ToneTile::setScenePreview(std::optional<bool> turnsOn) {
+  if (scenePreview_ == turnsOn) return;
+  scenePreview_ = turnsOn;
+  repaint();
 }
 
 void ToneTile::dropArmedChanged(bool) { syncState(); }
@@ -176,6 +203,33 @@ void ToneTile::paint(juce::Graphics& g) {
 }
 
 void ToneTile::paintOverChildren(juce::Graphics& g) {
+  // Fork (TK3J): footswitch outline + letter badge (bottom-left; the clip LED
+  // owns bottom-right), and the scene-bar hover preview.
+  const auto box = getLocalBounds().toFloat();
+  if (block_.footswitch.isNotEmpty() && !dropArmed()) {
+    const auto colour = fork_colors::footswitch(block_.footswitch);
+    g.setColour(colour);
+    g.drawRoundedRectangle(box.reduced(1.5f), gallery::kTileCorner - 1.0f, 3.0f);
+    const float d = juce::jlimit(18.0f, 26.0f, box.getWidth() * 0.13f);
+    const juce::Rectangle<float> badge(8.0f, box.getBottom() - 8.0f - d, d, d);
+    g.setColour(juce::Colours::black.withAlpha(0.6f));
+    g.fillEllipse(badge.expanded(2.0f));
+    g.setColour(colour);
+    g.fillEllipse(badge);
+    paint::text(g, block_.footswitch, badge.toNearestInt(), Fonts::sans(d * 0.55f, true), juce::Colours::black,
+                juce::Justification::centred);
+  }
+  if (scenePreview_.has_value() && !dropArmed()) {
+    g.setColour(theme::kWhite);
+    g.drawRoundedRectangle(box.reduced(1.0f), gallery::kTileCorner, 2.0f);
+    const auto text = *scenePreview_ ? juce::String("TURNS ON") : juce::String("TURNS OFF");
+    const auto font = Fonts::sans(11.0f, true);
+    const float w = Fonts::width(font, text) + 16.0f;
+    const juce::Rectangle<float> tag(box.getCentreX() - w / 2, box.getBottom() - 30.0f, w, 20.0f);
+    g.setColour(theme::kWhite);
+    g.fillRoundedRectangle(tag, 10.0f);
+    paint::text(g, text, tag.toNearestInt(), font, juce::Colours::black, juce::Justification::centred);
+  }
   if (dropArmed())
     paint::dashedBorder(g, getLocalBounds().toFloat(), gallery::kTileCorner,
                         gallery::kFileDropBorder, gallery::kAddTileBorderWidth);

@@ -106,10 +106,26 @@ public:
   /** Mapped preset prev/next controls fired; delta is the net step count
       (+1 per next press, -1 per previous, coalesced like the toggles). */
   std::function<void(int delta)> onPresetStep;
+  /** Fork (TK3J): a mapped scene control picked scene 0-3 (the CC value, or
+      the note number mod 4). Last one wins within an async hop. */
+  std::function<void(int index)> onSceneSelect;
+  /** Fork (TK3J): a mapped footswitch fired (0-3 = E-H), parity-coalesced. */
+  std::function<void(int index)> onFootswitchToggle;
+
+  /** Fork (TK3J) virtual targets: "tk3jScene" (value picks the scene) and
+      "tk3jFootswitchE".."tk3jFootswitchH" (toggles). */
+  static constexpr const char* kSceneTarget = "tk3jScene";
+  static int footswitchIndexFor(const juce::String& targetId) {
+    if (!targetId.startsWith("tk3jFootswitch") || targetId.length() != 15)
+      return -1;
+    const int i = targetId.getLastCharacter() - 'E';
+    return i >= 0 && i < 4 ? i : -1;
+  }
 
 private:
   enum class Source : int { cc = 0, note = 1 };
-  enum class Kind : int { parameter = 0, blockPower = 1, stereoMode = 2, presetStep = 3 };
+  enum class Kind : int { parameter = 0, blockPower = 1, stereoMode = 2, presetStep = 3,
+                          scene = 4, footswitch = 5 };  // Fork (TK3J): scene, footswitch
 
   /** Virtual target id for the chain's stereo on/off (chain state, not an
       APVTS parameter; the UI catalog uses the same id). */
@@ -126,6 +142,7 @@ private:
     int blockIndex = -1;                          // Kind::blockPower only
     bool rightBlock = false;                      // Kind::blockPower only: Right lane
     int presetDelta = 0;                          // Kind::presetStep only: +1 / -1
+    int footswitch = -1;                          // Kind::footswitch only: 0-3 = E-H
     Source source = Source::cc;
     int number = 0;       // CC number or note number
     bool toggle = false;  // derived: non-parameter kind, boolean param, or note source
@@ -152,6 +169,7 @@ private:
   bool isValidTarget(const juce::String& targetId) const {
     return blockPowerTargetFor(targetId).index >= 0 || targetId == kStereoTarget ||
            targetId == kPresetPrevTarget || targetId == kPresetNextTarget ||
+           targetId == kSceneTarget || footswitchIndexFor(targetId) >= 0 ||
            parameters.getParameter(targetId) != nullptr;
   }
 
@@ -188,6 +206,8 @@ private:
   std::atomic<juce::uint64> pendingRightBlockToggles{0};
   std::atomic<int> pendingStereoToggles{0};  // flip count; parity applies
   std::atomic<int> pendingPresetSteps{0};    // signed sum of ±1 steps
+  std::atomic<int> pendingScene{-1};          // Fork (TK3J): last scene wins
+  std::atomic<int> pendingFootswitchToggles{0};  // Fork (TK3J): XOR bitmask, E-H
   std::atomic<bool> mapDirty{false};                 // gate for onChanged
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiMapper)

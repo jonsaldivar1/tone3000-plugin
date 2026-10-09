@@ -41,6 +41,9 @@ public:
 
   // Preset load / reset: back to the gallery at the left edge.
   void returnToGallery();
+  // Fork (TK3J): hovering scene `scene` in the scene bar (-1 = none): tiles
+  // the scene would turn on or off say so.
+  void setScenePreview(int scene);
 
   // Open the detail takeover for a block.
   std::function<void(const std::string& blockId)> onOpenBlock;

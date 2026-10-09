@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <map>
 #include <memory>
@@ -272,6 +273,24 @@ struct ChainBlock {
   // Spectrum analyzer for the EQ editor backdrop. Only fed by the audio thread
   // while the UI has this block's EQ view open (atomic enabled flag).
   BlockSpectrum spectrum;
+
+  // Fork (TK3J): scenes and footswitches (ProcessorScenes.cpp). Each scene
+  // slot holds this block's power, knobs and EQ as last left in that scene;
+  // the ACTIVE scene's slot is stale by design (the live fields above are
+  // the active scene), and is refreshed from them whenever the scene is left.
+  // `stored` false = the block has never been in that scene: entering it
+  // keeps the block as it is. Persisted with the block (presets, undo, DAW
+  // state, copy/paste); stock TONE3000 ignores the extra tree.
+  struct SceneState {
+    bool stored = false;
+    bool enabled = true;
+    float inputGain = 0.5f, outputGain = 0.5f, mix = 1.0f;
+    juce::ValueTree eq;
+  };
+  static constexpr int kNumScenes = 4;
+  std::array<SceneState, kNumScenes> scenes;
+  // Footswitch letter ("E".."H") this block toggles with, or empty.
+  juce::String footswitch;
 
   ChainBlock(const std::string& blockId, ChainBlockType blockType)
       : id(blockId), type(blockType), toneId(0), activeModelId(0), loaded(false),

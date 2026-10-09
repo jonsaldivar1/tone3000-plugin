@@ -76,6 +76,16 @@ void MidiMapper::processMidi(const juce::MidiBuffer& midi) {
 }
 
 void MidiMapper::applyEvent(Mapping& mapping, const juce::MidiMessage& msg) {
+  // Fork (TK3J): a scene control picks by value (CC 0-3 = A-D; a note picks
+  // by its number mod 4). Values past 3 are ignored rather than guessed at.
+  if (mapping.kind == Kind::scene) {
+    const int index = msg.isController() ? msg.getControllerValue() : msg.getNoteNumber() % 4;
+    if (index >= 0 && index < 4) {
+      pendingScene.store(index);
+      triggerAsyncUpdate();
+    }
+    return;
+  }
   if (mapping.toggle) {
     // Note-ons always fire. For CCs, detect a *press*: any value ≥ 64, or a
     // value < 64 that doesn't follow a ≥ 64 one from this control. A
@@ -111,6 +121,12 @@ void MidiMapper::applyEvent(Mapping& mapping, const juce::MidiMessage& msg) {
         pendingPresetSteps.fetch_add(mapping.presetDelta);
         triggerAsyncUpdate();
         return;
+      case Kind::footswitch:  // Fork (TK3J)
+        pendingFootswitchToggles.fetch_xor(1 << mapping.footswitch);
+        triggerAsyncUpdate();
+        return;
+      case Kind::scene:
+        return;  // handled above
       case Kind::parameter: {
         auto& param = *mapping.param;
         param.setValueNotifyingHost(param.getValue() < 0.5f ? 1.0f : 0.0f);
@@ -210,15 +226,18 @@ MidiMapper::Mapping MidiMapper::makeMapping(const juce::String& targetId, Source
   const int presetDelta = targetId == kPresetNextTarget   ? 1
                           : targetId == kPresetPrevTarget ? -1
                                                           : 0;
+  const int footswitch = footswitchIndexFor(targetId);
   const Kind kind = presetDelta != 0          ? Kind::presetStep
                     : targetId == kStereoTarget ? Kind::stereoMode
                     : block.index >= 0          ? Kind::blockPower
+                    : targetId == kSceneTarget  ? Kind::scene
+                    : footswitch >= 0           ? Kind::footswitch
                                                 : Kind::parameter;
   auto* param = kind == Kind::parameter ? parameters.getParameter(targetId) : nullptr;
   jassert(kind != Kind::parameter || param != nullptr);  // callers validate the id first
-  const bool toggle = kind != Kind::parameter || source == Source::note ||
+  const bool toggle = (kind != Kind::parameter && kind != Kind::scene) || source == Source::note ||
                       (param != nullptr && param->isBoolean());
-  return {targetId, kind, param, block.index, block.right, presetDelta, source, number, toggle};
+  return {targetId, kind, param, block.index, block.right, presetDelta, footswitch, source, number, toggle};
 }
 
 void MidiMapper::notifyChanged() {
@@ -261,6 +280,14 @@ void MidiMapper::handleAsyncUpdate() {
 
   if (const int steps = pendingPresetSteps.exchange(0); steps != 0 && onPresetStep)
     onPresetStep(steps);
+
+  // Fork (TK3J): scenes and footswitches.
+  if (const int scene = pendingScene.exchange(-1); scene >= 0 && onSceneSelect)
+    onSceneSelect(scene);
+  auto footswitches = pendingFootswitchToggles.exchange(0);
+  for (int index = 0; footswitches != 0; ++index, footswitches >>= 1)
+    if ((footswitches & 1) != 0 && onFootswitchToggle)
+      onFootswitchToggle(index);
 
   // 3. Tell the UI, but only when the map/learn state actually moved;
   //    performance events alone shouldn't cause settings re-pulls.

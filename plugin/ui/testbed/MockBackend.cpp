@@ -157,6 +157,76 @@ void MockBackend::bumpChain() {
   o->setProperty("revision", static_cast<int>(o->getProperty("revision")) + 1);
 }
 
+// Fork (TK3J): scenes read each block's tk3j.sceneOn; the live power is
+// params.enabled (the active scene's entry follows it, like native).
+namespace {
+void forEachTone(juce::var& chain, const std::function<void(juce::var& block)>& fn) {
+  for (const auto* lane : {"chain", "chainRight"})
+    if (auto* blocks = chain[lane].getArray())
+      for (auto& b : *blocks)
+        if (b["kind"].toString() == "tone") fn(b);
+}
+// Objects and arrays in a var are shared, so the returned copy edits in place.
+juce::var ensureObj(const juce::var& parent, const char* key) {
+  juce::var obj = parent[key];
+  if (!obj.isObject()) {
+    obj = juce::var(new juce::DynamicObject());
+    parent.getDynamicObject()->setProperty(key, obj);
+  }
+  return obj;
+}
+}  // namespace
+
+bool MockBackend::selectScene(int index) {
+  if (index < 0 || index > 3) return false;
+  auto scenes = ensureObj(chain_, "scenes");
+  const int from = scenes["active"];
+  forEachTone(chain_, [&](juce::var& b) {
+    auto fork = ensureObj(b, "tk3j");
+    if (!fork["sceneOn"].isArray()) {
+      juce::Array<juce::var> on;
+      for (int i = 0; i < 4; ++i) on.add(b["params"]["enabled"]);
+      fork.getDynamicObject()->setProperty("sceneOn", on);
+    }
+    auto* on = fork["sceneOn"].getArray();
+    on->set(from, b["params"]["enabled"]);
+    b["params"].getDynamicObject()->setProperty("enabled", on->getReference(index));
+  });
+  scenes.getDynamicObject()->setProperty("active", index);
+  bumpChain();
+  return true;
+}
+
+bool MockBackend::renameScene(int index, const juce::String& name) {
+  auto scenes = ensureObj(chain_, "scenes");
+  if (!scenes["names"].isArray()) scenes.getDynamicObject()->setProperty("names", juce::Array<juce::var>{"", "", "", ""});
+  scenes["names"].getArray()->set(index, name.trim());
+  bumpChain();
+  return true;
+}
+
+bool MockBackend::setBlockFootswitch(const std::string& blockId, const juce::String& letter) {
+  forEachTone(chain_, [&](juce::var& b) {
+    if (b["blockId"].toString().toStdString() == blockId)
+      ensureObj(b, "tk3j").getDynamicObject()->setProperty("footswitch", letter);
+  });
+  bumpChain();
+  return true;
+}
+
+bool MockBackend::toggleFootswitch(const juce::String& letter) {
+  bool allOn = true, any = false;
+  forEachTone(chain_, [&](juce::var& b) {
+    if (b["tk3j"]["footswitch"].toString() == letter) { any = true; allOn = allOn && static_cast<bool>(b["params"]["enabled"]); }
+  });
+  if (!any) return false;
+  forEachTone(chain_, [&](juce::var& b) {
+    if (b["tk3j"]["footswitch"].toString() == letter) b["params"].getDynamicObject()->setProperty("enabled", !allOn);
+  });
+  bumpChain();
+  return true;
+}
+
 void MockBackend::notifyMidiMapChanged() {
   listeners.call([](Listener& l) { l.midiMapChanged(); });
 }

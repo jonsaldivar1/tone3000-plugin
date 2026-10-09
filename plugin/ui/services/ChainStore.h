@@ -60,6 +60,11 @@ public:
   bool swapChains();
   bool setBranch(ChainSide side, const std::string& afterBlockId);
   bool clearBranch();
+  // Fork (TK3J): scenes and footswitches.
+  bool selectScene(int index);
+  bool renameScene(int index, const juce::String& name);
+  bool setBlockFootswitch(const std::string& blockId, const juce::String& letter);
+  bool toggleFootswitch(const juce::String& letter);
   // Fire-and-forget (safe at drag rates); no resync.
   void setBlockParam(const std::string& blockId, const juce::String& param, double value);
   void setBlockParam(const std::string& blockId, const juce::String& param, bool value) {

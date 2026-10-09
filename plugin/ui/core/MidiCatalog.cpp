@@ -11,6 +11,13 @@ const std::vector<MappableTarget>& mappableTargets() {
         // programmed with CC / note buttons instead of program changes.
         {"presetPrevious", "Previous Preset", "Presets", K::trigger},
         {"presetNext", "Next Preset", "Presets", K::trigger},
+        // Fork (TK3J): scenes (the CC value picks: 0-3 = A-D) and the
+        // footswitches blocks are put on from their tile menu.
+        {"tk3jScene", "Scene (value 0-3 = A-D)", "Scenes", K::continuous},
+        {"tk3jFootswitchE", "Footswitch E", "Scenes", K::toggle},
+        {"tk3jFootswitchF", "Footswitch F", "Scenes", K::toggle},
+        {"tk3jFootswitchG", "Footswitch G", "Scenes", K::toggle},
+        {"tk3jFootswitchH", "Footswitch H", "Scenes", K::toggle},
         {"inputLevel", "Input Gain", "Global", K::continuous},
         {"outputLevel", "Output Level", "Global", K::continuous},
         {"outputBalance", "Output Balance", "Global", K::continuous},
@@ -92,6 +99,7 @@ juce::String sourceLabel(const MidiMapping& mapping) {
 juce::String behaviorLabel(const MidiMapping& mapping) {
   const auto* target = targetById(mapping.targetId);
   const auto kind = target != nullptr ? std::optional(target->kind) : std::nullopt;
+  if (mapping.targetId == "tk3jScene") return "Picks scene";  // Fork (TK3J)
   if (kind == TargetKind::trigger) return "Trigger";
   if (kind == TargetKind::toggle || mapping.source == MidiSource::note) return "Toggle";
   return "Absolute";

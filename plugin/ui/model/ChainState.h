@@ -121,6 +121,10 @@ struct ChainItem {
   std::optional<double> inputLevelDbu;
   std::optional<double> outputLevelDbu;
   BlockParams params;
+  // Fork (TK3J): footswitch letter ("E".."H" or empty) and the block's power
+  // in each scene A-D (the active scene's entry is the live power).
+  juce::String footswitch;
+  std::vector<bool> sceneOn;
 
   bool isTone() const { return !isInsert; }
 };
@@ -164,6 +168,9 @@ struct ChainState {
   std::vector<ChainItem> chain;
   std::optional<std::vector<ChainItem>> chainRight;
   std::optional<ChainBranch> branch;
+  // Fork (TK3J): scenes. Empty names show as "Scene A".."Scene D".
+  int activeScene = 0;
+  std::vector<juce::String> sceneNames;
 
   // The `{ revision, unchanged: true }` short reply.
   static bool isUnchanged(const juce::var& response);

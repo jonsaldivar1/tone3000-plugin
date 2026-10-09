@@ -990,6 +990,10 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     float inputGain = 0.5f, outputGain = 0.5f, mix = 1.0f;
     juce::var eq;
     bool rtFailed = false;
+    // Fork (TK3J): footswitch letter + power per scene (the active scene's
+    // entry is the live power).
+    juce::String footswitch;
+    std::array<bool, ChainBlock::kNumScenes> sceneOn{};
   };
 
   juce::uint32 revision = 0;
@@ -997,6 +1001,8 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   bool stereo = false, canUndo = false, canRedo = false, branched = false;
   bool canPaste = false, atDefault = false;
   juce::String presetId, presetName, branchSide, activeSide, branchAfter;
+  int sceneActive = 0;  // Fork (TK3J)
+  std::array<juce::String, ChainBlock::kNumScenes> sceneNameCopy;
 
   {
     juce::ScopedLock lock(chainMutex);
@@ -1056,11 +1062,16 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
         row.outputGain = block->outputGainNormalized;
         row.mix = block->mixNormalized;
         row.eq = block->eq.toVar();
+        row.footswitch = block->footswitch;
+        for (size_t s = 0; s < row.sceneOn.size(); ++s)
+          row.sceneOn[s] = block->scenes[s].stored ? block->scenes[s].enabled : block->enabled;
         out.push_back(std::move(row));
       }
     };
 
     copyLane(lane(ChainSide::Left), left);
+    sceneActive = activeScene;
+    sceneNameCopy = sceneNames;
     stereo = stereoEnabled.load();
     if (stereo)
       copyLane(lane(ChainSide::Right), right);
@@ -1080,7 +1091,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   }
 
   // Lock released; build the payload.
-  auto serializeChain = [](const std::vector<BlockRow>& rows) {
+  auto serializeChain = [sceneActive](const std::vector<BlockRow>& rows) {
     juce::Array<juce::var> chainArray;
     for (const auto& row : rows) {
       if (row.rtFailed)
@@ -1136,6 +1147,16 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
       params->setProperty("eq", row.eq);
       item->setProperty("params", juce::var(params.get()));
 
+      // Fork (TK3J): footswitch + per-scene power (the active scene is live).
+      juce::DynamicObject::Ptr fork = new juce::DynamicObject();
+      if (row.footswitch.isNotEmpty())
+        fork->setProperty("footswitch", row.footswitch);
+      juce::Array<juce::var> sceneOn;
+      for (size_t s = 0; s < row.sceneOn.size(); ++s)
+        sceneOn.add(static_cast<int>(s) == sceneActive ? row.enabled : row.sceneOn[s]);
+      fork->setProperty("sceneOn", sceneOn);
+      item->setProperty("tk3j", juce::var(fork.get()));
+
       chainArray.add(juce::var(item.get()));
     }
     return chainArray;
@@ -1164,6 +1185,15 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     state->setProperty("preset", juce::var(preset.get()));
   }
   state->setProperty("stereoEnabled", stereo);
+  // Fork (TK3J): scenes.
+  {
+    juce::DynamicObject::Ptr scenes = new juce::DynamicObject();
+    scenes->setProperty("active", sceneActive);
+    juce::Array<juce::var> names;
+    for (const auto& n : sceneNameCopy) names.add(n);
+    scenes->setProperty("names", names);
+    state->setProperty("scenes", juce::var(scenes.get()));
+  }
   // Active branch (stereo mode only): which lane is the trunk and which of
   // its tone blocks feeds the other lane. Absent when the chains are
   // independent, and while mono, where a set branch lies dormant.

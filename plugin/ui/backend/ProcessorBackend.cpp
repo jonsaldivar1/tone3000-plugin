@@ -90,6 +90,18 @@ std::string ProcessorBackend::pasteChainBlock(const juce::String& side, int inde
   return processor_.pasteChainBlock(side, index);
 }
 bool ProcessorBackend::swapChains() { return processor_.swapChains(); }
+// Fork (TK3J): scenes and footswitches.
+bool ProcessorBackend::selectScene(int index) { return processor_.selectScene(index); }
+bool ProcessorBackend::renameScene(int index, const juce::String& name) {
+  return processor_.renameScene(index, name);
+}
+bool ProcessorBackend::setBlockFootswitch(const std::string& blockId, const juce::String& letter) {
+  return processor_.setBlockFootswitch(blockId, letter);
+}
+bool ProcessorBackend::toggleFootswitch(const juce::String& letter) {
+  return processor_.toggleFootswitch(letter);
+}
+
 bool ProcessorBackend::setChainBranch(const juce::String& side, const std::string& afterBlockId) {
   return processor_.setChainBranch(side, afterBlockId);
 }

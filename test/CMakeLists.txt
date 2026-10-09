@@ -38,6 +38,7 @@ target_sources(DspTests PRIVATE
     src/pitch_shift_tests.cpp
     src/preset_tests.cpp
     src/processor_tests.cpp
+    src/scene_tests.cpp
     src/spread_tests.cpp
     src/state_cache_tests.cpp
     src/swap_fade_tests.cpp
@@ -60,6 +61,7 @@ target_sources(DspTests PRIVATE
     ../plugin/src/ProcessorHistory.cpp
     ../plugin/src/ProcessorModelLoader.cpp
     ../plugin/src/ProcessorPresets.cpp
+    ../plugin/src/ProcessorScenes.cpp
     ../plugin/src/ProcessorState.cpp
     ../plugin/src/Spread.cpp
     # Processor.cpp's constructor calls StandaloneStateAutosave::install().

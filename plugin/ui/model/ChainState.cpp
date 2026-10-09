@@ -138,6 +138,9 @@ ChainItem parseItem(const juce::var& v) {
   item.inputLevelDbu = optNum(v, "inputLevelDbu");
   item.outputLevelDbu = optNum(v, "outputLevelDbu");
   item.params = parseParams(v["params"]);
+  item.footswitch = str(v["tk3j"], "footswitch");
+  if (const auto* on = v["tk3j"]["sceneOn"].getArray())
+    for (const auto& b : *on) item.sceneOn.push_back(static_cast<bool>(b));
   return item;
 }
 
@@ -165,6 +168,10 @@ ChainState ChainState::parse(const juce::var& v) {
   s.dualMonoActive = boolean(v, "dualMonoActive");
   s.namSlimSizeDefault = num(v, "namSlimSizeDefault", 0);
   s.multiCore = boolean(v, "multiCore", true);
+  s.activeScene = juce::jlimit(0, 3, integer(v["scenes"], "active"));
+  s.sceneNames.assign(4, {});
+  if (const auto* names = v["scenes"]["names"].getArray())
+    for (int i = 0; i < juce::jmin(4, names->size()); ++i) s.sceneNames[static_cast<size_t>(i)] = names->getReference(i).toString();
   s.sampleRate = num(v, "sampleRate", 48000);
   s.chain = list<ChainItem>(v, "chain", parseItem);
   if (v["chainRight"].isArray())

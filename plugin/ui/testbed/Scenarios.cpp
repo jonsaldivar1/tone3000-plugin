@@ -111,6 +111,21 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Zuta GBG120.", /*right=*/true);
          wait(300);
        }},
+      // Fork (TK3J): scenes.
+      {"main-scenes-preview",
+       [](PluginRoot& root, MockBackend&) {
+         wait(200);
+         if (auto* chip = find(root, [](juce::Component& c) { return c.getTitle().startsWith("Scene C:"); }))
+           hoverAt(root, *chip, chip->getLocalBounds().getCentre());
+         wait(300);
+       }},
+      {"main-scenes-picker",
+       [](PluginRoot& root, MockBackend&) {
+         clickByHelp(root, "Zuta GBG120.", /*right=*/true);
+         wait(300);
+         clickByHelp(root, "Footswitch:");
+         wait(400);
+       }},
       {"chrome-tile-menu",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "'02 Vox AC30/6 Top Boost.", /*right=*/true);

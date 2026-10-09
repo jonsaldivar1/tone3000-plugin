@@ -95,6 +95,8 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
                 "Shrinks the signal chain's tiles so every block is visible without scrolling."),
       blockLabels_("Show Block Labels",
                    "Gear and product name under each block in the signal chain. Click a label to edit it."),
+      sceneBar_("Show Scene Bar",
+                "Scenes A to D and your footswitches under the signal chain. Map them to your QC under MIDI."),
       myGearFirst_("Open My Gear First",
                    "Adding or swapping a block shows your own tones folder, pinned and recent tones before the "
                    "TONE3000 search."),
@@ -164,6 +166,8 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   add(fitChain_);
   blockLabels_.onChange = [this](bool on) { services_.prefs.setBool(UiPrefs::kShowBlockLabels, on); };
   add(blockLabels_);
+  sceneBar_.onChange = [this](bool on) { services_.prefs.setBool(UiPrefs::kShowSceneBar, on); };
+  add(sceneBar_);
   myGearFirst_.onChange = [this](bool on) { services_.prefs.setBool(MyGear::kOpenFirst, on); };
   add(myGearFirst_);
 
@@ -266,7 +270,7 @@ PluginSettingsPage::~PluginSettingsPage() {
 void PluginSettingsPage::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowHints || key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl ||
       key == UiPrefs::kShowBlockSizeControl || key == UiPrefs::kShowBlockNormalizeControl ||
-      key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels || key == MyGear::kOpenFirst)
+      key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels || key == UiPrefs::kShowSceneBar || key == MyGear::kOpenFirst)
     syncPrefs();
 }
 
@@ -276,6 +280,7 @@ void PluginSettingsPage::syncPrefs() {
   showPitch_.setValue(services_.prefs.getBool(UiPrefs::kShowPitchControl, false));
   fitChain_.setValue(services_.prefs.getBool(UiPrefs::kFitChainToWindow, true));
   blockLabels_.setValue(services_.prefs.getBool(UiPrefs::kShowBlockLabels, true));
+  sceneBar_.setValue(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
   myGearFirst_.setValue(services_.myGear.openFirst());
   const bool size = services_.prefs.getBool(UiPrefs::kShowBlockSizeControl, false);
   blockSize_.setValue(size);

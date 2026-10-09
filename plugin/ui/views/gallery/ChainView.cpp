@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "GalleryGeometry.h"
+#include "ToneTile.h"
 #include "core/Fonts.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
@@ -305,6 +306,21 @@ void ChainView::layoutCaptions(int lanesTop, int tile) {
     }
   }
   captions_ = std::move(next);  // the rest are destroyed (removed from the column)
+}
+
+void ChainView::setScenePreview(int scene) {
+  const auto& state = services_.chain.state();
+  for (const auto* lanes : {&lanes_.left, &lanes_.right})
+    for (const auto& item : *lanes) {
+      if (!item.isTone()) continue;
+      auto* tile = dynamic_cast<ToneTile*>(lane(laneOf(lanes_, item.blockId).value_or(ChainSide::left)).tileFor(item.blockId));
+      if (tile == nullptr) continue;
+      std::optional<bool> next;
+      if (scene >= 0 && scene != state.activeScene && scene < static_cast<int>(item.sceneOn.size()) &&
+          item.sceneOn[static_cast<size_t>(scene)] != item.params.enabled)
+        next = item.sceneOn[static_cast<size_t>(scene)];
+      tile->setScenePreview(next);
+    }
 }
 
 void ChainView::changeListenerCallback(juce::ChangeBroadcaster*) {

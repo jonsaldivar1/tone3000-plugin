@@ -53,6 +53,7 @@ private:
   ToggleRow fitChain_;
   // Fork (TK3J): gear / product captions under the chain tiles.
   ToggleRow blockLabels_;
+  ToggleRow sceneBar_;  // Fork (TK3J)
   // Fork (TK3J): + / swap open My Gear before the TONE3000 search.
   ToggleRow myGearFirst_;
   FieldRow namSize_;

@@ -70,6 +70,9 @@ protected:
   bool dropArmed() const { return dropArmed_; }
   bool menuOpen() const { return menu_ != nullptr && menu_->isOpen(); }
   Services& services() { return services_; }
+  // Fork (TK3J): where the last context menu opened (a follow-up panel, the
+  // footswitch picker, opens in the same spot).
+  juce::Point<int> lastMenuPoint() const { return menuPoint_; }
 
 private:
   static constexpr int kLongPressMs = 500;
@@ -101,6 +104,7 @@ private:
   juce::int64 menuDismissedMs_ = 0;
   DelayedCall hold_;
   std::unique_ptr<ContextMenu> menu_;
+  juce::Point<int> menuPoint_;  // Fork (TK3J)
 };
 
 }  // namespace t3k::ui

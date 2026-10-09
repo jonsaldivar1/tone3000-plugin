@@ -96,6 +96,11 @@ TONE3000Processor::TONE3000Processor()
     toggleBlockPower(index, right);
   };
   midiMapper.onStereoToggle = [this] { setStereoMode(!isStereoMode()); };
+  // Fork (TK3J): QC scene / footswitch messages.
+  midiMapper.onSceneSelect = [this](int index) { selectScene(index); };
+  midiMapper.onFootswitchToggle = [this](int index) {
+    toggleFootswitch(juce::String::charToString(static_cast<juce::juce_wchar>('E' + index)));
+  };
 
   // Every lane starts at its minimum slot layout (kMinLaneSlots pass-through
   // insert placeholders). The right lane stays invisible until stereo mode is

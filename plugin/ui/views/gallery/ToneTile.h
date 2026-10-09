@@ -6,6 +6,8 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <optional>
+
 #include "GalleryTile.h"
 #include "core/AlphaTween.h"
 #include "model/ChainState.h"
@@ -15,6 +17,7 @@
 #include "widgets/LoadingDots.h"
 #include "widgets/RetryLoadBadge.h"
 #include "widgets/ToneImage.h"
+#include "widgets/FootswitchPicker.h"
 
 namespace t3k::ui {
 
@@ -31,6 +34,9 @@ public:
 
   // A fresh snapshot of the same block (resync).
   void setBlock(const ChainItem& block);
+  // Fork (TK3J): the scene bar is hovering a scene that would turn this
+  // block on (true) or off (false); nullopt = no preview.
+  void setScenePreview(std::optional<bool> turnsOn);
   const ChainItem& block() const { return block_; }
 
   std::function<void(const std::string& blockId)> onOpen;
@@ -98,6 +104,10 @@ private:
   juce::Component ledSlot_;
   BlockLed led_;
   HoverWatcher hover_{*this};
+  // Fork (TK3J): footswitch picker and scene preview.
+  std::unique_ptr<FootswitchPicker> picker_;
+  std::optional<bool> scenePreview_;
+  void openFootswitchPicker();
 };
 
 }  // namespace t3k::ui

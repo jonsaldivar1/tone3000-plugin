@@ -14,11 +14,12 @@
 
 #include "block/BlockDetail.h"
 #include "gallery/ChainView.h"
+#include "gallery/SceneBar.h"
 #include "services/Services.h"
 
 namespace t3k::ui {
 
-class ChainScreen : public juce::Component {
+class ChainScreen : public juce::Component, private UiPrefs::Listener {
 public:
   explicit ChainScreen(Services& services);
   ~ChainScreen() override;
@@ -37,12 +38,14 @@ public:
   void resized() override;
 
 private:
+  void prefChanged(const juce::String& key) override;  // Fork (TK3J): scene bar toggle
   void openDetail(const std::string& blockId);
   void closeDetail();
 
   Services& services_;
   ChainView gallery_;
   std::unique_ptr<BlockDetail> detail_;
+  SceneBar scenes_;  // Fork (TK3J)
 };
 
 }  // namespace t3k::ui

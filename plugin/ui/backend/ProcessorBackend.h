@@ -45,6 +45,10 @@ public:
   bool swapChains() override;
   bool setChainBranch(const juce::String& side, const std::string& afterBlockId) override;
   bool clearChainBranch() override;
+  bool selectScene(int index) override;  // Fork (TK3J)
+  bool renameScene(int index, const juce::String& name) override;
+  bool setBlockFootswitch(const std::string& blockId, const juce::String& letter) override;
+  bool toggleFootswitch(const juce::String& letter) override;
   void setStereoMode(bool enabled) override;
   void setInputMode(const juce::String& mode) override;
   void setActiveEditChain(const juce::String& side) override;

@@ -124,6 +124,20 @@ bool ChainStore::setBranch(ChainSide side, const std::string& afterBlockId) {
   return run([&] { return backend_.setChainBranch(toString(side), afterBlockId); });
 }
 
+// Fork (TK3J): scenes and footswitches.
+bool ChainStore::selectScene(int index) {
+  return run([&] { return backend_.selectScene(index); });
+}
+bool ChainStore::renameScene(int index, const juce::String& name) {
+  return run([&] { return backend_.renameScene(index, name); });
+}
+bool ChainStore::setBlockFootswitch(const std::string& blockId, const juce::String& letter) {
+  return run([&] { return backend_.setBlockFootswitch(blockId, letter); });
+}
+bool ChainStore::toggleFootswitch(const juce::String& letter) {
+  return run([&] { return backend_.toggleFootswitch(letter); });
+}
+
 bool ChainStore::clearBranch() {
   return run([&] { return backend_.clearChainBranch(); });
 }

@@ -4,7 +4,13 @@
 
 namespace t3k::ui {
 
-ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(services) {
+ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(services), scenes_(services) {
+  // Fork (TK3J): the scene bar under the chain; hovering a scene previews it
+  // on the tiles.
+  scenes_.onPreview = [this](int scene) { gallery_.setScenePreview(scene); };
+  addChildComponent(scenes_);
+  scenes_.setVisible(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
+  services_.prefs.addListener(this);
   gallery_.onOpenBlock = [this](const std::string& id) { openDetail(id); };
   gallery_.onSelectTone = [this](ChainSide side, const std::string& id) {
     if (onSelectTone) onSelectTone(side, id);
@@ -23,7 +29,13 @@ ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(ser
   }
 }
 
-ChainScreen::~ChainScreen() = default;
+ChainScreen::~ChainScreen() { services_.prefs.removeListener(this); }
+
+void ChainScreen::prefChanged(const juce::String& key) {
+  if (key != UiPrefs::kShowSceneBar) return;
+  scenes_.setVisible(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
+  resized();
+}
 
 void ChainScreen::openDetail(const std::string& blockId) {
   services_.prefs.session[UiPrefs::kDetailBlockId] = juce::String(blockId);
@@ -61,8 +73,10 @@ void ChainScreen::returnToGallery() {
 }
 
 void ChainScreen::resized() {
-  gallery_.setBounds(getLocalBounds());
-  if (detail_) detail_->setBounds(getLocalBounds());
+  auto area = getLocalBounds();
+  if (scenes_.isVisible()) scenes_.setBounds(area.removeFromBottom(SceneBar::kHeight));
+  gallery_.setBounds(area);
+  if (detail_) detail_->setBounds(area);
 }
 
 }  // namespace t3k::ui
