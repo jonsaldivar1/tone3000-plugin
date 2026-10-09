@@ -109,17 +109,20 @@ public:
   /** Fork (TK3J): a mapped scene control picked scene 0-3 (the CC value, or
       the note number mod 4). Last one wins within an async hop. */
   std::function<void(int index)> onSceneSelect;
-  /** Fork (TK3J): a mapped footswitch fired (0-3 = E-H), parity-coalesced. */
+  /** Fork (TK3J): a mapped footswitch fired (0-7 = 1-8), parity-coalesced. */
   std::function<void(int index)> onFootswitchToggle;
 
   /** Fork (TK3J) virtual targets: "tk3jScene" (value picks the scene) and
-      "tk3jFootswitchE".."tk3jFootswitchH" (toggles). */
+      "tk3jFootswitch1".."tk3jFootswitch8" (toggles; the first build's
+      "tk3jFootswitchE".."H" still load, as 1-4). */
   static constexpr const char* kSceneTarget = "tk3jScene";
   static int footswitchIndexFor(const juce::String& targetId) {
     if (!targetId.startsWith("tk3jFootswitch") || targetId.length() != 15)
       return -1;
-    const int i = targetId.getLastCharacter() - 'E';
-    return i >= 0 && i < 4 ? i : -1;
+    const auto c = targetId.getLastCharacter();
+    if (c >= '1' && c <= '8') return c - '1';
+    if (c >= 'E' && c <= 'H') return c - 'E';
+    return -1;
   }
 
 private:
@@ -142,7 +145,7 @@ private:
     int blockIndex = -1;                          // Kind::blockPower only
     bool rightBlock = false;                      // Kind::blockPower only: Right lane
     int presetDelta = 0;                          // Kind::presetStep only: +1 / -1
-    int footswitch = -1;                          // Kind::footswitch only: 0-3 = E-H
+    int footswitch = -1;                          // Kind::footswitch only: 0-7 = 1-8
     Source source = Source::cc;
     int number = 0;       // CC number or note number
     bool toggle = false;  // derived: non-parameter kind, boolean param, or note source
@@ -207,7 +210,7 @@ private:
   std::atomic<int> pendingStereoToggles{0};  // flip count; parity applies
   std::atomic<int> pendingPresetSteps{0};    // signed sum of ±1 steps
   std::atomic<int> pendingScene{-1};          // Fork (TK3J): last scene wins
-  std::atomic<int> pendingFootswitchToggles{0};  // Fork (TK3J): XOR bitmask, E-H
+  std::atomic<int> pendingFootswitchToggles{0};  // Fork (TK3J): XOR bitmask, 1-8
   std::atomic<bool> mapDirty{false};                 // gate for onChanged
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiMapper)

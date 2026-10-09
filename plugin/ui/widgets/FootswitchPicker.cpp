@@ -49,7 +49,9 @@ FootswitchPicker::FootswitchPicker(const juce::String& current) {
     };
     addAndMakeVisible(*c);
   }
-  setSize(2 * kBorder + 2 * kPad + 4 * kButton + 4 * kGap + kNoneW, 2 * kBorder + 2 * kPad + kButton);
+  // Two rows of four (1-4 over 5-8, like two rows of switches), None under.
+  setSize(2 * kBorder + 2 * kPad + 4 * kButton + 3 * kGap,
+          2 * kBorder + 2 * kPad + 2 * kButton + 2 * kGap + kNoneH);
 }
 
 FootswitchPicker::~FootswitchPicker() = default;
@@ -62,11 +64,12 @@ void FootswitchPicker::paint(juce::Graphics& g) {
 
 void FootswitchPicker::resized() {
   auto area = contentBounds().reduced(kPad);
-  for (size_t i = 0; i < choices_.size(); ++i) {
-    const int w = i + 1 == choices_.size() ? kNoneW : kButton;
-    choices_[i]->setBounds(area.removeFromLeft(w));
-    area.removeFromLeft(kGap);
+  for (size_t i = 0; i + 1 < choices_.size(); ++i) {
+    const int col = static_cast<int>(i % 4), row = static_cast<int>(i / 4);
+    choices_[i]->setBounds(area.getX() + col * (kButton + kGap), area.getY() + row * (kButton + kGap), kButton,
+                           kButton);
   }
+  choices_.back()->setBounds(area.withTrimmedTop(2 * (kButton + kGap)).withHeight(kNoneH));
 }
 
 }  // namespace t3k::ui

@@ -114,7 +114,7 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
   };
   for (auto& item : localLoadItems()) items.push_back(std::move(item));
 
-  // Fork (TK3J): put the block on a footswitch (opens the E-H picker).
+  // Fork (TK3J): put the block on a footswitch (opens the 1-8 picker).
   items.push_back({block_.footswitch.isNotEmpty() ? "Footswitch: " + block_.footswitch : juce::String("Footswitch..."),
                    Icon::Power, help::Key::footswitchTile, [this] {
                      // After the menu has gone (this runs inside its row's click).

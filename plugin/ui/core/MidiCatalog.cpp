@@ -12,12 +12,8 @@ const std::vector<MappableTarget>& mappableTargets() {
         {"presetPrevious", "Previous Preset", "Presets", K::trigger},
         {"presetNext", "Next Preset", "Presets", K::trigger},
         // Fork (TK3J): scenes (the CC value picks: 0-3 = A-D) and the
-        // footswitches blocks are put on from their tile menu.
+        // footswitches blocks are put on from their tile menu (added below).
         {"tk3jScene", "Scene (value 0-3 = A-D)", "Scenes", K::continuous},
-        {"tk3jFootswitchE", "Footswitch E", "Scenes", K::toggle},
-        {"tk3jFootswitchF", "Footswitch F", "Scenes", K::toggle},
-        {"tk3jFootswitchG", "Footswitch G", "Scenes", K::toggle},
-        {"tk3jFootswitchH", "Footswitch H", "Scenes", K::toggle},
         {"inputLevel", "Input Gain", "Global", K::continuous},
         {"outputLevel", "Output Level", "Global", K::continuous},
         {"outputBalance", "Output Balance", "Global", K::continuous},
@@ -60,6 +56,12 @@ const std::vector<MappableTarget>& mappableTargets() {
         {"chainInvertLeft", "Invert L", "Stereo", K::toggle},
         {"chainInvertRight", "Invert R", "Stereo", K::toggle},
     };
+    // Fork (TK3J): footswitches 1-8, right after the scene target.
+    {
+      auto at = t.begin() + 3;  // presetPrevious, presetNext, tk3jScene
+      for (int i = 8; i >= 1; --i)
+        at = t.insert(at, {"tk3jFootswitch" + juce::String(i), "Footswitch " + juce::String(i), "Scenes", K::toggle});
+    }
     for (int i = 1; i <= kBlockPowerTargets; ++i)
       t.push_back({"block" + juce::String(i) + "Power", "Block " + juce::String(i) + " Power", "Chain", K::toggle});
     for (int i = 1; i <= kBlockPowerTargets; ++i)

@@ -322,7 +322,10 @@ void MidiMapper::restoreFromValueTree(const juce::ValueTree& tree) {
     for (const auto& child : tree) {
       if (!child.hasType("Mapping"))
         continue;
-      const auto targetId = child.getProperty("targetId").toString();
+      auto targetId = child.getProperty("targetId").toString();
+      // Fork (TK3J): the first build's footswitches E-H are now 1-4.
+      if (const int fs = footswitchIndexFor(targetId); fs >= 0)
+        targetId = "tk3jFootswitch" + juce::String(fs + 1);
       if (!isValidTarget(targetId))
         continue;  // unknown/renamed target in an old project: drop it
       restored.push_back(makeMapping(targetId,

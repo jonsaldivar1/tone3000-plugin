@@ -3486,7 +3486,7 @@
         true,
         false
        ],
-       "footswitch": "E"
+       "footswitch": "1"
       }
      },
      {
@@ -3650,7 +3650,7 @@
         false,
         true
        ],
-       "footswitch": "F"
+       "footswitch": "2"
       }
      },
      {
@@ -3889,7 +3889,7 @@
         true,
         false
        ],
-       "footswitch": "E"
+       "footswitch": "1"
       }
      },
      {
@@ -4053,7 +4053,7 @@
         false,
         true
        ],
-       "footswitch": "F"
+       "footswitch": "2"
       }
      },
      {
@@ -4292,7 +4292,7 @@
         true,
         false
        ],
-       "footswitch": "E"
+       "footswitch": "1"
       }
      },
      {
@@ -4456,7 +4456,7 @@
         false,
         true
        ],
-       "footswitch": "F"
+       "footswitch": "2"
       }
      },
      {

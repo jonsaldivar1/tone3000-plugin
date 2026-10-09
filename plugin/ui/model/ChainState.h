@@ -121,7 +121,7 @@ struct ChainItem {
   std::optional<double> inputLevelDbu;
   std::optional<double> outputLevelDbu;
   BlockParams params;
-  // Fork (TK3J): footswitch letter ("E".."H" or empty) and the block's power
+  // Fork (TK3J): footswitch ("1".."8" or empty) and the block's power
   // in each scene A-D (the active scene's entry is the live power).
   juce::String footswitch;
   std::vector<bool> sceneOn;

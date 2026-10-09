@@ -1,5 +1,5 @@
 // Fork (TK3J): the one-row footswitch picker a tile's "Footswitch..." menu
-// row opens: E F G H in their colors (the current one filled) and None.
+// row opens: 1-8 in their colors (the current one filled) and None.
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -14,12 +14,12 @@ namespace t3k::ui {
 
 class FootswitchPicker : public Popover {
 public:
-  static constexpr int kButton = 40, kPad = 6, kGap = 4, kNoneW = 64;
+  static constexpr int kButton = 40, kPad = 6, kGap = 4, kNoneH = 32;
 
   explicit FootswitchPicker(const juce::String& current);
   ~FootswitchPicker() override;
 
-  // A letter ("E".."H") or "" for None.
+  // A footswitch ("1".."8") or "" for None.
   std::function<void(const juce::String& letter)> onPick;
 
   void paint(juce::Graphics& g) override;

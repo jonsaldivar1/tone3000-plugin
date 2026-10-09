@@ -261,7 +261,7 @@ std::map<Key, String> buildTable() {
       U("Set Art: pick a JPG or PNG for this tone. Saved next to its files as cover art.");
   t[Key::clearArtTile] = U("Clear Art: remove this tone's cover art (moved to the trash).");
   t[Key::footswitchTile] =
-      U("Footswitch: put this block on footswitch E, F, G or H. Blocks on the same switch turn on and off together.");
+      U("Footswitch: put this block on footswitch 1 to 8. Blocks on the same switch turn on and off together.");
 
   for (auto& [key, value] : t) value = touchify(value);
   return t;

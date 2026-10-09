@@ -9,7 +9,7 @@
 // the player tweaks in a scene is what that scene recalls, with no explicit
 // save step.
 //
-// Footswitches E-H group blocks: toggling one flips all of its blocks
+// Footswitches 1-8 group blocks: toggling one flips all of its blocks
 // together (all on -> all off, else all on) as one undoable step; power
 // changes glide through each block's wet fade like a power click.
 #include "Processor.h"
@@ -39,8 +39,15 @@ void applyScene(ChainBlock& block, const ChainBlock::SceneState& s) {
     block.eq.restoreFromValueTree(s.eq);
 }
 
+// Footswitches are "1".."8". The first build named them E-H; those load as 1-4.
 bool isFootswitchLetter(const juce::String& letter) {
-  return letter == "E" || letter == "F" || letter == "G" || letter == "H";
+  return letter.length() == 1 && letter[0] >= '1' && letter[0] <= '8';
+}
+
+juce::String migrateFootswitch(const juce::String& letter) {
+  if (letter.length() == 1 && letter[0] >= 'E' && letter[0] <= 'H')
+    return juce::String(letter[0] - 'E' + 1);
+  return letter;
 }
 
 }  // namespace
@@ -84,7 +91,7 @@ void TONE3000Processor::applyBlockScenes(ChainBlock& block, const juce::ValueTre
     const auto eq = scene.getChildWithName("Eq");
     s.eq = eq.isValid() ? eq.createCopy() : juce::ValueTree();
   }
-  const auto letter = blockState.getProperty("tk3jFootswitch").toString();
+  const auto letter = migrateFootswitch(blockState.getProperty("tk3jFootswitch").toString());
   block.footswitch = isFootswitchLetter(letter) ? letter : juce::String();
 }
 

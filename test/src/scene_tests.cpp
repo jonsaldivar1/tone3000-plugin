@@ -78,7 +78,7 @@ TEST(SceneTest, ScenesNamesAndFootswitchesSurviveStateRoundTrip) {
   proc.restoreFromTree(twoBlockRig());
   ASSERT_TRUE(waitForChainLoaded(proc));
   proc.renameScene(1, "Chorus");
-  proc.setBlockFootswitch("cab", "E");
+  proc.setBlockFootswitch("cab", "1");
   proc.selectScene(1);
   proc.setBlockParam("cab", "enabled", 0.0);
   proc.selectScene(0);
@@ -92,7 +92,7 @@ TEST(SceneTest, ScenesNamesAndFootswitchesSurviveStateRoundTrip) {
   const auto scenes = restored.getChainState(-1)["scenes"];
   EXPECT_EQ(static_cast<int>(scenes["active"]), 0);
   EXPECT_EQ(scenes["names"][1].toString(), juce::String("Chorus"));
-  EXPECT_EQ(block(restored, "cab")["tk3j"]["footswitch"].toString(), juce::String("E"));
+  EXPECT_EQ(block(restored, "cab")["tk3j"]["footswitch"].toString(), juce::String("1"));
   restored.selectScene(1);
   EXPECT_FALSE(enabled(restored, "cab"));
 }
@@ -101,28 +101,28 @@ TEST(SceneTest, FootswitchFlipsItsBlocksTogether) {
   ChainTestProcessor proc;
   proc.restoreFromTree(twoBlockRig());
   ASSERT_TRUE(waitForChainLoaded(proc));
-  proc.setBlockFootswitch("amp", "F");
-  proc.setBlockFootswitch("cab", "F");
+  proc.setBlockFootswitch("amp", "2");
+  proc.setBlockFootswitch("cab", "2");
   proc.setBlockParam("cab", "enabled", 0.0);
 
   // Mixed -> all on, then all on -> all off.
-  ASSERT_TRUE(proc.toggleFootswitch("F"));
+  ASSERT_TRUE(proc.toggleFootswitch("2"));
   EXPECT_TRUE(enabled(proc, "amp"));
   EXPECT_TRUE(enabled(proc, "cab"));
-  ASSERT_TRUE(proc.toggleFootswitch("F"));
+  ASSERT_TRUE(proc.toggleFootswitch("2"));
   EXPECT_FALSE(enabled(proc, "amp"));
   EXPECT_FALSE(enabled(proc, "cab"));
-  EXPECT_FALSE(proc.toggleFootswitch("G"));  // nothing assigned
-  EXPECT_FALSE(proc.setBlockFootswitch("amp", "Z"));
+  EXPECT_FALSE(proc.toggleFootswitch("3"));  // nothing assigned
+  EXPECT_FALSE(proc.setBlockFootswitch("amp", "9"));
 }
 
 TEST(SceneTest, MidiPicksScenesByValueAndFiresFootswitches) {
   ChainTestProcessor proc;
   proc.restoreFromTree(twoBlockRig());
   ASSERT_TRUE(waitForChainLoaded(proc));
-  proc.setBlockFootswitch("cab", "E");
+  proc.setBlockFootswitch("cab", "1");
   ASSERT_TRUE(proc.midiMapper.setCcMapping("tk3jScene", 43));
-  ASSERT_TRUE(proc.midiMapper.setCcMapping("tk3jFootswitchE", 44));
+  ASSERT_TRUE(proc.midiMapper.setCcMapping("tk3jFootswitch1", 44));
   pump();
 
   proc.midiMapper.processMidi(cc(43, 2));
@@ -135,4 +135,25 @@ TEST(SceneTest, MidiPicksScenesByValueAndFiresFootswitches) {
   proc.midiMapper.processMidi(cc(44, 127));
   pump();
   EXPECT_FALSE(enabled(proc, "cab"));
+}
+
+TEST(SceneTest, FirstBuildFootswitchLettersLoadAsNumbers) {
+  // A block saved by the first scenes build with footswitch "F" loads as 2,
+  // and an old MIDI map target E..H maps onto 1..4.
+  auto rig = twoBlockRig();
+  rig.getChildWithName("ChainBlocks").getChild(1).setProperty("tk3jFootswitch", "F", nullptr);
+  ChainTestProcessor proc;
+  proc.restoreFromTree(rig);
+  ASSERT_TRUE(waitForChainLoaded(proc));
+  EXPECT_EQ(block(proc, "cab")["tk3j"]["footswitch"].toString(), juce::String("2"));
+
+  juce::ValueTree map("MidiMappings");
+  juce::ValueTree m("Mapping");
+  m.setProperty("targetId", "tk3jFootswitchG", nullptr);
+  m.setProperty("source", "cc", nullptr);
+  m.setProperty("number", 50, nullptr);
+  map.appendChild(m, nullptr);
+  proc.midiMapper.restoreFromValueTree(map);
+  pump();
+  EXPECT_EQ(proc.midiMapper.getState()["mappings"][0]["targetId"].toString(), juce::String("tk3jFootswitch3"));
 }

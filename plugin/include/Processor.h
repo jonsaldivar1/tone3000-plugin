@@ -245,7 +245,7 @@ public:
   // deferredRevisionBump) so drag-rate calls never force full chain resyncs.
   bool setBlockParam(const std::string& blockId, const juce::String& param, double value);
 
-  // Fork (TK3J): scenes (A-D = 0-3) and footswitches ("E".."H").
+  // Fork (TK3J): scenes (A-D = 0-3) and footswitches ("1".."8").
   // selectScene stores every tone block's current power / knobs / EQ into the
   // scene being left, then applies the new scene's (blocks never visited in
   // it keep their state). No model loads, so it is gapless. Not undoable: a

@@ -289,7 +289,7 @@ struct ChainBlock {
   };
   static constexpr int kNumScenes = 4;
   std::array<SceneState, kNumScenes> scenes;
-  // Footswitch letter ("E".."H") this block toggles with, or empty.
+  // Footswitch ("1".."8") this block toggles with, or empty.
   juce::String footswitch;
 
   ChainBlock(const std::string& blockId, ChainBlockType blockType)
