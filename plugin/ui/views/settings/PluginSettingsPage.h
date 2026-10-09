@@ -51,6 +51,8 @@ private:
   ToggleRow showGate_, showPitch_;
   // Fork (fit-to-window): the chain view reads the same key.
   ToggleRow fitChain_;
+  // Fork (TK3J): gear / product captions under the chain tiles.
+  ToggleRow blockLabels_;
   // Fork (TK3J): + / swap open My Gear before the TONE3000 search.
   ToggleRow myGearFirst_;
   FieldRow namSize_;

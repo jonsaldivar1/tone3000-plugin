@@ -17,6 +17,7 @@
 #include "MidiMapStore.h"
 #include "MyGear.h"
 #include "ToneArt.h"
+#include "ToneNotes.h"
 #include "ModelLoads.h"
 #include "Pointer.h"
 #include "PresetStore.h"
@@ -63,6 +64,7 @@ public:
         autoAlign(b, toast, AutoMeasure::Kind::align),
         localFiles(chain, toast),
         myGear(p),
+        toneNotes(p),
         modelLoads(chain, t),
         connection(t),
         loadFlow(chain, connection, t),
@@ -88,6 +90,7 @@ public:
   LocalFiles localFiles;
   MyGear myGear;  // Fork (TK3J): local tones offered before the search
   ToneArt toneArt;  // Fork (TK3J): custom art for local tones
+  ToneNotes toneNotes;  // Fork (TK3J): gear/product labels, creator, notes
   ModelLoads modelLoads;
   ConnectionGate connection;
   ToneLoadFlow loadFlow;

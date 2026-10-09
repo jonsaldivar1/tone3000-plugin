@@ -21,6 +21,7 @@
 
 #include "BlockEqView.h"
 #include "ToneMeta.h"
+#include "ToneNotesPanel.h"
 #include "core/AsyncScope.h"
 #include "model/ChainState.h"
 #include "model/Tone.h"
@@ -40,7 +41,10 @@
 
 namespace t3k::ui {
 
-class BlockCard : public juce::Component, private ToneSession::Listener, private UiPrefs::Listener {
+class BlockCard : public juce::Component,
+                  private ToneSession::Listener,
+                  private UiPrefs::Listener,
+                  private juce::ChangeListener {
 public:
   // chainLayout.tsx: 16px-radius card, 45px chrome header, 275px padded
   // body (the last 2px hide under the border, so 273 show).
@@ -140,6 +144,12 @@ private:
   LoadingDots loading_;
   RetryLoadBadge retry_;
   ToneMeta meta_;
+  // Fork (TK3J): the player's own labels / creator / notes, in the info view.
+  ToneNotesPanel notesPanel_;
+  void changeListenerCallback(juce::ChangeBroadcaster*) override;  // ToneNotes changed
+  ToneSummary metaTone() const;
+  static constexpr int kNotesGap = 28;
+  int notesHeight(int width) const;
   juce::Component selectWrap_;
   ModelSelect select_;
   BusyOverlay infoBusy_{BusyOverlay::Align::centre};

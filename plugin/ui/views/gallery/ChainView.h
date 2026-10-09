@@ -10,6 +10,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,6 +19,7 @@
 #include "GalleryLane.h"
 #include "GalleryTile.h"
 #include "StereoPanRail.h"
+#include "TileCaption.h"
 #include "services/ChainStore.h"
 #include "services/Services.h"
 #include "widgets/DragScroller.h"
@@ -27,7 +29,8 @@ namespace t3k::ui {
 class ChainView : public juce::Component,
                   public TileDragHost,
                   private ChainStore::Listener,
-                  private UiPrefs::Listener {
+                  private UiPrefs::Listener,
+                  private juce::ChangeListener {
 public:
   // Shared 24px under the header and above the faceplate (Plugin.tsx).
   static constexpr int kPadY = 24;
@@ -89,6 +92,13 @@ private:
   void updateFitTile();
   int fitTile_ = 0;
 
+  // Fork (TK3J): gear / product captions under the mono lane's tone tiles
+  // (TileCaption), placed in the scrolling column; hidden mid-drag and in
+  // stereo (the lanes leave no room).
+  bool showLabels() const;
+  void layoutCaptions(int lanesTop, int tile);
+  void changeListenerCallback(juce::ChangeBroadcaster*) override;  // ToneNotes changed
+
   // Drag machinery (pointer and keyboard share it).
   void beginSort(GalleryTile& tile, bool pointer);
   // After a lane rebuild: hide the pointer-dragged tile's slot (the ghost
@@ -112,6 +122,7 @@ private:
   StereoPanRail rail_;
   std::unique_ptr<DragScroller> scroller_;
   std::unique_ptr<Column> column_;
+  std::map<std::string, std::unique_ptr<TileCaption>> captions_;
   bool restorePending_ = true;
   GalleryLane left_, right_;
   std::unique_ptr<Ghost> ghost_;

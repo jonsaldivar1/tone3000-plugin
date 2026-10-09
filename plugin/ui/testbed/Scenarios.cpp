@@ -120,6 +120,22 @@ const std::map<juce::String, Drive>& drives() {
       // tile click (the web dropped the seed before the chain arrived) only
       // re-opens it, leaving no hover behind once the gallery is gone.
       {"main-detail", [](PluginRoot&, MockBackend&) { wait(300); }},
+      {"main-art-detail",
+       [](PluginRoot& root, MockBackend&) {
+         wait(300);
+         clickByHelp(root, "Info:");
+         wait(400);
+         // Down to the notes: the detail page's vertical scroller.
+         std::function<void(juce::Component&)> scrollDown = [&](juce::Component& c) {
+           if (auto* s = dynamic_cast<DragScroller*>(&c); s != nullptr && s->isVisible() &&
+                                                         s->getViewedComponent() != nullptr &&
+                                                         s->getViewHeight() < s->getViewedComponent()->getHeight())
+             s->setViewPosition(0, s->getViewedComponent()->getHeight());
+           for (auto* child : c.getChildren()) scrollDown(*child);
+         };
+         scrollDown(root);
+         wait(200);
+       }},
       {"load-detail-loading", [](PluginRoot&, MockBackend&) { wait(300); }},
       {"load-detail-failed", [](PluginRoot&, MockBackend&) { wait(300); }},
       {"main-detail-info",

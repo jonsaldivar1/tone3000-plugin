@@ -105,10 +105,12 @@ ChainView::ChainView(Services& services)
 
   services_.chain.addListener(this);
   services_.prefs.addListener(this);
+  services_.toneNotes.addChangeListener(this);
   syncFromNative();
 }
 
 ChainView::~ChainView() {
+  services_.toneNotes.removeChangeListener(this);
   services_.prefs.removeListener(this);
   services_.chain.removeListener(this);
 }
@@ -154,7 +156,7 @@ void ChainView::chainChanged(const ChainState&) { syncFromNative(); }
 
 // Fork (fit-to-window): the settings toggle re-lays the chain at once.
 void ChainView::prefChanged(const juce::String& key) {
-  if (key == UiPrefs::kFitChainToWindow && !dragging_) applyLanes();
+  if ((key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels) && !dragging_) applyLanes();
 }
 
 // Resync the optimistic lanes only when native reports new state and no
@@ -253,12 +255,15 @@ void ChainView::layoutColumn() {
   const int width = std::max(scroller_->getWidth(), content + 2 * gallery::kEdgeFadeWidth);
   const int lanesHeight = stereo() ? tile * 2 + gallery::kLaneGap : tile;
   const int height = scroller_->getHeight();
-  const int lanesTop = (height - lanesHeight) / 2;
+  // Fork (TK3J): the block labels sit under the lane; centre both together.
+  const int labelsHeight = showLabels() ? TileCaption::kTopGap + TileCaption::kHeight : 0;
+  const int lanesTop = std::max(0, (height - lanesHeight - labelsHeight) / 2);
   column_->setSize(width, height);
   column_->setLanesTop(lanesTop);
   left_.setTopLeftPosition(gallery::kEdgeFadeWidth + indentFor(ChainSide::left), lanesTop);
   right_.setTopLeftPosition(gallery::kEdgeFadeWidth + indentFor(ChainSide::right),
                             lanesTop + tile + gallery::kLaneGap);
+  layoutCaptions(lanesTop, tile);
   column_->repaint();
 
   // Restore the persisted offset once the scroller has its size (an offset
@@ -268,6 +273,43 @@ void ChainView::layoutColumn() {
     const int saved = services_.prefs.session[UiPrefs::kChainScroll].getIntValue();
     if (saved > 0) scroller_->setViewPosition(saved, 0);
   }
+}
+
+// Fork (TK3J): block labels.
+bool ChainView::showLabels() const {
+  return !stereo() && services_.prefs.getBool(UiPrefs::kShowBlockLabels, true);
+}
+
+void ChainView::layoutCaptions(int lanesTop, int tile) {
+  const bool show = showLabels();
+  std::map<std::string, std::unique_ptr<TileCaption>> next;
+  if (show) {
+    for (const auto& item : lanes_.left) {
+      if (!item.isTone() || item.blockId == kStandInId) continue;
+      auto* tileComp = left_.tileFor(item.blockId);
+      if (tileComp == nullptr) continue;
+      auto it = captions_.find(item.blockId);
+      std::unique_ptr<TileCaption> caption;
+      if (it != captions_.end()) caption = std::move(it->second);
+      else caption = std::make_unique<TileCaption>(services_.toneNotes);
+      // A caption mid-edit keeps its text; otherwise follow the tone.
+      if (!caption->editing() && (caption->tone().title != item.tone.title || caption->tone().id != item.tone.id ||
+                                  caption->tone().sourcePath != item.tone.sourcePath))
+        caption->setTone(item.tone);
+      const int x = left_.getX() + tileComp->getX();
+      caption->setBounds(x, lanesTop + tile + TileCaption::kTopGap, tile, TileCaption::kHeight);
+      caption->setVisible(!dragging_);
+      column_->addAndMakeVisible(*caption);
+      caption->setVisible(!dragging_);
+      next[item.blockId] = std::move(caption);
+    }
+  }
+  captions_ = std::move(next);  // the rest are destroyed (removed from the column)
+}
+
+void ChainView::changeListenerCallback(juce::ChangeBroadcaster*) {
+  for (auto& [id, caption] : captions_)
+    if (!caption->editing()) caption->refresh();
 }
 
 void ChainView::saveScroll() {

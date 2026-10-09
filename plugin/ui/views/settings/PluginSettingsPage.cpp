@@ -93,6 +93,8 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
                  "whammy-style effects."),
       fitChain_("Fit Chain to Window",
                 "Shrinks the signal chain's tiles so every block is visible without scrolling."),
+      blockLabels_("Show Block Labels",
+                   "Gear and product name under each block in the signal chain. Click a label to edit it."),
       myGearFirst_("Open My Gear First",
                    "Adding or swapping a block shows your own tones folder, pinned and recent tones before the "
                    "TONE3000 search."),
@@ -160,6 +162,8 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   add(showPitch_);
   fitChain_.onChange = [this](bool on) { services_.prefs.setBool(UiPrefs::kFitChainToWindow, on); };
   add(fitChain_);
+  blockLabels_.onChange = [this](bool on) { services_.prefs.setBool(UiPrefs::kShowBlockLabels, on); };
+  add(blockLabels_);
   myGearFirst_.onChange = [this](bool on) { services_.prefs.setBool(MyGear::kOpenFirst, on); };
   add(myGearFirst_);
 
@@ -262,7 +266,7 @@ PluginSettingsPage::~PluginSettingsPage() {
 void PluginSettingsPage::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowHints || key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl ||
       key == UiPrefs::kShowBlockSizeControl || key == UiPrefs::kShowBlockNormalizeControl ||
-      key == UiPrefs::kFitChainToWindow || key == MyGear::kOpenFirst)
+      key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels || key == MyGear::kOpenFirst)
     syncPrefs();
 }
 
@@ -271,6 +275,7 @@ void PluginSettingsPage::syncPrefs() {
   showGate_.setValue(services_.prefs.getBool(UiPrefs::kShowGateControl, true));
   showPitch_.setValue(services_.prefs.getBool(UiPrefs::kShowPitchControl, false));
   fitChain_.setValue(services_.prefs.getBool(UiPrefs::kFitChainToWindow, true));
+  blockLabels_.setValue(services_.prefs.getBool(UiPrefs::kShowBlockLabels, true));
   myGearFirst_.setValue(services_.myGear.openFirst());
   const bool size = services_.prefs.getBool(UiPrefs::kShowBlockSizeControl, false);
   blockSize_.setValue(size);

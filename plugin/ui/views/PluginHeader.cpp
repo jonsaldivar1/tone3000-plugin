@@ -3,6 +3,7 @@
 #include "core/Brand.h"
 #include "core/CustomIcons.h"
 #include "core/Design.h"
+#include "core/ForkLogo.h"
 #include "core/Help.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
@@ -16,18 +17,20 @@ constexpr int kGroupGap = 40;  // between header items
 constexpr int kPairGap = 16;   // tight pairs (undo/redo)
 constexpr int kLogoWidth = 160;
 constexpr int kLogoHeight = 24;  // 160 * 32 / 210, rounded like the browser
+constexpr int kForkLogoHeight = 44;  // Fork (TK3J): ForkLogo
 }  // namespace
 
 // The wordmark links to tone3000.com.
 class PluginHeader::LogoLink : public Clickable {
 public:
   LogoLink() : Clickable({}) {
-    setTitle("TONE3000");  // tone3000.com, to a screen reader
+    setTitle("TK3J (TONE3000)");  // tone3000.com, to a screen reader
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     onClick = [] { juce::URL("https://www.tone3000.com").launchInDefaultBrowser(); };
   }
   void paintButton(juce::Graphics& g, bool, bool) override {
-    Brand::drawLogo(g, getLocalBounds().toFloat());
+    // Fork (TK3J): the TOAN grid wordmark instead of the stock logo.
+    fork_logo::draw(g, getLocalBounds().toFloat());
   }
 };
 
@@ -127,7 +130,10 @@ void PluginHeader::resized() {
     return c.getX();
   };
 
-  logo_->setBounds(area.getX(), cy - kLogoHeight / 2, kLogoWidth, kLogoHeight);
+  // Fork (TK3J): the TOAN grid needs the header's height to stay legible.
+  const int logoH = kForkLogoHeight;
+  logo_->setBounds(area.getX(), cy - logoH / 2,
+                   static_cast<int>(std::ceil(fork_logo::widthFor(static_cast<float>(logoH)))), logoH);
 
   // Right group, laid out from the right edge: account · undo/redo · tuner ·
   // stereo · presets, 40px apart (16px inside the undo/redo pair).

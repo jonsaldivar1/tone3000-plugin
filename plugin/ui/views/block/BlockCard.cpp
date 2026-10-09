@@ -76,7 +76,8 @@ BlockCard::BlockCard(Services& services, const ChainItem& block, bool namDownstr
       out_(trimKnob("Out", scales::gainDb(), 0.5f, help::Key::blockOut)),
       mix_(trimKnob("Mix", scales::percent(), 1.0f, help::Key::blockMix)),
       image_(services.images),
-      meta_(services.images) {
+      meta_(services.images),
+      notesPanel_(services.toneNotes) {
   setOpaque(false);
   buildHeader();
   buildBody();
@@ -84,6 +85,7 @@ BlockCard::BlockCard(Services& services, const ChainItem& block, bool namDownstr
   calibrateInput_.onChange = [this] { syncHeader(); };
   services_.session.addListener(this);
   services_.prefs.addListener(this);
+  services_.toneNotes.addChangeListener(this);
 
   // Optimistic control values start from the block; native converges.
   enabled_ = block_.params.enabled;
@@ -102,6 +104,7 @@ BlockCard::BlockCard(Services& services, const ChainItem& block, bool namDownstr
 }
 
 BlockCard::~BlockCard() {
+  services_.toneNotes.removeChangeListener(this);
   services_.prefs.removeListener(this);
   services_.session.removeListener(this);
 }
@@ -202,6 +205,7 @@ void BlockCard::buildBody() {
   meta_.info().onRetry = [this] { fetchInfo(/*background=*/false); };
   meta_.info().onOpenUrl = [](const juce::String& url) { juce::URL(url).launchInDefaultBrowser(); };
   body_.addAndMakeVisible(meta_);
+  body_.addChildComponent(notesPanel_);
 
   select_.onChange = [this](const juce::String& id) { switchModel(id); };
   // Opening retries a failed list fetch, so a transient failure never sticks.
@@ -345,14 +349,32 @@ void BlockCard::syncHeader() {
   eqView_->select(eqViewMode_ == BlockEqView::View::sliders ? 0 : 1);
   for (auto* c : std::initializer_list<juce::Component*>{&eqPower_, &preGroup_, eqView_.get()}) c->setVisible(showEq_);
 
-  info_.setVisible(!isLocal());
+  info_.setVisible(true);  // Fork (TK3J): local tones open their notes there
   info_.setOpen(showInfo_);
   share_.setVisible(!isLocal());
   layoutHeader(getLocalBounds().reduced(1).removeFromTop(kHeaderHeight));
 }
 
+// Fork (TK3J): a local tone shows the creator the player typed (and its
+// folder's creator picture) on the creator line.
+ToneSummary BlockCard::metaTone() const {
+  auto tone = block_.tone;
+  if (tone.local) {
+    const auto info = services_.toneNotes.stored(tone);
+    if (info.creator.isNotEmpty()) tone.user = ToneUserRef{info.creator, ToneNotes::creatorImageUrl(tone)};
+  }
+  return tone;
+}
+
+void BlockCard::changeListenerCallback(juce::ChangeBroadcaster*) {
+  const int before = meta_.getHeight();
+  meta_.setTone(metaTone());
+  if (body() == Body::info && meta_.heightFor(meta_.getWidth()) != before) setBodyView();
+}
+
 void BlockCard::syncMeta() {
-  meta_.setTone(block_.tone);
+  meta_.setTone(metaTone());
+  notesPanel_.setTone(block_.tone);
   ToneMeta::Counts counts;
   counts.downloads = block_.tone.downloadsCount;
   counts.favorites = favoritesCount();
@@ -368,8 +390,9 @@ void BlockCard::syncMeta() {
   state.pageUrl = tonePageUrl();
   meta_.info().setState(state);
   // Fetch in flight: the panel steps aside and the body shows BusyOverlay.
-  meta_.setInfoVisible(showInfo_ && !infoLoading_);
+  meta_.setInfoVisible(showInfo_ && !infoLoading_ && !isLocal());
   infoBusy_.setVisible(showInfo_ && infoLoading_);
+  notesPanel_.setVisible(showInfo_ && !infoLoading_);
 }
 
 void BlockCard::syncModelSelect() {
@@ -452,7 +475,8 @@ void BlockCard::setShowInfo(bool show) {
   if (show) {
     showEq_ = false;
     showInfo_ = true;
-    if (authenticated() && (!infoTone_ || infoTone_->id != block_.tone.id)) fetchInfo(/*background=*/false);
+    if (!isLocal() && authenticated() && (!infoTone_ || infoTone_->id != block_.tone.id))
+      fetchInfo(/*background=*/false);
   } else {
     showInfo_ = false;
   }
@@ -469,16 +493,20 @@ void BlockCard::setBodyView() {
                             services_.prefs.getBool(UiPrefs::kShowBlockNormalizeControl, false));
   imageFrame_.setVisible(view != Body::eq);
   meta_.setVisible(view != Body::eq);
+  notesPanel_.setVisible(view == Body::info && !infoLoading_);
   syncHeader();
   syncMeta();
   setSize(kWidth, preferredHeight());
   resized();
 }
 
+int BlockCard::notesHeight(int width) const { return kNotesGap + notesPanel_.heightFor(width); }
+
 int BlockCard::preferredHeight() {
   if (body() != Body::info) return kHeight;
   const int metaW = kWidth - 2 - 2 * kBodyPadding - kImageSizeInfo - kBodyGap;
-  const int bodyH = kBodyPadding + std::max(kImageSizeInfo, meta_.heightFor(metaW)) + kInfoBottomPad;
+  const int bodyH = kBodyPadding + std::max(kImageSizeInfo, meta_.heightFor(metaW) + notesHeight(metaW)) +
+                    kInfoBottomPad;
   return std::max(kHeight, 1 + kHeaderHeight + bodyH + 1);
 }
 
@@ -600,7 +628,10 @@ int BlockCard::layoutInfoBody(juce::Rectangle<int> body) {
   const int metaW = content.getRight() - metaX;
   const int metaH = meta_.heightFor(metaW);
   meta_.setBounds(metaX, content.getY(), metaW, metaH);
-  return kBodyPadding + std::max(kImageSizeInfo, metaH) + kInfoBottomPad;
+  // Fork (TK3J): the notes panel under the tone's own info.
+  const int notesH = notesHeight(metaW);
+  notesPanel_.setBounds(metaX, content.getY() + metaH + kNotesGap, metaW, juce::jmax(0, notesH - kNotesGap));
+  return kBodyPadding + std::max(kImageSizeInfo, metaH + notesH) + kInfoBottomPad;
 }
 
 void BlockCard::paint(juce::Graphics& g) {
