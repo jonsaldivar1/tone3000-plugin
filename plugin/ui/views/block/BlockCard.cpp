@@ -9,6 +9,7 @@
 #include "T3kConfig.h"
 #include "core/Theme.h"
 #include "core/EqMath.h"
+#include "services/ToneArt.h"
 
 namespace t3k::ui {
 
@@ -274,7 +275,8 @@ void BlockCard::syncFromBlock() {
   normalizeWrap_.setHelpText(help::text(overridden ? help::Key::blockNormalizeOverridden : help::Key::blockNormalize));
   normalizeWrap_.setMouseCursor(juce::MouseCursor::NormalCursor);
 
-  image_.setTone(block_.tone.image, block_.tone.gear, block_.tone.local);
+  image_.setTone(ToneArt::urlForTone(block_.tone.local, block_.tone.sourcePath, block_.tone.image),
+                 block_.tone.gear, block_.tone.local);
   const bool busy = modelBusy() || block_.loadFailed;
   image_.setAlpha(busy ? kImageBusyOpacity : 1.0f);
   loading_.setVisible(busy && !block_.loadFailed);

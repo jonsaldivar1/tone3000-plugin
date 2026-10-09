@@ -5,6 +5,15 @@
 namespace t3k::ui::testbed {
 
 namespace {
+// Fork (TK3J): "{fixtures}" in a scenario's chain (a local tone's
+// source_path) is the fixtures folder, as in seeded prefs (Host.cpp).
+juce::var withFixturesPath(const juce::var& chain) {
+  const auto json = juce::JSON::toString(chain, true);
+  if (!json.contains("{fixtures}")) return chain;
+  const auto path = juce::File(T3K_TESTBED_FIXTURES).getFullPathName().replace("\\", "/");
+  return juce::JSON::parse(json.replace("{fixtures}", path));
+}
+
 
 juce::var obj(std::initializer_list<std::pair<const char*, juce::var>> props) {
   auto* o = new juce::DynamicObject();
@@ -120,7 +129,7 @@ struct MockBackend::Params : juce::AudioProcessor {
 
 MockBackend::MockBackend(const juce::var& scenario)
     : params_(std::make_unique<Params>(scenario)),
-      chain_(scenario["chain"].isObject() ? scenario["chain"] : defaultChain()),
+      chain_(scenario["chain"].isObject() ? withFixturesPath(scenario["chain"]) : defaultChain()),
       device_(scenario["device"]),
       midiMap_(scenario["midiMap"].isObject()
                    ? scenario["midiMap"]

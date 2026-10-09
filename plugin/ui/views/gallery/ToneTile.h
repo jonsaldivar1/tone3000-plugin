@@ -18,7 +18,7 @@
 
 namespace t3k::ui {
 
-class ToneTile : public GalleryTile, private Pointer::Listener {
+class ToneTile : public GalleryTile, private Pointer::Listener, private juce::ChangeListener {
 public:
   static constexpr int kChromeHeight = 32;
   static constexpr int kChromePad = 4;
@@ -48,6 +48,10 @@ protected:
   void travellingChanged(bool travelling) override;
 
 private:
+  // Fork (TK3J): custom art changed somewhere (ToneArt); re-resolve ours.
+  void changeListenerCallback(juce::ChangeBroadcaster*) override;
+  void refreshArt();
+
   // Reveals the action strip while the pointer is anywhere over the tile
   // (CSS :hover on the face; pinned while travelling, and whenever the
   // pointer is a finger, which can't hover: Services::pointer).

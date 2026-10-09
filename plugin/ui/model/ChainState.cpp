@@ -105,6 +105,7 @@ ToneSummary parseTone(const juce::var& v) {
   t.format = str(v, "format");
   t.gear = str(v, "gear");
   t.local = boolean(v, "local", false);
+  t.sourcePath = str(v, "source_path");
   if (const auto* images = v["images"].getArray(); images != nullptr && !images->isEmpty())
     t.image = images->getFirst().toString();
   if (v["user"].isObject())

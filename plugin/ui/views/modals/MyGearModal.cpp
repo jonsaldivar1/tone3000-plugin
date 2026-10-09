@@ -5,10 +5,12 @@
 #include "core/Fonts.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "services/ToneArt.h"
 #include "widgets/Clickable.h"
 #include "widgets/DragScroller.h"
 #include "widgets/IconButton.h"
 #include "widgets/PillButton.h"
+#include "widgets/ToneImage.h"
 
 namespace t3k::ui {
 
@@ -44,8 +46,14 @@ private:
 // One tone: name, then "Amps / Zuta · 8 NAM", and a pin toggle on the right.
 class Row : public Clickable {
 public:
-  Row(const MyGear::Entry& entry, bool pinned) : Clickable(entry.name), entry_(entry), pin_(Icon::Bookmark, 28) {
+  Row(const MyGear::Entry& entry, bool pinned, ImageLoader& images)
+      : Clickable(entry.name), entry_(entry), pin_(Icon::Bookmark, 28), thumb_(images) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    // The tone's cover art (ToneArt), else the generic file glyph.
+    thumb_.setCornerRadius(6.0f);
+    thumb_.setInterceptsMouseClicks(false, false);
+    thumb_.setTone(ToneArt::urlFor(entry.file), {}, true, 18);
+    addAndMakeVisible(thumb_);
     setTooltip(entry.file.getFullPathName());
     pin_.setName(pinned ? "Unpin" : "Pin");
     setPinned(pinned);
@@ -66,21 +74,24 @@ public:
 
   void resized() override {
     pin_.setTopRightPosition(getWidth() - 8, (getHeight() - pin_.getHeight()) / 2);
+    thumb_.setBounds(8, (getHeight() - MyGearModal::kThumb) / 2, MyGearModal::kThumb, MyGearModal::kThumb);
   }
 
   void paintButton(juce::Graphics& g, bool highlighted, bool down) override {
     const auto box = getLocalBounds().toFloat();
     if (highlighted || down) paint::fill(g, box, 8.0f, kRowHover);
-    const int textW = getWidth() - 12 - pin_.getWidth() - 16;
-    paint::text(g, entry_.name, {12, 5, textW, 20}, Fonts::sans(MyGearModal::kNamePx, true), theme::kWhite);
+    const int textX = 8 + MyGearModal::kThumb + 10;
+    const int textW = getWidth() - textX - pin_.getWidth() - 16;
+    paint::text(g, entry_.name, {textX, 5, textW, 20}, Fonts::sans(MyGearModal::kNamePx, true), theme::kWhite);
     juce::String meta = entry_.summary();
     if (entry_.group.isNotEmpty()) meta = entry_.group + juce::String::fromUTF8("  \xc2\xb7  ") + meta;
-    paint::text(g, meta, {12, 24, textW, 16}, Fonts::sans(MyGearModal::kMetaPx), theme::kMuted);
+    paint::text(g, meta, {textX, 24, textW, 16}, Fonts::sans(MyGearModal::kMetaPx), theme::kMuted);
   }
 
 private:
   MyGear::Entry entry_;
   IconButton pin_;
+  ToneImage thumb_;
   bool pinned_ = false;
 };
 
@@ -100,9 +111,10 @@ private:
 
 class MyGearModal::Card : public juce::Component {
 public:
-  Card(MyGearModal& owner, MyGear& gear)
+  Card(MyGearModal& owner, MyGear& gear, ImageLoader& images)
       : owner_(owner),
         gear_(gear),
+        images_(images),
         close_(Icon::X, theme::kIconBoxSize, 16),
         folderLink_("Change folder", kMetaPx + 1),
         choose_("Choose tones folder", PillButton::Style::filled),
@@ -151,7 +163,7 @@ public:
       sections_.push_back(std::move(s));
       y += kSectionH;
       for (const auto& e : entries) {
-        auto row = std::make_unique<Row>(e, gear_.isPinned(e.file));
+        auto row = std::make_unique<Row>(e, gear_.isPinned(e.file), images_);
         row->setBounds(0, y, 0, kRowH);
         row->onClick = [this, entry = e] {
           if (owner_.onPick) owner_.onPick(entry);
@@ -234,6 +246,7 @@ private:
 
   MyGearModal& owner_;
   MyGear& gear_;
+  ImageLoader& images_;
   IconButton close_;
   LinkButton folderLink_;
   PillButton choose_, browse_;
@@ -247,8 +260,8 @@ private:
   bool empty_ = true;
 };
 
-MyGearModal::MyGearModal(Backdrop backdrop, MyGear& gear)
-    : ModalLayer(std::move(backdrop)), card_(std::make_unique<Card>(*this, gear)) {
+MyGearModal::MyGearModal(Backdrop backdrop, MyGear& gear, ImageLoader& images)
+    : ModalLayer(std::move(backdrop)), card_(std::make_unique<Card>(*this, gear, images)) {
   setName("my gear");
   setTitle("My Gear");
   setWantsKeyboardFocus(true);

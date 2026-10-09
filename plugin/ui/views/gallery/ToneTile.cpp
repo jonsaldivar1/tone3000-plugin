@@ -5,6 +5,7 @@
 #include "core/Icons.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "services/ToneArt.h"
 
 namespace t3k::ui {
 
@@ -47,6 +48,7 @@ ToneTile::ToneTile(Services& services, const ChainItem& block, int size)
   ledSlot_.setSize(BlockLed::kSize, BlockLed::kSize);
   addMouseListener(&hover_, true);
   services.pointer.addListener(this);
+  services.toneArt.addChangeListener(this);
 
   setBlock(block);
   setHovered(false);
@@ -54,6 +56,7 @@ ToneTile::ToneTile(Services& services, const ChainItem& block, int size)
 }
 
 ToneTile::~ToneTile() {
+  services().toneArt.removeChangeListener(this);
   services().pointer.removeListener(this);
   removeMouseListener(&hover_);
 }
@@ -63,9 +66,16 @@ void ToneTile::setBlock(const ChainItem& block) {
   enabled_ = block.params.enabled;
   setHelpText(help::toneTile(block.tone.title));
   setTitle(block.tone.title);
-  image_.setTone(block.tone.image, block.tone.gear, block.tone.local, kGlyphSize);
+  refreshArt();
   syncState();
 }
+
+void ToneTile::refreshArt() {
+  const auto& tone = block_.tone;
+  image_.setTone(ToneArt::urlForTone(tone.local, tone.sourcePath, tone.image), tone.gear, tone.local, kGlyphSize);
+}
+
+void ToneTile::changeListenerCallback(juce::ChangeBroadcaster*) { refreshArt(); }
 
 // A model download/prepare is in flight: `modelLoading` covers switches
 // (the previous model keeps playing, so `loaded` stays true) and `!loaded`
@@ -100,6 +110,26 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
        [this] { this->services().chain.copyBlock(blockId()); }},
   };
   for (auto& item : localLoadItems()) items.push_back(std::move(item));
+
+  // Fork (TK3J): art for tones loaded from disk (ToneArt). Tones loaded
+  // before TK3J recorded the source have no path: reload them to enable.
+  const auto& tone = block_.tone;
+  if (tone.local && tone.sourcePath.isNotEmpty() && juce::File::isAbsolutePath(tone.sourcePath)) {
+    const juce::File source(tone.sourcePath);
+    if (source.exists()) {
+      items.push_back({"Set Art...", Icon::Pencil, help::Key::setArtTile, [this, source] {
+                         // The tile may be gone by the time the dialog returns;
+                         // the services outlive it.
+                         auto& toast = this->services().toast;
+                         this->services().toneArt.choose(source, [&toast](bool ok) {
+                           if (!ok) toast.show("Couldn't set the art (JPG or PNG only)");
+                         });
+                       }});
+      if (ToneArt::hasOwnArt(source))
+        items.push_back({"Clear Art", Icon::X, help::Key::clearArtTile,
+                         [this, source] { this->services().toneArt.clear(source); }});
+    }
+  }
   return items;
 }
 

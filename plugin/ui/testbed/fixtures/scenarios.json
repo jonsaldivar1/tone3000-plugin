@@ -2219,6 +2219,726 @@
    }
   },
   {
+   "id": "main-art",
+   "section": "main",
+   "title": "Main: custom art on local tones (fork)",
+   "description": "Fork (TK3J): local tones show cover art found next to their files: a folder cover.jpg (Zuta), a folder cover.png (Vogg), a same-name image beside a single IR (Mix 1), and no art (ENGL: gear glyph).",
+   "chain": {
+    "revision": 1,
+    "canUndo": true,
+    "canRedo": false,
+    "stereoEnabled": false,
+    "activeSide": "left",
+    "stereoInput": false,
+    "standalone": false,
+    "inputMode": "stereo",
+    "namFullSize": false,
+    "multiCore": true,
+    "sampleRate": 48000,
+    "chain": [
+     {
+      "blockId": "blk-1",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "Zuta GBG120",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/Zuta GBG120",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "CH1 Big Hairy Breakup",
+         "model_url": "local://CH1 Big Hairy Breakup"
+        },
+        {
+         "id": 9001,
+         "name": "CH2 Transylvanian Clay",
+         "model_url": "local://CH2 Transylvanian Clay"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-2",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "MLC S_ZERO V Vogg",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/MLC S_ZERO V Vogg",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "DR1 No Cure",
+         "model_url": "local://DR1 No Cure"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-3",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "Mix 1",
+       "format": "ir",
+       "source_path": "{fixtures}/mygear/Cabs/York MES 412 OS-V2/Mix 1.wav",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "Mix 1",
+         "model_url": "local://Mix 1"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-4",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "ENGL Savage 120 MK1",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/ENGL Savage 120 MK1",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "Red Rhythm 1",
+         "model_url": "local://Red Rhythm 1"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "ins-1",
+      "kind": "insert"
+     }
+    ],
+    "preset": {
+     "id": "factory-1",
+     "name": "Crunch Rhythm"
+    }
+   },
+   "presets": [
+    {
+     "id": "factory-1",
+     "name": "Crunch Rhythm",
+     "factory": true
+    },
+    {
+     "id": "factory-2",
+     "name": "Clean Platform",
+     "factory": true
+    },
+    {
+     "id": "factory-3",
+     "name": "Modern Metal",
+     "factory": true
+    },
+    {
+     "id": "user-1",
+     "name": "My Lead Tone",
+     "factory": false
+    },
+    {
+     "id": "user-2",
+     "name": "Church Sunday",
+     "factory": false
+    }
+   ],
+   "hints": false,
+   "banner": false,
+   "auth": false,
+   "hasDrive": false
+  },
+  {
+   "id": "main-art-menu",
+   "section": "main",
+   "title": "Main: tile menu with Set Art / Clear Art (fork)",
+   "description": "Fork (TK3J): right-clicking a local tone loaded from disk offers Set Art... (and Clear Art when it has its own cover).",
+   "chain": {
+    "revision": 1,
+    "canUndo": true,
+    "canRedo": false,
+    "stereoEnabled": false,
+    "activeSide": "left",
+    "stereoInput": false,
+    "standalone": false,
+    "inputMode": "stereo",
+    "namFullSize": false,
+    "multiCore": true,
+    "sampleRate": 48000,
+    "chain": [
+     {
+      "blockId": "blk-1",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "Zuta GBG120",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/Zuta GBG120",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "CH1 Big Hairy Breakup",
+         "model_url": "local://CH1 Big Hairy Breakup"
+        },
+        {
+         "id": 9001,
+         "name": "CH2 Transylvanian Clay",
+         "model_url": "local://CH2 Transylvanian Clay"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-2",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "MLC S_ZERO V Vogg",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/MLC S_ZERO V Vogg",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "DR1 No Cure",
+         "model_url": "local://DR1 No Cure"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-3",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "Mix 1",
+       "format": "ir",
+       "source_path": "{fixtures}/mygear/Cabs/York MES 412 OS-V2/Mix 1.wav",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "Mix 1",
+         "model_url": "local://Mix 1"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "blk-4",
+      "kind": "tone",
+      "tone": {
+       "id": 0,
+       "local": true,
+       "title": "ENGL Savage 120 MK1",
+       "format": "nam",
+       "gear": "amp",
+       "source_path": "{fixtures}/mygear/Amps/ENGL Savage 120 MK1",
+       "images": [],
+       "models": [
+        {
+         "id": 9000,
+         "name": "Red Rhythm 1",
+         "model_url": "local://Red Rhythm 1"
+        }
+       ]
+      },
+      "activeModelId": 9000,
+      "loaded": true,
+      "loadFailed": false,
+      "modelLoading": false,
+      "irLong": false,
+      "params": {
+       "enabled": true,
+       "normalize": true,
+       "inputGain": 0.5,
+       "outputGain": 0.5,
+       "mix": 1,
+       "eq": {
+        "enabled": false,
+        "pre": false,
+        "bands": [
+         {
+          "type": "lowcut",
+          "freqHz": 20,
+          "gainDb": 0,
+          "q": 0.71
+         },
+         {
+          "type": "bell",
+          "freqHz": 150,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 1500,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "bell",
+          "freqHz": 4000,
+          "gainDb": 0,
+          "q": 1
+         },
+         {
+          "type": "highshelf",
+          "freqHz": 8000,
+          "gainDb": 0,
+          "q": 0.71
+         }
+        ]
+       }
+      }
+     },
+     {
+      "blockId": "ins-1",
+      "kind": "insert"
+     }
+    ],
+    "preset": {
+     "id": "factory-1",
+     "name": "Crunch Rhythm"
+    }
+   },
+   "presets": [
+    {
+     "id": "factory-1",
+     "name": "Crunch Rhythm",
+     "factory": true
+    },
+    {
+     "id": "factory-2",
+     "name": "Clean Platform",
+     "factory": true
+    },
+    {
+     "id": "factory-3",
+     "name": "Modern Metal",
+     "factory": true
+    },
+    {
+     "id": "user-1",
+     "name": "My Lead Tone",
+     "factory": false
+    },
+    {
+     "id": "user-2",
+     "name": "Church Sunday",
+     "factory": false
+    }
+   ],
+   "hints": false,
+   "banner": false,
+   "auth": false,
+   "hasDrive": false
+  },
+  {
    "id": "main-meters-hot",
    "section": "main",
    "title": "Signal chain - hot meters (clip latched)",

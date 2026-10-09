@@ -452,7 +452,7 @@ juce::var TONE3000Processor::loadLocalTonePath(const juce::File& source,
       models.add(model);
     }
 
-    return finishLocalToneLoad(title, models, firstError, picked.size(), targetInsertId);
+    return finishLocalToneLoad(title, models, firstError, picked.size(), targetInsertId, source);
   }
 
   const juce::String title = source.getFileNameWithoutExtension();
@@ -467,7 +467,7 @@ juce::var TONE3000Processor::loadLocalTonePath(const juce::File& source,
   if (!model.isObject())
     return localToneError(title, error);
 
-  return finishLocalToneLoad(title, {model}, {}, 1, targetInsertId);
+  return finishLocalToneLoad(title, {model}, {}, 1, targetInsertId, source);
 }
 
 juce::var TONE3000Processor::loadLocalToneUrls(const juce::Array<juce::URL>& sources,
@@ -521,7 +521,8 @@ juce::var TONE3000Processor::loadLocalToneUrls(const juce::Array<juce::URL>& sou
 juce::var TONE3000Processor::finishLocalToneLoad(const juce::String& title,
                                                  const juce::Array<juce::var>& stashedModels,
                                                  const juce::String& firstError, int fileCount,
-                                                 const std::string& targetInsertId) {
+                                                 const std::string& targetInsertId,
+                                                 const juce::File& source) {
   // Identical bytes under two names would collide on the content-derived
   // id (cache key, picker selection); the first name wins.
   juce::Array<juce::var> models;
@@ -554,6 +555,12 @@ juce::var TONE3000Processor::finishLocalToneLoad(const juce::String& title,
   const juce::String gear = models.getReference(0)["gear"].toString();
   if (gear.isNotEmpty())
     tone->setProperty("gear", gear);
+
+  // Fork (TK3J): where the tone came from on disk (the file or folder that
+  // was loaded), saved with the chain and presets. The UI looks for custom
+  // art (cover.jpg and friends, see ToneArt) next to it.
+  if (source != juce::File())
+    tone->setProperty("source_path", source.getFullPathName());
 
   const juce::String toneJson = juce::JSON::toString(juce::var(tone.get()));
 

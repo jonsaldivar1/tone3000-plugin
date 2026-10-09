@@ -25,7 +25,9 @@ void ToneImage::setTone(const juce::String& imageUrl, const juce::String& gear, 
     // A new URL (tone swap / model switch) gets a fresh chance to load.
     url_ = imageUrl;
     image_ = {};
-    if (!local_ && url_.isNotEmpty())
+    // Local tones have no catalog art; a file: URL is their custom art
+    // (fork, ToneArt).
+    if (url_.isNotEmpty() && (!local_ || url_.startsWithIgnoreCase("file:")))
       loader_.load(url_, ImageLoader::kArtSide, request_, [this](const juce::Image& image) {
         image_ = image;
         base_ = {};
@@ -75,7 +77,7 @@ void ToneImage::rebuildBase(float scale) {
   if (w <= 0 || h <= 0) return;
   baseScale_ = scale;
   composited_ = {};
-  if (!local_ && image_.isValid()) {
+  if (image_.isValid()) {
     base_ = bitmap::cover(image_, w, h, scale);
     return;
   }

@@ -16,6 +16,7 @@
 #include "MeterStore.h"
 #include "MidiMapStore.h"
 #include "MyGear.h"
+#include "ToneArt.h"
 #include "ModelLoads.h"
 #include "Pointer.h"
 #include "PresetStore.h"
@@ -86,6 +87,7 @@ public:
   BrowserState browser;
   LocalFiles localFiles;
   MyGear myGear;  // Fork (TK3J): local tones offered before the search
+  ToneArt toneArt;  // Fork (TK3J): custom art for local tones
   ModelLoads modelLoads;
   ConnectionGate connection;
   ToneLoadFlow loadFlow;

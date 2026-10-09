@@ -543,7 +543,8 @@ private:
   juce::var finishLocalToneLoad(const juce::String& title,
                                 const juce::Array<juce::var>& stashedModels,
                                 const juce::String& firstError, int fileCount,
-                                const std::string& targetInsertId);
+                                const std::string& targetInsertId,
+                                const juce::File& source = {});
 
   /** Largest frame count the chain stage can see per boundary callback at the
       base rate: the host max block size converted to 48 kHz frames (and never

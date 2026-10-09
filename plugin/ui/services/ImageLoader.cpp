@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "core/Bitmap.h"
+#include "ToneArt.h"
 
 namespace t3k::ui {
 
@@ -97,8 +98,16 @@ void ImageLoader::load(const juce::String& url, int side, Request& request,
 
 // Worker thread.
 juce::Image ImageLoader::produce(const juce::String& url, int side, Job& job) {
-  if (offline) return {};
   juce::Image source;
+  // Fork (TK3J): local tones' custom art is a file on disk (ToneArt), never
+  // the network, so the offline switch doesn't apply to it.
+  if (const auto art = ToneArt::fileFromUrl(url); art != juce::File()) {
+    source = juce::ImageFileFormat::loadFrom(art);
+    if (!source.isValid()) return {};
+    const int s = std::min({side, source.getWidth(), source.getHeight()});
+    return bitmap::cover(source, s, s, 1.0f);
+  }
+  if (offline) return {};
   std::optional<juce::Image> local;
   if (localOverride) local = localOverride(url);
   if (local) {

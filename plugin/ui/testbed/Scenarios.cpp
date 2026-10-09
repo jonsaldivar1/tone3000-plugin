@@ -105,6 +105,12 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Add Tone:");
          wait(300);
        }},
+      // Fork (TK3J): a local tone's menu carries the art rows.
+      {"main-art-menu",
+       [](PluginRoot& root, MockBackend&) {
+         clickByHelp(root, "Zuta GBG120.", /*right=*/true);
+         wait(300);
+       }},
       {"chrome-tile-menu",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "'02 Vox AC30/6 Top Boost.", /*right=*/true);

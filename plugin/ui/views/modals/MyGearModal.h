@@ -9,6 +9,7 @@
 #include <functional>
 #include <memory>
 
+#include "services/ImageLoader.h"
 #include "services/MyGear.h"
 #include "widgets/ModalLayer.h"
 
@@ -17,10 +18,10 @@ namespace t3k::ui {
 class MyGearModal : public ModalLayer {
 public:
   static constexpr int kCardW = 600, kMaxCardH = 520, kCardPad = 20, kCardRadius = 16;
-  static constexpr int kRowH = 46, kSectionH = 30, kGap = 12;
+  static constexpr int kRowH = 46, kSectionH = 30, kGap = 12, kThumb = 34;
   static constexpr float kTitlePx = 16, kNamePx = 13, kMetaPx = 11, kSectionPx = 11;
 
-  MyGearModal(Backdrop backdrop, MyGear& gear);
+  MyGearModal(Backdrop backdrop, MyGear& gear, ImageLoader& images);
   ~MyGearModal() override;
 
   std::function<void(const MyGear::Entry&)> onPick;

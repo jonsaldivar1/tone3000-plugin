@@ -91,6 +91,7 @@ struct ToneSummary {
   juce::String gear;
   bool local = false;
   juce::String image;  // first image only
+  juce::String sourcePath;  // Fork (TK3J): local tones' file/folder on disk
   std::optional<ToneUserRef> user;
   juce::String publishedAt;
   std::vector<ToneModelRef> models;

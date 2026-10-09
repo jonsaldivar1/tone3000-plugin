@@ -130,7 +130,7 @@ std::unique_ptr<Modal> PluginRoot::openModal(Args&&... args) {
 // Fork (TK3J): My Gear. Below the update notice and the connection modal.
 void PluginRoot::openMyGear(ChainSide side, const std::string& targetId) {
   closeMyGear();
-  auto modal = openModal<MyGearModal>(services_.myGear);
+  auto modal = openModal<MyGearModal>(services_.myGear, services_.images);
   modal->onPick = [this, targetId](const MyGear::Entry& entry) {
     services_.myGear.noteUsed(entry.file);
     services_.localFiles.drop(targetId, juce::StringArray(entry.file.getFullPathName()));

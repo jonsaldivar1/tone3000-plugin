@@ -213,6 +213,9 @@ TEST(LocalLoadTest, PathLoadsSingleFileAndSwapsInPlace) {
   EXPECT_TRUE(static_cast<bool>(block["tone"]["local"]));
   EXPECT_EQ(block["tone"]["format"].toString(), juce::String("nam"));
   EXPECT_EQ(block["tone"]["title"].toString(), juce::String("a2-amp-test"));
+  // Fork (TK3J): the source on disk rides along for custom art (ToneArt).
+  EXPECT_EQ(block["tone"]["source_path"].toString(),
+            testFile("a2-amp-test.nam").getFullPathName());
 
   // Targeting an existing tone block replaces in place, like a drop on a tile.
   const juce::String blockId = res["blockId"].toString();
@@ -254,6 +257,7 @@ TEST(LocalLoadTest, PathLoadsFolderMajorityExtensionInNaturalOrder) {
   EXPECT_EQ(block["tone"]["models"][0]["name"].toString(), juce::String("amp 1"));
   EXPECT_EQ(block["tone"]["models"][1]["name"].toString(), juce::String("amp 2"));
   EXPECT_EQ(block["tone"]["models"][2]["name"].toString(), juce::String("amp 10"));
+  EXPECT_EQ(block["tone"]["source_path"].toString(), dir.getFullPathName());  // fork (TK3J)
 
   dir.deleteRecursively();
 }

@@ -46,6 +46,8 @@ enum class Key {
   clipDot,
   // The hint bar itself
   cpuLoad, hideHints,
+  // Fork (TK3J): tile art
+  setArtTile, clearArtTile,
 };
 
 // The (touch-reworded when applicable) copy for a key.

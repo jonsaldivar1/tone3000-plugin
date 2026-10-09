@@ -161,6 +161,9 @@ juce::var TONE3000Processor::makeToneSummary(const juce::var& toneVar) {
   const bool local = static_cast<bool>(tone->getProperty("local"));
   if (local)
     out->setProperty("local", true);
+  // Fork (TK3J): the on-disk source, for custom art (ToneArt).
+  if (local && tone->hasProperty("source_path"))
+    out->setProperty("source_path", tone->getProperty("source_path"));
 
   // Catalog totals for the model picker's "n/N" and the folder stat (only
   // the active model is stored, so the UI can't count the catalog itself).
