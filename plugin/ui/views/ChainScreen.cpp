@@ -9,7 +9,7 @@ ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(ser
   // on the tiles.
   scenes_.onPreview = [this](int scene) { gallery_.setScenePreview(scene); };
   addChildComponent(scenes_);
-  scenes_.setVisible(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
+  updateSceneBar();
   services_.prefs.addListener(this);
   gallery_.onOpenBlock = [this](const std::string& id) { openDetail(id); };
   gallery_.onSelectTone = [this](ChainSide side, const std::string& id) {
@@ -32,8 +32,11 @@ ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(ser
 ChainScreen::~ChainScreen() { services_.prefs.removeListener(this); }
 
 void ChainScreen::prefChanged(const juce::String& key) {
-  if (key != UiPrefs::kShowSceneBar) return;
-  scenes_.setVisible(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
+  if (key == UiPrefs::kShowSceneBar) updateSceneBar();
+}
+
+void ChainScreen::updateSceneBar() {
+  scenes_.setVisible(detail_ == nullptr && services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
   resized();
 }
 
@@ -56,7 +59,7 @@ void ChainScreen::openDetail(const std::string& blockId) {
   };
   addAndMakeVisible(*detail_);
   gallery_.setVisible(false);
-  resized();
+  updateSceneBar();
 }
 
 void ChainScreen::closeDetail() {
@@ -64,7 +67,7 @@ void ChainScreen::closeDetail() {
   if (!detail_) return;
   detail_.reset();
   gallery_.setVisible(true);
-  resized();
+  updateSceneBar();
 }
 
 void ChainScreen::returnToGallery() {

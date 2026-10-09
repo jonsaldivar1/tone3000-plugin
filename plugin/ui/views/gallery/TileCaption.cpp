@@ -4,6 +4,7 @@
 #include "core/Icons.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "core/TextFlow.h"
 
 namespace t3k::ui {
 
@@ -44,19 +45,18 @@ void TileCaption::resized() {
 
 void TileCaption::paint(juce::Graphics& g) {
   if (editing_) return;
-  const auto keyFont = Fonts::sans(kTextPx);
-  const auto valueFont = Fonts::sans(kTextPx, true);
+  // Gear on top (small, muted), the product under it in bold, wrapping to a
+  // second line before it ever truncates.
   const bool hover = isMouseOverOrDragging();
-  auto row = [&](int y, const juce::String& key, const juce::String& value) {
-    const int keyW = juce::roundToInt(Fonts::width(keyFont, key)) + 4;
-    paint::text(g, key, {0, y, keyW, kLineH}, keyFont, theme::kSubtle);
-    paint::text(g, value.isNotEmpty() ? value : juce::String("-"), {keyW, y, getWidth() - keyW - 16, kLineH},
-                valueFont, hover ? theme::kWhite : theme::kMuted);
-  };
-  row(0, "Gear:", info_.gear);
-  row(kLineH, "Product:", info_.product);
+  if (info_.gear.isNotEmpty())
+    paint::text(g, info_.gear, {0, 0, getWidth() - 16, kLineH}, Fonts::sans(kTextPx - 0.5f), theme::kSubtle);
+  const float y = info_.gear.isNotEmpty() ? static_cast<float>(kLineH) : 0.0f;
+  TextFlow product(Fonts::sans(kTextPx + 0.5f, true), static_cast<float>(kLineH),
+                   info_.product.isNotEmpty() ? info_.product : juce::String("-"), static_cast<float>(getWidth()));
+  product.draw(g, {0.0f, y}, hover ? theme::kWhite : juce::Colour(0xffc7c7cc), 2, /*ellipsis=*/true);
   if (hover) {
     const float s = 11.0f;
+    // Beside the gear line (the product line can run the full width).
     Icons::draw(g, Icon::Pencil, juce::Rectangle<float>(getWidth() - s, (kLineH - s) / 2.0f, s, s), theme::kMuted);
   }
 }

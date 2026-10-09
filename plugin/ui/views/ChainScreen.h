@@ -39,6 +39,9 @@ public:
 
 private:
   void prefChanged(const juce::String& key) override;  // Fork (TK3J): scene bar toggle
+  // Fork (TK3J): the bar shows on the gallery only; the block card needs the
+  // full height for its knobs and model picker.
+  void updateSceneBar();
   void openDetail(const std::string& blockId);
   void closeDetail();
 
