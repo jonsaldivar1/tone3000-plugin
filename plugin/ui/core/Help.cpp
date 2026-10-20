@@ -262,6 +262,13 @@ std::map<Key, String> buildTable() {
   t[Key::clearArtTile] = U("Clear Art: remove this tone's cover art (moved to the trash).");
   t[Key::footswitchTile] =
       U("Footswitch: put this block on footswitch 1 to 8. Blocks on the same switch turn on and off together.");
+  t[Key::laneStripLinked] =
+      U("Shared Strip: both lanes use one Input, Gate, tone stack and Output. Click: share.");
+  t[Key::laneStrip1] =
+      U("Lane 1 Strip: the plate's knobs control lane 1 only. Click: split the strip and edit lane 1.");
+  t[Key::laneStrip2] =
+      U("Lane 2 Strip: the plate's knobs control lane 2 only: its own Input, Gate, tone stack and Output. "
+        "Click: split the strip and edit lane 2.");
 
   for (auto& [key, value] : t) value = touchify(value);
   return t;

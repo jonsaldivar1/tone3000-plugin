@@ -23,7 +23,10 @@ public:
   // As tall as a secondary knob column (the plate bottom-aligns it).
   static int height() { return Knob::heightFor(theme::kKnobSizeSecondary); }
 
-  explicit GateGroup(Services& services);
+  // `suffix` picks the parameter set: "" the stock gate, "2" the fork's
+  // lane 2 gate (split channel strip). The deck edits the shared release /
+  // hold / range either way.
+  explicit GateGroup(Services& services, const juce::String& suffix = {});
   ~GateGroup() override;
 
   void resized() override;

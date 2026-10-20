@@ -215,6 +215,76 @@ private:
   std::unique_ptr<Menu> menu_;
 };
 
+// Fork (TK3J): split channel strip switch. Three segments in the input
+// group's chrome row: Shared (the link glyph: one strip for both lanes, the
+// stock behaviour), 1 and 2 (the strip is split; the plate's knobs edit that
+// lane). Only shown while two lanes run (stereo chains or dual mono).
+class Faceplate::LaneSwitch : public juce::Component {
+public:
+  static constexpr int kSegment = 24;
+  static constexpr int kWidth = 3 * kSegment + 2;  // + the frame
+
+  explicit LaneSwitch(std::function<void(int)> onPick) {
+    static const help::Key keys[] = {help::Key::laneStripLinked, help::Key::laneStrip1, help::Key::laneStrip2};
+    static const char* titles[] = {"Shared Strip", "Lane 1 Strip", "Lane 2 Strip"};
+    for (int i = 0; i < 3; ++i) {
+      auto seg = std::make_unique<Segment>(*this, i, titles[i]);
+      seg->setHelpText(help::text(keys[i]));
+      seg->onClick = [onPick, i] { onPick(i); };
+      addAndMakeVisible(*seg);
+      segments_.push_back(std::move(seg));
+    }
+    setSize(kWidth, theme::kIconBoxSize);
+  }
+
+  void setSelected(int index) {
+    if (selected_ == index) return;
+    selected_ = index;
+    for (auto& s : segments_) s->repaint();
+  }
+
+  void paint(juce::Graphics& g) override {
+    paint::border(g, getLocalBounds().toFloat(), theme::kIconBoxRadius, theme::kBorder);
+  }
+  void resized() override {
+    for (int i = 0; i < 3; ++i)
+      segments_[static_cast<size_t>(i)]->setBounds(1 + i * kSegment, 1, kSegment, getHeight() - 2);
+  }
+
+private:
+  class Segment : public Clickable {
+  public:
+    Segment(LaneSwitch& owner, int index, const juce::String& title)
+        : Clickable(title), owner_(owner), index_(index) {
+      setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    }
+    void paintButton(juce::Graphics& g, bool highlighted, bool) override {
+      const bool on = owner_.selected_ == index_;
+      const auto box = getLocalBounds().toFloat();
+      if (on || highlighted) paint::fill(g, box, theme::kIconBoxRadius, theme::kHighlight);
+      const auto colour = on ? theme::kWhite : theme::kMuted;
+      if (index_ == 0) {
+        // Link glyph: two interlocked rings, the strip shared by both lanes.
+        g.setColour(colour);
+        const auto c = box.getCentre();
+        g.drawEllipse(juce::Rectangle<float>(8.0f, 8.0f).withCentre(c.translated(-2.5f, 0)), 1.4f);
+        g.drawEllipse(juce::Rectangle<float>(8.0f, 8.0f).withCentre(c.translated(2.5f, 0)), 1.4f);
+      } else {
+        g.setFont(Fonts::mono(11, true));
+        g.setColour(colour);
+        g.drawText(juce::String(index_), getLocalBounds(), juce::Justification::centred, false);
+      }
+    }
+
+  private:
+    LaneSwitch& owner_;
+    int index_;
+  };
+
+  std::vector<std::unique_ptr<Segment>> segments_;
+  int selected_ = 0;
+};
+
 // Plate
 Faceplate::Faceplate(Services& services)
     : services_(services),
@@ -240,7 +310,21 @@ Faceplate::Faceplate(Services& services)
                              Knob::Variant::bipolar)),
       output_(services.backend, "outputLevel",
               primaryKnob("Output", scales::gainDb(), 0.5f, help::Key::outputLevel)),
-      spreadEnabled_(services.backend, "spreadEnabled") {
+      spreadEnabled_(services.backend, "spreadEnabled"),
+      laneSwitch_(std::make_unique<LaneSwitch>([this](int lane) { pickLane(lane); })),
+      splitStrip_(services.backend, "tk3jSplitStrip"),
+      input2_(services.backend, "inputLevel2",
+              primaryKnob("Input 2", scales::gainDb(), 0.5f, help::Key::inputLevel)),
+      gate2_(services, "2"),
+      gateEnabled2_(services.backend, "gateEnabled2"),
+      bass2_(services.backend, "toneBass2", primaryKnob("Bass 2", scales::tone(), 0.5f, help::Key::toneBass)),
+      middle2_(services.backend, "toneMid2",
+               primaryKnob("Middle 2", scales::tone(), 0.5f, help::Key::toneMiddle)),
+      treble2_(services.backend, "toneTreble2",
+               primaryKnob("Treble 2", scales::tone(), 0.5f, help::Key::toneTreble)),
+      tonePower2_(services.backend, "toneEqEnabled2", help::Key::tonePower),
+      output2_(services.backend, "outputLevel2",
+               primaryKnob("Output 2", scales::gainDb(), 0.5f, help::Key::outputLevel)) {
   setOpaque(true);
 
   addAndMakeVisible(input_);
@@ -268,7 +352,20 @@ Faceplate::Faceplate(Services& services)
   addChildComponent(balance_);
   addAndMakeVisible(output_);
 
-  for (auto* p : {&spreadEnabled_, &gateEnabled_, &pitchEnabled_}) p->onChange = [this] { syncFlags(); };
+  // Fork (TK3J): lane 2's strip, laid out over the stock one (syncFlags
+  // shows one set at a time) and the Shared | 1 | 2 switch.
+  addChildComponent(*laneSwitch_);
+  addChildComponent(input2_);
+  addChildComponent(gate2_);
+  for (auto* k : {&bass2_, &middle2_, &treble2_}) toneDim2_.addAndMakeVisible(*k);
+  toneDim2_.setOff(!tonePower2_.value(), false);
+  tonePower2_.onValueChange = [this](bool on) { toneDim2_.setOff(!on); };
+  addChildComponent(toneDim2_);
+  addChildComponent(tonePower2_);
+  addChildComponent(output2_);
+
+  for (auto* p : {&spreadEnabled_, &gateEnabled_, &pitchEnabled_, &splitStrip_, &gateEnabled2_})
+    p->onChange = [this] { syncFlags(); };
   services_.prefs.addListener(this);
   services_.chain.addListener(this);
   services_.autoBalance.addListener(this);
@@ -287,21 +384,76 @@ void Faceplate::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl) syncFlags();
 }
 
-void Faceplate::showEffect(juce::Component& group, bool show) {
-  if (group.isVisible() == show) return;
-  group.setVisible(show);
-  resized();
+void Faceplate::pickLane(int lane) {
+  if (lane == 0) {
+    splitStrip_.set(false);
+  } else {
+    editLane_ = lane - 1;
+    if (!splitStrip_.boolValue()) {
+      seedLane2FromLane1();
+      splitStrip_.set(true);
+    }
+  }
+  syncFlags();
+}
+
+void Faceplate::seedLane2FromLane1() {
+  static const std::pair<const char*, const char*> pairs[] = {
+      {"inputLevel", "inputLevel2"},       {"gateEnabled", "gateEnabled2"}, {"gateThreshold", "gateThreshold2"},
+      {"toneEqEnabled", "toneEqEnabled2"}, {"toneBass", "toneBass2"},       {"toneMid", "toneMid2"},
+      {"toneTreble", "toneTreble2"},       {"outputLevel", "outputLevel2"},
+  };
+  for (const auto& [from, to] : pairs) {
+    auto* p = services_.backend.parameter(to);
+    if (p == nullptr || std::abs(p->getValue() - p->getDefaultValue()) > 1.0e-4f) return;  // lane 2 has its own
+  }
+  for (const auto& [from, to] : pairs) {
+    auto* src = services_.backend.parameter(from);
+    auto* dst = services_.backend.parameter(to);
+    if (src == nullptr || dst == nullptr) continue;
+    dst->beginChangeGesture();
+    dst->setValueNotifyingHost(src->getValue());
+    dst->endChangeGesture();
+  }
 }
 
 void Faceplate::syncFlags() {
   const auto& chain = services_.chain.state();
 
+  // Fork (TK3J): split channel strip. The switch shows while two lanes run;
+  // split, the plate shows the edited lane's set.
+  const bool twoLanes = chain.stereoEnabled || chain.dualMonoActive;
+  const bool split = twoLanes && splitStrip_.boolValue();
+  const bool lane2 = split && editLane_ == 1;
+  bool relayout = false;
+  if (laneSwitch_->isVisible() != twoLanes) {
+    laneSwitch_->setVisible(twoLanes);
+    relayout = true;
+  }
+  laneSwitch_->setSelected(split ? editLane_ + 1 : 0);
+  input_.setVisible(!lane2);
+  input2_.setVisible(lane2);
+  toneDim_.setVisible(!lane2);
+  tonePower_.setVisible(!lane2);
+  toneDim2_.setVisible(lane2);
+  tonePower2_.setVisible(lane2);
+  output_.setVisible(!lane2);
+  output2_.setVisible(lane2);
+
   // Effects: the view setting decides (gate on, pitch off by default),
   // except that a powered effect always shows. A preset or host state that
   // switches one on brings its group out; switching it off again lets the
-  // setting hide it.
-  showEffect(gate_, services_.prefs.getBool(UiPrefs::kShowGateControl, true) || gateEnabled_.boolValue());
-  showEffect(pitch_, services_.prefs.getBool(UiPrefs::kShowPitchControl, false) || pitchEnabled_.boolValue());
+  // setting hide it. Split, either lane's powered gate counts.
+  const bool showGate = services_.prefs.getBool(UiPrefs::kShowGateControl, true) || gateEnabled_.boolValue() ||
+                        (split && gateEnabled2_.boolValue());
+  const bool showPitch = services_.prefs.getBool(UiPrefs::kShowPitchControl, false) || pitchEnabled_.boolValue();
+  relayout = relayout || showGate != showGate_ || showPitch != showPitch_;
+  showGate_ = showGate;
+  showPitch_ = showPitch;
+  gate_.setVisible(showGate && !lane2);
+  gate2_.setVisible(showGate && lane2);
+  pitch_.setVisible(showPitch);
+  if (relayout) resized();
 
   // The rig can drive two distinct output channels at all (stereo host bus /
   // 2+ channel output device). False dims the Spread group and makes it
@@ -355,8 +507,9 @@ void Faceplate::resized() {
   // fixed; the input group grows when the input-mode button shows, and the
   // effects cluster holds whichever of gate / pitch is showing (none: the
   // cluster leaves the row and four peers spread).
-  const int inputW = primary + (inputMode_->isVisible() ? kGroupGap + inputMode_->getWidth() : 0);
-  const bool gate = gate_.isVisible(), pitch = pitch_.isVisible();
+  const int inputW = primary + (inputMode_->isVisible() ? kGroupGap + inputMode_->getWidth() : 0) +
+                     (laneSwitch_->isVisible() ? kGroupGap + LaneSwitch::kWidth : 0);
+  const bool gate = showGate_, pitch = showPitch_;
   const int effectsW =
       (gate ? GateGroup::kWidth : 0) + (gate && pitch ? kEffectsGap : 0) + (pitch ? PitchGroup::kWidth : 0);
   const int toneW = 3 * primary + 2 * kToneGap + kGroupGap + box;
@@ -371,12 +524,16 @@ void Faceplate::resized() {
 
   // Input [+ mode]
   input_.setTopLeftPosition(at(x), knobY(primary));
+  input2_.setTopLeftPosition(at(x), knobY(primary));
   inputMode_->setTopLeftPosition(at(x) + primary + kGroupGap, chromeY);
+  laneSwitch_->setTopLeftPosition(
+      at(x) + primary + kGroupGap + (inputMode_->isVisible() ? inputMode_->getWidth() + kGroupGap : 0), chromeY);
   x += inputW + gap;
 
   // Effects: Gate + power (+ deck), Pitch + power (+ deck)
   if (gate) {
     gate_.setTopLeftPosition(at(x), knobY(secondary));
+    gate2_.setTopLeftPosition(at(x), knobY(secondary));
     x += GateGroup::kWidth + (pitch ? kEffectsGap : 0);
   }
   if (pitch) {
@@ -386,11 +543,13 @@ void Faceplate::resized() {
   if (effectsW > 0) x += gap;
 
   // Bass / Middle / Treble + power
-  toneDim_.setBounds(at(x), knobY(primary), 3 * primary + 2 * kToneGap, Knob::heightFor(primary));
-  bass_.setTopLeftPosition(0, 0);
-  middle_.setTopLeftPosition(primary + kToneGap, 0);
-  treble_.setTopLeftPosition(2 * (primary + kToneGap), 0);
-  tonePower_.setTopLeftPosition(at(x) + 3 * primary + 2 * kToneGap + kGroupGap, chromeY);
+  for (auto* dim : {&toneDim_, &toneDim2_})
+    dim->setBounds(at(x), knobY(primary), 3 * primary + 2 * kToneGap, Knob::heightFor(primary));
+  for (auto* k : {&bass_, &bass2_}) k->setTopLeftPosition(0, 0);
+  for (auto* k : {&middle_, &middle2_}) k->setTopLeftPosition(primary + kToneGap, 0);
+  for (auto* k : {&treble_, &treble2_}) k->setTopLeftPosition(2 * (primary + kToneGap), 0);
+  for (auto* p : {&tonePower_, &tonePower2_})
+    p->setTopLeftPosition(at(x) + 3 * primary + 2 * kToneGap + kGroupGap, chromeY);
   x += toneW + gap;
 
   // Spread / Align slot
@@ -403,7 +562,8 @@ void Faceplate::resized() {
   // main knob.
   autoBalance_.setTopLeftPosition(at(x), chromeY);
   balance_.setTopLeftPosition(at(x) + box + kGroupGap, knobY(secondary));
-  output_.setTopLeftPosition(at(x) + box + kGroupGap + secondary + kGroupGap, knobY(primary));
+  for (auto* k : {&output_, &output2_})
+    k->setTopLeftPosition(at(x) + box + kGroupGap + secondary + kGroupGap, knobY(primary));
 }
 
 }  // namespace t3k::ui

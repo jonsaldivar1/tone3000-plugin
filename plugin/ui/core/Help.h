@@ -48,6 +48,8 @@ enum class Key {
   cpuLoad, hideHints,
   // Fork (TK3J): tile art
   setArtTile, clearArtTile, footswitchTile,
+  // Fork (TK3J): split channel strip
+  laneStripLinked, laneStrip1, laneStrip2,
 };
 
 // The (touch-reworded when applicable) copy for a key.

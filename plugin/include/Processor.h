@@ -1159,6 +1159,16 @@ private:
     std::atomic<float>* pitchStep = nullptr;
     std::atomic<float>* pitchTonality = nullptr;
     std::atomic<float>* pitchWindow = nullptr;
+    // Fork (TK3J): split channel strip (lane 2's own controls).
+    std::atomic<float>* splitStrip = nullptr;
+    std::atomic<float>* inputLevel2 = nullptr;
+    std::atomic<float>* gateEnabled2 = nullptr;
+    std::atomic<float>* gateThreshold2 = nullptr;
+    std::atomic<float>* toneEqEnabled2 = nullptr;
+    std::atomic<float>* toneBass2 = nullptr;
+    std::atomic<float>* toneMid2 = nullptr;
+    std::atomic<float>* toneTreble2 = nullptr;
+    std::atomic<float>* outputLevel2 = nullptr;
   } paramRefs;
   void resolveParamRefs();
 
@@ -1237,6 +1247,36 @@ private:
   float cacheInputCalibrationLevel = 12.0f;
   bool cachePitchEnabled = false;
   PitchShift::Params cachePitch;
+
+  // Fork (TK3J): split channel strip. Lane 1 reads the stock caches above;
+  // these are lane 2's own.
+  bool cacheSplitStrip = false;
+  float cacheInputLevel2 = 0.5f;
+  bool cacheGateEnabled2 = true;
+  float cacheGateThreshold2 = -80.0f;
+  bool cacheToneEqEnabled2 = true;
+  float cacheBassTone2 = 5.0f;
+  float cacheMidTone2 = 5.0f;
+  float cacheTrebleTone2 = 5.0f;
+  float cacheOutputLevel2 = 0.5f;
+
+  // One lane's tone stack and output level, applied to that lane's chain
+  // output before the image matrix (host rate, mono). Only runs while the
+  // split is active; the stock post-chain tone stack and output level then
+  // stand aside (unity), so each lane's level is its own.
+  struct LaneStrip {
+    juce::dsp::IIR::Filter<float> bass, mid, treble;
+    juce::SmoothedValue<float> outputGain;
+    bool eqWasEnabled = false;
+    bool eqDirty = true;
+  };
+  std::array<LaneStrip, 2> laneStrips;
+  NoiseGate inputGate2;        // lane 2's gate (lane 1 keeps inputGate)
+  bool gate2WasEnabled = true;
+  bool rtSplitStrip = false;   // resolved once per callback, with rtDualMono
+  bool splitStripWasActive = false;
+  void prepareLaneStrips(double sampleRate, int blockSize);
+  void processLaneStrips(float* lane1, float* lane2, int numFrames);
 
   void updateEqCoefficients();
   void updateCachedParameters();

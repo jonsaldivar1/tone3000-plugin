@@ -126,6 +126,13 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Footswitch:");
          wait(400);
        }},
+      // Fork (TK3J): split channel strip, editing lane 2.
+      {"main-split-strip",
+       [](PluginRoot& root, MockBackend&) {
+         wait(200);
+         clickByHelp(root, "Lane 2 Strip:");
+         wait(300);
+       }},
       {"chrome-tile-menu",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "'02 Vox AC30/6 Top Boost.", /*right=*/true);

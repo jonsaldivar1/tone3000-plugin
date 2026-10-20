@@ -166,6 +166,15 @@ void TONE3000Processor::resolveParamRefs() {
   paramRefs.pitchStep = get("pitchStep");
   paramRefs.pitchTonality = get("pitchTonality");
   paramRefs.pitchWindow = get("pitchWindow");
+  paramRefs.splitStrip = get("tk3jSplitStrip");
+  paramRefs.inputLevel2 = get("inputLevel2");
+  paramRefs.gateEnabled2 = get("gateEnabled2");
+  paramRefs.gateThreshold2 = get("gateThreshold2");
+  paramRefs.toneEqEnabled2 = get("toneEqEnabled2");
+  paramRefs.toneBass2 = get("toneBass2");
+  paramRefs.toneMid2 = get("toneMid2");
+  paramRefs.toneTreble2 = get("toneTreble2");
+  paramRefs.outputLevel2 = get("outputLevel2");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createParameterLayout() {
@@ -368,6 +377,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createPar
       juce::ParameterID{"pitchWindow", 43}, "pitchWindow", windows,
       static_cast<int>(PitchShift::kDefaultWindow),
       juce::AudioParameterChoiceAttributes().withAutomatable(false)));
+
+  // Fork (TK3J): split channel strip. With two lanes running (stereo chains
+  // or dual mono) and the split on, lane 2 gets its own input gain, gate
+  // threshold + power, 3-band tone stack + power and output level; lane 1
+  // keeps the stock parameters. The gate's release / hold / range stay
+  // shared. See processLaneStrips.
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"tk3jSplitStrip", 44}, "tk3jSplitStrip", false));
+  layout.add(normParam("inputLevel2", 45, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"gateEnabled2", 46}, "gateEnabled2", true));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"gateThreshold2", 47}, "gateThreshold2", -100.0f, 0.0f, -80.0f));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"toneEqEnabled2", 48}, "toneEqEnabled2", true));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"toneBass2", 49}, "toneBass2", 0.0f, 10.0f, 5.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"toneMid2", 50}, "toneMid2", 0.0f, 10.0f, 5.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"toneTreble2", 51}, "toneTreble2", 0.0f, 10.0f, 5.0f));
+  layout.add(normParam("outputLevel2", 52, 0.5f));
 
   return layout;
 }
@@ -930,6 +961,7 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   stereoOffset.prepare(sampleRate, samplesPerBlock);
   autoOffset.prepare(sampleRate);
   inputGate.prepare(sampleRate);
+  prepareLaneStrips(sampleRate, samplesPerBlock);
 
   // Chain-edit fade: host-rate. Primed audible normally, but a device can
   // start while a fade session holds the chain (launch: state restore arms
@@ -1026,6 +1058,12 @@ void TONE3000Processor::releaseResources() {
   trebleFilter.reset();
   dcBlocker.reset();
   inputGate.reset();
+  inputGate2.reset();
+  for (auto& strip : laneStrips) {
+    strip.bass.reset();
+    strip.mid.reset();
+    strip.treble.reset();
+  }
 }
 
 bool TONE3000Processor::isBusesLayoutSupported(const BusesLayout& layouts) const {
@@ -1049,21 +1087,96 @@ bool TONE3000Processor::isBusesLayoutSupported(const BusesLayout& layouts) const
 // knobs run 0-10 with 5 flat, each band maps linearly to dB with its own
 // sweep (bass ±20 dB, mid ±15 dB, treble ±10 dB), and the mid bell widens
 // when boosting (Q 0.7 vs 1.5) so pushed mids don't turn honky.
-void TONE3000Processor::updateEqCoefficients() {
-  const double rate = getSampleRate();
-  const float bassDb = 4.0f * (cacheBassTone - 5.0f);
-  const float midDb = 3.0f * (cacheMidTone - 5.0f);
-  const float trebleDb = 2.0f * (cacheTrebleTone - 5.0f);
+// The tone stack's three biquads for knob values 0..10 (5 = flat). Shared by
+// the global stack and the fork's per-lane strips so both sound identical.
+struct ToneCoefficients {
+  juce::dsp::IIR::Coefficients<float>::Ptr bass, mid, treble;
+};
+static ToneCoefficients makeToneCoefficients(double rate, float bass, float mid, float treble) {
+  const float bassDb = 4.0f * (bass - 5.0f);
+  const float midDb = 3.0f * (mid - 5.0f);
+  const float trebleDb = 2.0f * (treble - 5.0f);
+  return {juce::dsp::IIR::Coefficients<float>::makeLowShelf(
+              rate, clampBelowNyquist(rate, 150.0f), 0.707f, juce::Decibels::decibelsToGain(bassDb)),
+          juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+              rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
+              juce::Decibels::decibelsToGain(midDb)),
+          juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+              rate, clampBelowNyquist(rate, 1800.0f), 0.707f, juce::Decibels::decibelsToGain(trebleDb))};
+}
 
-  *bassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-      rate, clampBelowNyquist(rate, 150.0f), 0.707f,
-      juce::Decibels::decibelsToGain(bassDb));
-  *midFilter.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-      rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
-      juce::Decibels::decibelsToGain(midDb));
-  *trebleFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-      rate, clampBelowNyquist(rate, 1800.0f), 0.707f,
-      juce::Decibels::decibelsToGain(trebleDb));
+void TONE3000Processor::updateEqCoefficients() {
+  const auto c = makeToneCoefficients(getSampleRate(), cacheBassTone, cacheMidTone, cacheTrebleTone);
+  *bassFilter.state = *c.bass;
+  *midFilter.state = *c.mid;
+  *trebleFilter.state = *c.treble;
+}
+
+// ##########################################
+// Fork (TK3J): SPLIT CHANNEL STRIP (per lane)
+// ##########################################
+// Message thread (prepareToPlay): mono filters at host rate, flat to start
+// (the first processed block computes the real coefficients), and the lane
+// output smoothers at their current targets.
+void TONE3000Processor::prepareLaneStrips(double sampleRate, int blockSize) {
+  const juce::dsp::ProcessSpec spec{sampleRate, static_cast<juce::uint32>(juce::jmax(1, blockSize)), 1};
+  for (int i = 0; i < 2; ++i) {
+    auto& strip = laneStrips[static_cast<size_t>(i)];
+    const auto c = makeToneCoefficients(sampleRate, 5.0f, 5.0f, 5.0f);
+    strip.bass.coefficients = c.bass;
+    strip.mid.coefficients = c.mid;
+    strip.treble.coefficients = c.treble;
+    for (auto* f : {&strip.bass, &strip.mid, &strip.treble}) {
+      f->prepare(spec);
+      f->reset();
+    }
+    strip.eqDirty = true;
+    strip.eqWasEnabled = false;
+    strip.outputGain.reset(sampleRate, 0.02);
+    strip.outputGain.setCurrentAndTargetValue(mainStageGain(i == 0 ? cacheOutputLevel : cacheOutputLevel2));
+  }
+  inputGate2.prepare(sampleRate);
+}
+
+// Audio thread, per slice, on the two lanes' chain outputs before the image
+// matrix: each lane's tone stack, then its output level. Pre-matrix so a
+// lane's EQ and level stay that lane's at any pan position.
+void TONE3000Processor::processLaneStrips(float* lane1, float* lane2, int numFrames) {
+  const double rate = getSampleRate();
+  float* lanes[2] = {lane1, lane2};
+  for (int i = 0; i < 2; ++i) {
+    auto& strip = laneStrips[static_cast<size_t>(i)];
+    const bool eqOn = i == 0 ? cacheToneEqEnabled : cacheToneEqEnabled2;
+    if (eqOn) {
+      if (strip.eqDirty) {
+        const auto c = i == 0 ? makeToneCoefficients(rate, cacheBassTone, cacheMidTone, cacheTrebleTone)
+                              : makeToneCoefficients(rate, cacheBassTone2, cacheMidTone2, cacheTrebleTone2);
+        *strip.bass.coefficients = *c.bass;
+        *strip.mid.coefficients = *c.mid;
+        *strip.treble.coefficients = *c.treble;
+        strip.eqDirty = false;
+      }
+      if (!strip.eqWasEnabled) {
+        strip.bass.reset();
+        strip.mid.reset();
+        strip.treble.reset();
+      }
+      float* channel[1] = {lanes[i]};
+      juce::dsp::AudioBlock<float> block(channel, 1, static_cast<size_t>(numFrames));
+      juce::dsp::ProcessContextReplacing<float> context(block);
+      strip.bass.process(context);
+      strip.mid.process(context);
+      strip.treble.process(context);
+    }
+    strip.eqWasEnabled = eqOn;
+
+    strip.outputGain.setTargetValue(mainStageGain(i == 0 ? cacheOutputLevel : cacheOutputLevel2));
+    if (strip.outputGain.isSmoothing()) {
+      for (int n = 0; n < numFrames; ++n) lanes[i][n] *= strip.outputGain.getNextValue();
+    } else {
+      juce::FloatVectorOperations::multiply(lanes[i], strip.outputGain.getCurrentValue(), numFrames);
+    }
+  }
 }
 
 // ######################
@@ -1105,8 +1218,18 @@ void TONE3000Processor::updateCachedParameters() {
     const float value = param->load();
     if (std::abs(value - cached) > epsilon) {
       cached = value;
-      if (tone)
+      if (tone) {
         eqParamsDirty = true;
+        laneStrips[0].eqDirty = true;  // lane 1's split-strip EQ reads the same knobs
+      }
+    }
+  };
+  // Fork (TK3J): lane 2's own tone knobs dirty only lane 2's filters.
+  auto updateLane2Tone = [&](float& cached, const std::atomic<float>* param) {
+    const float value = param->load();
+    if (std::abs(value - cached) > epsilon) {
+      cached = value;
+      laneStrips[1].eqDirty = true;
     }
   };
 
@@ -1160,6 +1283,17 @@ void TONE3000Processor::updateCachedParameters() {
   cachePitch.tonalityHz = tonalityHz < PitchShift::kTonalityOffHz ? tonalityHz : 0.0f;
   cachePitch.window =
       PitchShift::windowFromIndex(static_cast<int>(std::lround(paramRefs.pitchWindow->load())));
+
+  // Fork (TK3J): split channel strip.
+  cacheSplitStrip = loadBool(paramRefs.splitStrip);
+  updateFloat(cacheInputLevel2, paramRefs.inputLevel2);
+  updateFloat(cacheGateThreshold2, paramRefs.gateThreshold2);
+  updateFloat(cacheOutputLevel2, paramRefs.outputLevel2);
+  updateLane2Tone(cacheBassTone2, paramRefs.toneBass2);
+  updateLane2Tone(cacheMidTone2, paramRefs.toneMid2);
+  updateLane2Tone(cacheTrebleTone2, paramRefs.toneTreble2);
+  cacheGateEnabled2 = loadBool(paramRefs.gateEnabled2);
+  cacheToneEqEnabled2 = loadBool(paramRefs.toneEqEnabled2);
 }
 
 // ##########################
@@ -1808,10 +1942,31 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // Input gain + noise gate
   // #########################
 
+  // Fork (TK3J): split channel strip. Active only while two lanes really run
+  // on two buffer channels (stereo chains, or dual mono engaged); channel 0
+  // is lane 1, channel 1 lane 2. Entering or leaving it resets the gates and
+  // re-seats the output smoothers: the levels move between the stock output
+  // stage and the per-lane strips, and that must not glide twice.
+  rtSplitStrip = cacheSplitStrip && numChannels > 1 && (stereoEnabled.load() || rtDualMono);
+  if (rtSplitStrip != splitStripWasActive) {
+    splitStripWasActive = rtSplitStrip;
+    inputGate.reset();
+    inputGate2.reset();
+    for (int i = 0; i < 2; ++i) {
+      auto& strip = laneStrips[static_cast<size_t>(i)];
+      strip.eqWasEnabled = false;
+      strip.eqDirty = true;
+      strip.outputGain.setCurrentAndTargetValue(mainStageGain(i == 0 ? cacheOutputLevel : cacheOutputLevel2));
+    }
+    outputGainSmoother.setCurrentAndTargetValue(rtSplitStrip ? 1.0f : mainStageGain(cacheOutputLevel));
+    toneEqWasEnabled = false;  // the global stack sat out: reset it on its return
+  }
+
   // Input gain (level ±24 dB), constant across the block. Computed up front
   // so the meters can show the post-gain level without a second pass over
-  // the samples.
+  // the samples. With the split strip, channel 1 (lane 2) takes its own.
   const float inputGain = mainStageGain(cacheInputLevel);
+  const float inputGain2 = rtSplitStrip ? mainStageGain(cacheInputLevel2) : inputGain;
 
   // Per-channel input meters: raw peaks scaled by the input gain, so the
   // meter tracks the knob. Pre-gate on purpose: a closed gate would
@@ -1833,7 +1988,7 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
       peakR = peakL;
     }
     inputMeterLevelL.store(peakToDb(peakL * inputGain));
-    inputMeterLevelR.store(peakToDb(peakR * inputGain));
+    inputMeterLevelR.store(peakToDb(peakR * (numChannels > 1 ? inputGain2 : inputGain)));
   }
 
   // Feed the tuner from the raw input (pre-gain, pre-gate) while the tuner
@@ -1844,19 +1999,38 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
 
   // Apply the input gain (vectorized).
   for (int ch = 0; ch < numChannels; ++ch)
-    buffer.applyGain(ch, 0, numSamples, inputGain);
+    buffer.applyGain(ch, 0, numSamples, ch == 1 ? inputGain2 : inputGain);
 
   // Noise gate, post input gain so the threshold knob's dB meaning matches
   // the level heading into the chain. Envelope/hysteresis gate (NoiseGate.h);
   // re-enabling resets the detector so a stale envelope never gates the
-  // first block.
-  if (cacheGateEnabled) {
+  // first block. With the split strip each lane's channel gets its own gate
+  // (threshold + power); release / hold / range stay shared.
+  if (rtSplitStrip) {
+    float* lane1[1] = {buffer.getWritePointer(0)};
+    float* lane2[1] = {buffer.getWritePointer(1)};
+    juce::AudioBuffer<float> lane1View(lane1, 1, numSamples);
+    juce::AudioBuffer<float> lane2View(lane2, 1, numSamples);
+    if (cacheGateEnabled) {
+      if (!gateWasEnabled)
+        inputGate.reset();
+      inputGate.setParams({cacheGateThreshold, cacheGateRelease, cacheGateHold, cacheGateRange});
+      inputGate.process(lane1View);
+    }
+    if (cacheGateEnabled2) {
+      if (!gate2WasEnabled)
+        inputGate2.reset();
+      inputGate2.setParams({cacheGateThreshold2, cacheGateRelease, cacheGateHold, cacheGateRange});
+      inputGate2.process(lane2View);
+    }
+  } else if (cacheGateEnabled) {
     if (!gateWasEnabled)
       inputGate.reset();
     inputGate.setParams({cacheGateThreshold, cacheGateRelease, cacheGateHold, cacheGateRange});
     inputGate.process(buffer);
   }
   gateWasEnabled = cacheGateEnabled;
+  gate2WasEnabled = cacheGateEnabled2;
 
   // Pitch shift (PitchShift.h): shifts the instrument before the chain, so
   // the amp sees a down-tuned (or whammy-bent) guitar. After the gate so it
@@ -1962,6 +2136,10 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
       else
         processOversampledChainStage(channels, channels, sliceLen);
 
+      // Fork (TK3J): each lane's own tone stack + output level, pre-matrix.
+      if (rtSplitStrip)
+        processLaneStrips(channels[0], channels[1], sliceLen);
+
       // Image stage per slice: on a mono host buffer the scratch channel
       // only holds the Right lane's output for this slice, so it must be
       // folded before the next slice reuses it.
@@ -2033,7 +2211,9 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // ##########
   // EQ section (global 3-band tone stack), post-chain.
   // ##########
-  processToneStack(buffer);
+  // With the split strip the lanes ran their own stacks pre-matrix instead.
+  if (!rtSplitStrip)
+    processToneStack(buffer);
 
   // ##########
   // Auto-align probe mute: fades the output before the probe starts, holds
@@ -2050,7 +2230,9 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // meters ride the same pass.
   // ###########
   {
-    outputGainSmoother.setTargetValue(mainStageGain(cacheOutputLevel));
+    // Split strip: the lanes carry their own output levels, so this stage is
+    // unity (still the meters' tap).
+    outputGainSmoother.setTargetValue(rtSplitStrip ? 1.0f : mainStageGain(cacheOutputLevel));
 
     float peakL = 0.0f, peakR = 0.0f;
     auto* l = buffer.getWritePointer(0);

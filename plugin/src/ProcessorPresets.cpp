@@ -31,6 +31,10 @@ const std::vector<juce::String>& TONE3000Processor::presetParameterIds() {
       "alignDiffuseEnabled",
       "chainPanLeft",   "chainPanRight",    "chainPanLinked",
       "chainInvertLeft", "chainInvertRight",
+      // Fork (TK3J): split channel strip (lane 2's own controls).
+      "tk3jSplitStrip", "inputLevel2",  "gateEnabled2",
+      "gateThreshold2", "toneEqEnabled2", "toneBass2",
+      "toneMid2",       "toneTreble2",  "outputLevel2",
   };
   return ids;
 }

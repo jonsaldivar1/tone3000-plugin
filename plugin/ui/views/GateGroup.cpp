@@ -11,9 +11,9 @@ constexpr int kGap = 10;
 // Chrome boxes in a bottom-aligned row sit on the secondary-knob centreline.
 constexpr int kChromeLift = theme::faceplateChromeLift(theme::kKnobSizeSecondary);
 
-Knob::Options thresholdKnob() {
+Knob::Options thresholdKnob(const juce::String& suffix) {
   Knob::Options o;
-  o.label = "Gate";
+  o.label = suffix.isEmpty() ? juce::String("Gate") : "Gate " + suffix;
   o.size = theme::kKnobSizeSecondary;
   o.thumb = Knob::Thumb::secondary;
   o.scale = &scales::gateDb();
@@ -24,10 +24,10 @@ Knob::Options thresholdKnob() {
 
 }  // namespace
 
-GateGroup::GateGroup(Services& services)
+GateGroup::GateGroup(Services& services, const juce::String& suffix)
     : services_(services),
-      threshold_(services.backend, "gateThreshold", thresholdKnob()),
-      power_(services.backend, "gateEnabled", help::Key::gatePower),
+      threshold_(services.backend, "gateThreshold" + suffix, thresholdKnob(suffix)),
+      power_(services.backend, "gateEnabled" + suffix, help::Key::gatePower),
       deck_(services) {
   dim_.addAndMakeVisible(threshold_);
   dim_.setOff(!power_.value(), false);
