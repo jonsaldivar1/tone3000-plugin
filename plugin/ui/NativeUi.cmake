@@ -5,7 +5,8 @@
 
 set(T3K_UI_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
-# Embedded fonts (Roboto Mono and Arimo, both Apache-2.0) and brand artwork,
+# Embedded fonts (Roboto Mono and Arimo, both Apache-2.0; the fork's skin
+# logo faces Michroma and Unbounded, OFL-1.1, subset to A-Z 0-9) and brand artwork,
 # in their own namespace/header (UiBinaryData) so they read as UI assets.
 if (NOT TARGET NativeUiAssets)
     juce_add_binary_data(NativeUiAssets
@@ -18,6 +19,8 @@ if (NOT TARGET NativeUiAssets)
             "${T3K_UI_DIR}/assets/Arimo-Bold.ttf"
             "${T3K_UI_DIR}/assets/Arimo-Italic.ttf"
             "${T3K_UI_DIR}/assets/Arimo-BoldItalic.ttf"
+            "${T3K_UI_DIR}/assets/Michroma-Regular.ttf"
+            "${T3K_UI_DIR}/assets/Unbounded-ExtraBold.ttf"
             "${T3K_UI_DIR}/assets/t3k.svg"
             "${T3K_UI_DIR}/assets/t3k-mark.svg"
     )

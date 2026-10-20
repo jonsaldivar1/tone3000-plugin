@@ -69,7 +69,7 @@ public:
   void setPinned(bool pinned) {
     pinned_ = pinned;
     pin_.setActive(pinned);
-    pin_.setColour(pinned ? std::optional<juce::Colour>(theme::kBrandYellow) : std::nullopt);
+    pin_.setColour(pinned ? std::optional<juce::Colour>(theme::kAccent) : std::nullopt);
   }
 
   void resized() override {

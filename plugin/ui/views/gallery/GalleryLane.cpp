@@ -89,6 +89,9 @@ void GalleryLane::setItems(const std::vector<ChainItem>& items, int tileSize) {
     }
     if (auto* add = dynamic_cast<AddTile*>(tile.get())) {
       add->setRouting(AddTile::routingFor(static_cast<int>(i), static_cast<int>(items_.size())));
+      // Fork (TK3J): only the first empty slot of a run shows the full add
+      // tile; the ones after it stay quiet (still clickable / drop targets).
+      add->setQuiet(i > 0 && items_[i - 1].isInsert);
       add->setCanPaste(canPaste_);
     } else if (auto* tone = dynamic_cast<ToneTile*>(tile.get())) {
       tone->setBlock(item);
@@ -197,7 +200,7 @@ void GalleryLane::paint(juce::Graphics& g) {
   // Tiles repaint on every meter tick; only draw the slots that actually
   // fall in the dirty area rather than re-rendering the SVG for every slot.
   const auto clip = g.getClipBounds().toFloat();
-  g.setColour(theme::kWhite);
+  g.setColour(theme::kWire);
   for (int i = 0; i < count; ++i) {
     const float cx = gallery::tileX(i, tile_) + tile_ / 2.0f;
     if (i > 0) {
@@ -208,7 +211,7 @@ void GalleryLane::paint(juce::Graphics& g) {
     }
     const auto circle = juce::Rectangle<float>(icon, icon).withCentre({cx, cy});
     if (circle.intersects(clip))
-      Icons::draw(g, Icon::PlusCircle, circle, theme::kWhite, /*strokeWidth=*/1.0f);
+      Icons::draw(g, Icon::PlusCircle, circle, theme::kWire, /*strokeWidth=*/1.0f);
   }
 }
 

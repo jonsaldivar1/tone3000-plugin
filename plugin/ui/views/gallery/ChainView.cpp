@@ -7,6 +7,7 @@
 #include "ToneTile.h"
 #include "core/Fonts.h"
 #include "core/Paint.h"
+#include "core/Skin.h"
 #include "core/Theme.h"
 #include "widgets/Popover.h"
 
@@ -68,7 +69,7 @@ public:
     const float bottomCentre = tile + gallery::kLaneGap + tile / 2.0f;
     const float stubY = branch->trunkSide == ChainSide::left ? bottomCentre : topCentre;
     const float w = gallery::kLineWidth;
-    g.setColour(theme::kWhite);
+    g.setColour(theme::kWire);
     g.fillRect(juce::Rectangle<float>(x - w / 2, lanesTop_ + topCentre, w, bottomCentre - topCentre));
     g.fillRect(juce::Rectangle<float>(x, lanesTop_ + stubY - w / 2, gallery::kTileGap / 2.0f, w));
   }
@@ -350,7 +351,8 @@ void ChainView::paint(juce::Graphics& g) {
 
 // Fade the lanes out under the gutters as they scroll.
 void ChainView::paintOverChildren(juce::Graphics& g) {
-  paint::edgeFades(g, scroller_->getBounds().toFloat(), gallery::kEdgeFadeWidth, juce::Colours::black);
+  if (skin::hasBackdrop()) return;  // Fork (TK3J): keep the skin's art whole
+  paint::edgeFades(g, scroller_->getBounds().toFloat(), gallery::kEdgeFadeWidth, theme::kBackground);
 }
 
 // Sorting: pointer + keyboard

@@ -113,7 +113,7 @@ void PluginHeader::chainChanged(const ChainState& state) {
 }
 
 void PluginHeader::paint(juce::Graphics& g) {
-  g.fillAll(theme::kBlack);
+  g.fillAll(theme::kBackground);
   paint::hairlineH(g, 0, static_cast<float>(getWidth()), static_cast<float>(getHeight() - 1),
                    theme::kBorder);
 }

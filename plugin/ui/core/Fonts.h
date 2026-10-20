@@ -22,6 +22,7 @@ struct Fonts {
   struct Cache {
     juce::Typeface::Ptr arimo[4];      // [bold + 2 * italic]
     juce::Typeface::Ptr robotoMono[2]; // [bold]
+    juce::Typeface::Ptr michroma, unbounded;  // Fork (TK3J): skin logo faces
   };
   using Hold = juce::SharedResourcePointer<Cache>;
 
@@ -30,6 +31,10 @@ struct Fonts {
   static juce::Font sans(float px, bool bold = false, bool italic = false);
   // Roboto Mono 400/700, embedded.
   static juce::Font mono(float px, bool bold = false);
+
+  // Fork (TK3J): the Zenith / Tidal skins' logo faces (embedded, A-Z 0-9 only).
+  static juce::Font michroma(float px);
+  static juce::Font unbounded(float px);
 
   // CSS `letter-spacing: Xem` → JUCE extra kerning factor.
   static juce::Font tracked(const juce::Font& font, float em);

@@ -52,7 +52,7 @@ HintBar::HintBar(Services& services) : services_(services), cpu_(services.meters
 HintBar::~HintBar() { services_.hints.removeListener(this); }
 
 void HintBar::paint(juce::Graphics& g) {
-  g.fillAll(theme::kBlack);
+  g.fillAll(theme::kBackground);
   paint::hairlineH(g, 0, static_cast<float>(getWidth()), 0, theme::kBorder);
   auto area = getLocalBounds().reduced(kPadX, 0);
   area.setRight(cpu_.getX() - kGap);

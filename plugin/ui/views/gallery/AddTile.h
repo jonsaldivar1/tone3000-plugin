@@ -21,6 +21,9 @@ public:
   // Paste the copied block into this slot; unset while there's nothing valid
   // to paste (the action sheet shows Paste disabled).
   void setCanPaste(bool canPaste);
+  // Fork (TK3J): a filler slot behind another empty one: a faint outline and
+  // a small plus instead of the full dashed tile.
+  void setQuiet(bool quiet);
 
   std::function<void(const std::string& insertBlockId)> onAdd;
   std::function<void(const std::string& insertBlockId)> onPaste;
@@ -34,6 +37,7 @@ protected:
 private:
   Routing routing_ = Routing::none;
   bool canPaste_ = false;
+  bool quiet_ = false;
 };
 
 }  // namespace t3k::ui

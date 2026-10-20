@@ -24,6 +24,7 @@ public:
                int glyphSize = 0);
   // Clip to rounded corners (the tile's overflow: hidden face).
   void setCornerRadius(float radius);
+  float cornerRadius() const { return corner_; }
   // Inset energy glow composited over the art (screen blend).
   void setGlow(const Glow& glow);
 

@@ -66,8 +66,8 @@ void ChromeIconButton::paintButton(juce::Graphics& g, bool, bool) {
       break;
     case Tone::armed:
       colour = on_ ? theme::kBlack : theme::kGray;
-      if (on_) fill = theme::kBrandYellow;
-      border = on_ ? theme::kBrandYellow : theme::kBorder;
+      if (on_) fill = theme::kAccent;
+      border = on_ ? theme::kAccent : theme::kBorder;
       break;
     case Tone::link:
       colour = on_ ? theme::kWhite : theme::kGray;

@@ -188,7 +188,7 @@ void SettingsScreen::layoutColumn() {
   stack_.setBounds(column.getX(), kPadTop, column.getWidth(), stackH);
 }
 
-void SettingsScreen::paint(juce::Graphics& g) { g.fillAll(theme::kBlack); }
+void SettingsScreen::paint(juce::Graphics& g) { g.fillAll(theme::kBackground); }
 
 void SettingsScreen::resized() {
   viewport_.setBounds(getLocalBounds());

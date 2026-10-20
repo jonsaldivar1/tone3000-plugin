@@ -1,5 +1,7 @@
 #include "PluginSettingsPage.h"
 
+#include "core/Skin.h"
+
 #include "InlineChrome.h"
 #include "core/Fonts.h"
 #include "core/Paint.h"
@@ -100,6 +102,10 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
       myGearFirst_("Open My Gear First",
                    "Adding or swapping a block shows your own tones folder, pinned and recent tones before the "
                    "TONE3000 search."),
+      skin_("Skin", "The look of the whole plugin. Your sound, presets and settings don't change."),
+      skinStock_("Stock", "The TONE3000 look: black, yellow and white"),
+      skinZenith_("Zenith", "Deep indigo and gold, sacred geometry and a starfield"),
+      skinTidal_("Tidal", "Dark teal and violet, a 7-against-4 polyrhythm over waveforms"),
       namSize_("NAM A2 Size",
                "Default size for new NAM blocks. Existing blocks keep their own, so presets load as saved."),
       lite_("A2-Lite", "Sounds great and uses less CPU"),
@@ -170,6 +176,15 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   add(sceneBar_);
   myGearFirst_.onChange = [this](bool on) { services_.prefs.setBool(MyGear::kOpenFirst, on); };
   add(myGearFirst_);
+
+  // Fork (TK3J): Skin.
+  skin_.setInlineLabel();
+  skin_.content().setGap(form::kControlGap);
+  for (auto* option : {&skinStock_, &skinZenith_, &skinTidal_}) skin_.content().add(*option);
+  skinStock_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::stock)); };
+  skinZenith_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::zenith)); };
+  skinTidal_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::tidal)); };
+  add(skin_);
 
   // NAM A2 Size.
   namSize_.setInlineLabel();
@@ -270,7 +285,8 @@ PluginSettingsPage::~PluginSettingsPage() {
 void PluginSettingsPage::prefChanged(const juce::String& key) {
   if (key == UiPrefs::kShowHints || key == UiPrefs::kShowGateControl || key == UiPrefs::kShowPitchControl ||
       key == UiPrefs::kShowBlockSizeControl || key == UiPrefs::kShowBlockNormalizeControl ||
-      key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels || key == UiPrefs::kShowSceneBar || key == MyGear::kOpenFirst)
+      key == UiPrefs::kFitChainToWindow || key == UiPrefs::kShowBlockLabels || key == UiPrefs::kShowSceneBar || key == MyGear::kOpenFirst ||
+      key == skin::kPrefKey)
     syncPrefs();
 }
 
@@ -282,6 +298,11 @@ void PluginSettingsPage::syncPrefs() {
   blockLabels_.setValue(services_.prefs.getBool(UiPrefs::kShowBlockLabels, true));
   sceneBar_.setValue(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
   myGearFirst_.setValue(services_.myGear.openFirst());
+  const auto skinId = skin::fromString(services_.prefs.get(skin::kPrefKey));
+  skinStock_.setSelected(skinId == skin::Id::stock);
+  skinZenith_.setSelected(skinId == skin::Id::zenith);
+  skinTidal_.setSelected(skinId == skin::Id::tidal);
+  repaint();
   const bool size = services_.prefs.getBool(UiPrefs::kShowBlockSizeControl, false);
   blockSize_.setValue(size);
   blockSize_.setExpanded(size);

@@ -3,6 +3,7 @@
 #include "core/Design.h"
 #include "core/Help.h"
 #include "core/NoDefaultFocus.h"
+#include "core/Skin.h"
 #include "core/Theme.h"
 
 namespace t3k::ui {
@@ -14,6 +15,7 @@ constexpr int kToastGap = 24;
 
 PluginRoot::PluginRoot(Services& services)
     : services_(services),
+      skinApplied_((skin::apply(skin::fromString(services.prefs.get(skin::kPrefKey))), true)),
       header_(services),
       hintBar_(services),
       main_(services),
@@ -80,6 +82,7 @@ PluginRoot::PluginRoot(Services& services)
   services_.connection.addListener(this);
   services_.updates.addListener(this);
   services_.session.addListener(this);
+  services_.prefs.addListener(this);
   hintsVisible_ = services_.hints.enabled();
   updateChromeHeight();
   bannerChanged();
@@ -94,6 +97,7 @@ PluginRoot::~PluginRoot() {
   services_.session.onAuthenticated = nullptr;
   services_.loadFlow.onShowBrowser = nullptr;
   if (watchedParent_ != nullptr) watchedParent_->removeComponentListener(this);
+  services_.prefs.removeListener(this);
   services_.session.removeListener(this);
   services_.updates.removeListener(this);
   services_.connection.removeListener(this);
@@ -107,7 +111,8 @@ juce::Image PluginRoot::snapshotBeneathOverlay(float scale) {
                     juce::jmax(1, juce::roundToInt(getHeight() * scale)), true);
   juce::Graphics g(image);
   g.addTransform(juce::AffineTransform::scale(scale));
-  g.fillAll(theme::kBlack);
+  g.fillAll(theme::kBackground);
+  skin::paintBackdrop(g, getLocalBounds().toFloat());
   for (auto* child : getChildren()) {
     if (child == &overlay_ || !child->isVisible()) continue;
     g.saveState();
@@ -450,8 +455,22 @@ void PluginRoot::logout() {
   services_.session.logout();
 }
 
+// Fork (TK3J): skins. The theme tokens change in place, so a repaint picks
+// them up everywhere; the header re-lays out for the logo's new width.
+void PluginRoot::prefChanged(const juce::String& key) {
+  if (key != skin::kPrefKey) return;
+  const auto id = skin::fromString(services_.prefs.get(skin::kPrefKey));
+  if (id == skin::current()) return;
+  skin::apply(id);
+  header_.resized();
+  repaint();
+}
+
 // Layout
-void PluginRoot::paint(juce::Graphics& g) { g.fillAll(theme::kBlack); }
+void PluginRoot::paint(juce::Graphics& g) {
+  g.fillAll(theme::kBackground);
+  skin::paintBackdrop(g, getLocalBounds().toFloat());  // Fork (TK3J): the skin's art, behind the chain
+}
 
 void PluginRoot::openSettings(SettingsScreen::Tab tab) {
   if (settings_ != nullptr) {

@@ -174,7 +174,7 @@ public:
     const int x = cc_.getX() - kRowGap - listeningWidth();
     const float top = static_cast<float>(box.getY()) + (box.getHeight() - lineH) / 2;
     const float alpha = pulseAlpha();
-    g.setColour(theme::kBrandYellow.withAlpha(alpha));
+    g.setColour(theme::kAccent.withAlpha(alpha));
     g.fillEllipse(static_cast<float>(x), top + (lineH - kListenDot) / 2, kListenDot, kListenDot);
     paint::cssLine(g, kListening, static_cast<float>(x + kListenDot + kListenGap), top, lineH, 200,
                    Fonts::sans(kSmallPx), theme::kWhite.withAlpha(alpha));

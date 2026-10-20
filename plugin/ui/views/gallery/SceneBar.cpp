@@ -9,9 +9,10 @@
 namespace t3k::ui {
 
 namespace {
-const juce::Colour kChipBg{0xff151517};
-const juce::Colour kChipHover{0xff2c2c2e};
-const juce::Colour kChipBorder{0xff3a3a3d};
+// Read at paint time so the chips follow the skin.
+juce::Colour chipBg() { return theme::kSurface; }
+juce::Colour chipHover() { return theme::kSurface.interpolatedWith(theme::kWhite, 0.10f); }
+juce::Colour chipBorder() { return theme::kBorder; }
 }  // namespace
 
 juce::String SceneBar::sceneName(const ChainState& state, int index) {
@@ -43,8 +44,8 @@ public:
     const auto box = getLocalBounds().toFloat().reduced(0.5f);
     const auto colour = fork_colors::scene(index_);
     const float r = box.getHeight() / 2;
-    paint::fill(g, box, r, active_ ? colour : (highlighted ? kChipHover : kChipBg));
-    paint::border(g, box, r, active_ ? colour : kChipBorder);
+    paint::fill(g, box, r, active_ ? colour : (highlighted ? chipHover() : chipBg()));
+    paint::border(g, box, r, active_ ? colour : chipBorder());
     const auto dot = juce::Rectangle<float>(6, (getHeight() - kDot) / 2.0f, kDot, kDot);
     g.setColour(active_ ? juce::Colours::black.withAlpha(0.18f) : colour);
     g.fillEllipse(dot);
@@ -90,10 +91,10 @@ public:
   void paintButton(juce::Graphics& g, bool highlighted, bool) override {
     const auto colour = fork_colors::footswitch(letter_);
     const auto box = getLocalBounds().toFloat().reduced(0.5f);
-    paint::fill(g, box, 10.0f, highlighted ? kChipHover : kChipBg);
-    paint::border(g, box, 10.0f, lit_ ? colour : kChipBorder);
+    paint::fill(g, box, 10.0f, highlighted ? chipHover() : chipBg());
+    paint::border(g, box, 10.0f, lit_ ? colour : chipBorder());
     const auto sq = juce::Rectangle<float>(6, (getHeight() - kSquare) / 2.0f, kSquare, kSquare);
-    g.setColour(lit_ ? colour : kChipHover);
+    g.setColour(lit_ ? colour : chipHover());
     g.fillRoundedRectangle(sq, 7.0f);
     paint::text(g, letter_, sq.toNearestInt(), Fonts::sans(12.0f, true), lit_ ? juce::Colours::black : colour,
                 juce::Justification::centred);

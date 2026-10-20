@@ -41,23 +41,31 @@ inline const juce::Colour kLinkBlue{0xff40a6ff};
 inline const juce::Colour kWhite{0xffffffff};
 inline const juce::Colour kBlack{0xff000000};
 
+// Fork (TK3J): skins. The tokens from here down to kPanelBg are written by
+// skin::apply (core/Skin.h) before the UI builds and again on a skin change,
+// so they are plain globals rather than constants; these four are the
+// skin's own (stock: black, the brand yellow, white connector lines).
+inline juce::Colour kBackground{0xff000000};
+inline juce::Colour kAccent{0xffffff00};
+inline juce::Colour kWire{0xffffffff};
+
 // rgba(235, 235, 245, a) family: primary muted text, secondary labels,
 // pressed/active fill.
-inline const juce::Colour kMuted = juce::Colour(235, 235, 245).withAlpha(0.60f);
-inline const juce::Colour kSubtle = juce::Colour(235, 235, 245).withAlpha(0.40f);
-inline const juce::Colour kHighlight = juce::Colour(235, 235, 245).withAlpha(0.18f);
+inline juce::Colour kMuted = juce::Colour(235, 235, 245).withAlpha(0.60f);
+inline juce::Colour kSubtle = juce::Colour(235, 235, 245).withAlpha(0.40f);
+inline juce::Colour kHighlight = juce::Colour(235, 235, 245).withAlpha(0.18f);
 // Disabled/idle icon gray.
-inline const juce::Colour kGray{0xff8d8d93};
+inline juce::Colour kGray{0xff8d8d93};
 // Hairline used by every card/section/segment border (1px).
-inline const juce::Colour kBorder = juce::Colour(84, 84, 88).withAlpha(0.65f);
+inline juce::Colour kBorder = juce::Colour(84, 84, 88).withAlpha(0.65f);
 // Card body background / raised chrome.
-inline const juce::Colour kSurface{0xff151517};
-inline const juce::Colour kSurfaceRaised{0xff1c1c1e};
+inline juce::Colour kSurface{0xff151517};
+inline juce::Colour kSurfaceRaised{0xff1c1c1e};
 // Shared fill behind LITE/FULL and the EQ view switcher.
-inline const juce::Colour kSegmentedTrack = juce::Colour(120, 120, 128).withAlpha(0.36f);
+inline juce::Colour kSegmentedTrack = juce::Colour(120, 120, 128).withAlpha(0.36f);
 // Floating panels (popovers, menus, the image deck): #141416, hairline
 // border, 14px corners.
-inline const juce::Colour kPanelBg{0xff141416};
+inline juce::Colour kPanelBg{0xff141416};
 inline constexpr float kPanelCorner = 14.0f;
 
 }  // namespace t3k::ui::theme

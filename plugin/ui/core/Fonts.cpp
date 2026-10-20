@@ -62,6 +62,20 @@ juce::Font Fonts::mono(float px, bool bold) {
   return juce::Font(juce::FontOptions(robotoMono(*cache, bold)).withPointHeight(px));
 }
 
+juce::Font Fonts::michroma(float px) {
+  Hold cache;
+  return juce::Font(juce::FontOptions(lazily(cache->michroma, UiBinaryData::MichromaRegular_ttf,
+                                             UiBinaryData::MichromaRegular_ttfSize))
+                        .withPointHeight(px));
+}
+
+juce::Font Fonts::unbounded(float px) {
+  Hold cache;
+  return juce::Font(juce::FontOptions(lazily(cache->unbounded, UiBinaryData::UnboundedExtraBold_ttf,
+                                             UiBinaryData::UnboundedExtraBold_ttfSize))
+                        .withPointHeight(px));
+}
+
 juce::Font Fonts::tracked(const juce::Font& font, float em) {
   // withExtraKerningFactor is relative to the JUCE height; CSS em is relative
   // to the point size.

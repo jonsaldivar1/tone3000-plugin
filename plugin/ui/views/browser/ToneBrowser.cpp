@@ -36,10 +36,11 @@ constexpr float kFadePower = 1.5f;
 void fillScrollFade(juce::Graphics& g, juce::Rectangle<float> band, bool solidAtTop) {
   const float edge = solidAtTop ? band.getY() : band.getBottom();
   const float far = solidAtTop ? band.getBottom() : band.getY();
-  auto fade = juce::ColourGradient::vertical(juce::Colours::black, edge, juce::Colours::transparentBlack, far);
-  fade.addColour(kFadeSolid, juce::Colours::black);
+  const auto bg = theme::kBackground;  // Fork (TK3J): fades into the skin's background
+  auto fade = juce::ColourGradient::vertical(bg, edge, bg.withAlpha(0.0f), far);
+  fade.addColour(kFadeSolid, bg);
   for (const float t : {0.25f, 0.5f, 0.75f})
-    fade.addColour(kFadeSolid + t * (1 - kFadeSolid), juce::Colours::black.withAlpha(std::pow(1 - t, kFadePower)));
+    fade.addColour(kFadeSolid + t * (1 - kFadeSolid), bg.withAlpha(std::pow(1 - t, kFadePower)));
   g.setGradientFill(fade);
   g.fillRect(band);
 }
@@ -365,7 +366,7 @@ void ToneBrowser::rebuildBody() {
 }
 
 // Layout
-void ToneBrowser::paint(juce::Graphics& g) { g.fillAll(theme::kBlack); }
+void ToneBrowser::paint(juce::Graphics& g) { g.fillAll(theme::kBackground); }
 
 void ToneBrowser::resized() {
   // Design space: the ← row, and the box the body fills under it.

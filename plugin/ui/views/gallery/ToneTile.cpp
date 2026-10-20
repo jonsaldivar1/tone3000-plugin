@@ -4,6 +4,7 @@
 #include "core/Help.h"
 #include "core/Icons.h"
 #include "core/Paint.h"
+#include "core/Skin.h"
 #include "core/Theme.h"
 #include "core/Fonts.h"
 #include "core/ForkColors.h"
@@ -195,6 +196,8 @@ void ToneTile::resized() {
 }
 
 void ToneTile::paint(juce::Graphics& g) {
+  // Fork (TK3J): a skin change re-shapes the corners of tiles already built.
+  if (image_.cornerRadius() != gallery::kTileCorner) image_.setCornerRadius(gallery::kTileCorner);
   paint::fill(g, getLocalBounds().toFloat(), gallery::kTileCorner, theme::kSurface);
   if (dropArmed()) {
     const float s = gallery::kFileDropGlyphSize;
@@ -229,6 +232,26 @@ void ToneTile::paintOverChildren(juce::Graphics& g) {
     g.setColour(theme::kWhite);
     g.fillRoundedRectangle(tag, 10.0f);
     paint::text(g, text, tag.toNearestInt(), font, juce::Colours::black, juce::Justification::centred);
+  }
+  // Fork (TK3J): Zenith's registration ticks on the four corners.
+  if (skin::tileCornerTicks() && !dropArmed()) {
+    const float inset = 5.0f, len = juce::jlimit(8.0f, 14.0f, box.getWidth() * 0.07f);
+    g.setColour(theme::kAccent.withAlpha(0.85f));
+    juce::Path ticks;
+    const auto r = box.reduced(inset);
+    ticks.startNewSubPath(r.getX(), r.getY() + len);
+    ticks.lineTo(r.getX(), r.getY());
+    ticks.lineTo(r.getX() + len, r.getY());
+    ticks.startNewSubPath(r.getRight() - len, r.getY());
+    ticks.lineTo(r.getRight(), r.getY());
+    ticks.lineTo(r.getRight(), r.getY() + len);
+    ticks.startNewSubPath(r.getRight(), r.getBottom() - len);
+    ticks.lineTo(r.getRight(), r.getBottom());
+    ticks.lineTo(r.getRight() - len, r.getBottom());
+    ticks.startNewSubPath(r.getX() + len, r.getBottom());
+    ticks.lineTo(r.getX(), r.getBottom());
+    ticks.lineTo(r.getX(), r.getBottom() - len);
+    g.strokePath(ticks, juce::PathStrokeType(1.5f));
   }
   if (dropArmed())
     paint::dashedBorder(g, getLocalBounds().toFloat(), gallery::kTileCorner,

@@ -652,7 +652,7 @@ void BlockCard::paintOverChildren(juce::Graphics& g) {
   outside.addRectangle(r);
   outside.addRoundedRectangle(r, kRadius);
   outside.setUsingNonZeroWinding(false);
-  g.setColour(theme::kBlack);
+  g.setColour(theme::kBackground);
   g.fillPath(outside);
   paint::border(g, r, kRadius, theme::kBorder);
 }

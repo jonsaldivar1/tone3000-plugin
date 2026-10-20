@@ -43,8 +43,8 @@ private:
 };
 
 SegmentedText::Style SegmentedText::armed() {
-  return {theme::kBrandYellow, theme::kBlack, juce::Colours::transparentBlack, theme::kMuted, 12, std::nullopt,
-          theme::kIconBoxSize};
+  return {theme::kAccent, theme::kBlack, juce::Colours::transparentBlack, theme::kMuted, 12, std::nullopt,
+          theme::kIconBoxSize, /*accentOn=*/true};
 }
 
 SegmentedText::Style SegmentedText::selection() {
@@ -97,7 +97,7 @@ void SegmentedText::paint(juce::Graphics& g) {
   clip.addRoundedRectangle(box, theme::kIconBoxRadius);
   g.reduceClipRegion(clip);
   for (auto& cell : cells_) {
-    g.setColour(cell->on ? style_.onBg : style_.offBg);
+    g.setColour(cell->on ? (style_.accentOn ? theme::kAccent : style_.onBg) : style_.offBg);
     g.fillRect(cell->getBounds());
   }
 }

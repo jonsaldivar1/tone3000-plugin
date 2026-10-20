@@ -35,7 +35,7 @@ void ChromeTextButton::paintButton(juce::Graphics& g, bool, bool) {
   juce::Colour fg = theme::kMuted;
   if (open_ || armed_) {
     fg = theme::kBlack;
-    paint::fill(g, box, theme::kIconBoxRadius, (open_ ? theme::kWhite : theme::kBrandYellow).withMultipliedAlpha(alpha));
+    paint::fill(g, box, theme::kIconBoxRadius, (open_ ? theme::kWhite : theme::kAccent).withMultipliedAlpha(alpha));
   } else {
     paint::border(g, box, theme::kIconBoxRadius, theme::kBorder.withMultipliedAlpha(alpha));
   }

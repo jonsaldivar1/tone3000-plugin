@@ -56,6 +56,9 @@ private:
   ToggleRow sceneBar_;  // Fork (TK3J)
   // Fork (TK3J): + / swap open My Gear before the TONE3000 search.
   ToggleRow myGearFirst_;
+  // Fork (TK3J): the skin (core/Skin.h), machine-wide.
+  FieldRow skin_;
+  RadioOption skinStock_, skinZenith_, skinTidal_;
   FieldRow namSize_;
   RadioOption lite_, full_;
   ToggleRow blockSize_;

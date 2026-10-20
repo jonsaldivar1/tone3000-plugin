@@ -734,7 +734,7 @@ std::pair<double, double> BlockEqView::freqRange(int index) const {
   return {lo, hi};
 }
 
-void BlockEqView::paint(juce::Graphics& g) { g.fillAll(theme::kBlack); }
+void BlockEqView::paint(juce::Graphics& g) { g.fillAll(theme::kBackground); }
 
 void BlockEqView::resized() {
   for (auto* layer : {grid_.get(), spectrum_.get(), static_cast<juce::Component*>(graph_.get()),

@@ -61,6 +61,7 @@ class PluginRoot : public juce::Component,
                    private ConnectionGate::Listener,
                    private UpdateCheck::Listener,
                    private ToneSession::Listener,
+                   private UiPrefs::Listener,
                    private juce::ComponentListener {
 public:
   // A host may refuse or delay the resize; show the banner anyway after a beat.
@@ -106,6 +107,9 @@ public:
   std::unique_ptr<juce::ComponentTraverser> createKeyboardFocusTraverser() override;
 
 private:
+  // Fork (TK3J): a skin change re-tints and repaints the whole editor.
+  void prefChanged(const juce::String& key) override;
+
   enum class BannerPhase { hidden, waiting, shown };
 
   void hintChanged() override;
@@ -144,6 +148,8 @@ private:
   DragScroller* frontScroller();
 
   Services& services_;
+  // Fork (TK3J): the saved skin, applied before any view below is built.
+  bool skinApplied_;
   PluginHeader header_;
   HintBar hintBar_;
   MainScreen main_;  // meters + chain gallery
