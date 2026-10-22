@@ -19,6 +19,7 @@
 
 #include <juce_dsp/juce_dsp.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <vector>

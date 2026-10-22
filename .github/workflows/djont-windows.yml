@@ -73,7 +73,20 @@ jobs:
             -DASIO_SDK_PATH="$ASIO_SDK_PATH"
 
       - name: Build
-        run: cmake --build build-djont --config Release --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build-djont --config Release --parallel 2>&1 | tee build-djont.log
+
+      # Compiler errors as annotations, so they show on the run page (and
+      # through the checks API) without opening the raw log.
+      - name: Report build errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error [A-Z]+[0-9]+|: error|fatal error|LNK[0-9]+" build-djont.log | head -25 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
 
       - name: Run tests
         shell: bash

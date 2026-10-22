@@ -86,7 +86,7 @@ if (DJONT_TESTS)
     target_sources(DjontTests PRIVATE tests/DjontTests.cpp ${DJONT_SOURCES})
     target_include_directories(DjontTests PRIVATE src "${REPO_DIR}/plugin/include")
     target_compile_definitions(DjontTests PRIVATE
-        DJONT_NO_PLUGIN_ENTRY=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
+        DJONT_NO_PLUGIN_ENTRY=1 NOMINMAX=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
     target_link_libraries(DjontTests
         PRIVATE DjontAssets juce::juce_audio_utils juce::juce_dsp
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)

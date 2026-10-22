@@ -1,5 +1,8 @@
 #include "DjontProcessor.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "DjontEditor.h"
 
 namespace djont {
