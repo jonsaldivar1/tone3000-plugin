@@ -10,6 +10,15 @@ A low-end toolkit plugin (VST3 + standalone) to run before your amp sim
 | **Sub** | Clean / Synth, Blend, Tone | An octave down under the dry signal. Clean = pitch shifter (handles chords, ~20 ms behind). Synth = analog-style divider (zero delay, single notes, buzzier). |
 | **Lo-Fi** | Tone, Blend | Radio / telephone band-pass around Tone with a touch of drive. |
 
+Two looks (gear → Settings): **Chrome** (orange on chrome foil) and **Red
+Foil** (red on red/blue foil), both color-graded free-license photos. The bar
+along the bottom says what whatever you hover does, with its value.
+
+Settings also holds the audio setup when dJONt runs as the standalone app:
+driver type (ASIO), interface, which input your guitar is on, outputs, sample
+rate and buffer size, the latency readout (input + output + buffer; dJONt
+itself adds 0 ms) and Hear Yourself. In a DAW the DAW owns those.
+
 Original code. Font: Anton (SIL OFL 1.1, `assets/Anton-LICENSE.txt`).
 Sub's Clean mode uses TK3J's pitch shifter (`plugin/src/PitchShift.cpp`).
 

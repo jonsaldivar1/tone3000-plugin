@@ -32,7 +32,7 @@ option(DJONT_TESTS "Build the DjontTests console app" OFF)
 juce_add_binary_data(DjontAssets
     NAMESPACE DjontBinary
     HEADER_NAME DjontBinary.h
-    SOURCES assets/Anton-Regular.ttf
+    SOURCES assets/Anton-Regular.ttf assets/djont-chrome.jpg assets/djont-redfoil.jpg
 )
 set_target_properties(DjontAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

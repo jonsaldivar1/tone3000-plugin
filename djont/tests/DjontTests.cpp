@@ -166,20 +166,49 @@ int main(int argc, char** argv) {
     check(std::abs(std::sqrt(eo / ei) - 0.2512) < 0.01, "Output -12 dB scales by 0.251");
   }
 
-  for (int i = 1; i + 1 < argc; ++i) {
-    if (juce::String(argv[i]) == "--snapshot") {
-      DjontProcessor p;
-      p.prepareToPlay(kFs, kBlock);
-      for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}})
-        p.params.getParameter(id)->setValueNotifyingHost(v);
+  {
+    // The editor: the look round-trips through the state, and the hint bar
+    // starts on its default line.
+    DjontProcessor p;
+    p.prepareToPlay(kFs, kBlock);
+    {
       std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
-      const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);
-      const juce::File file{juce::String(argv[i + 1])};
-      file.deleteFile();
-      juce::FileOutputStream stream(file);
-      juce::PNGImageFormat().writeImageToStream(image, stream);
-      std::printf("snapshot: %s\n", file.getFullPathName().toRawUTF8());
+      auto* e = dynamic_cast<djont::DjontEditor*>(editor.get());
+      check(e != nullptr && e->currentHint().startsWith("Hover"), "editor opens with the default hint line");
+      if (e != nullptr) e->setLook("redfoil");
     }
+    juce::MemoryBlock state;
+    p.getStateInformation(state);
+    DjontProcessor q;
+    q.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    check(q.params.state.getProperty("look").toString() == "redfoil", "the look is saved with the plugin state");
+  }
+
+  // --snapshot <png> [--look chrome|redfoil] [--settings]
+  juce::String snapshotPath, look = "chrome";
+  bool settings = false;
+  for (int i = 1; i < argc; ++i) {
+    const juce::String arg(argv[i]);
+    if (arg == "--snapshot" && i + 1 < argc) snapshotPath = argv[++i];
+    else if (arg == "--look" && i + 1 < argc) look = argv[++i];
+    else if (arg == "--settings") settings = true;
+  }
+  if (snapshotPath.isNotEmpty()) {
+    DjontProcessor p;
+    p.prepareToPlay(kFs, kBlock);
+    for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}})
+      p.params.getParameter(id)->setValueNotifyingHost(v);
+    std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
+    if (auto* e = dynamic_cast<djont::DjontEditor*>(editor.get())) {
+      e->setLook(look);
+      e->showSettings(settings);
+    }
+    const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);
+    const juce::File file{snapshotPath};
+    file.deleteFile();
+    juce::FileOutputStream stream(file);
+    juce::PNGImageFormat().writeImageToStream(image, stream);
+    std::printf("snapshot: %s\n", file.getFullPathName().toRawUTF8());
   }
 
   std::printf("%s (%d failed)\n", failures == 0 ? "ALL PASSED" : "FAILURES", failures);
