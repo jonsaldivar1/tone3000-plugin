@@ -83,7 +83,6 @@ void MeterStore::apply(const MeterLevels& m) {
   }
   applyCpu(m.cpu);
   applyCorrelation(m.correlation);
-  applyWham(m.wham);
 }
 
 void MeterStore::update(const juce::String& id, float raw) {
@@ -121,13 +120,6 @@ void MeterStore::applyCorrelation(float raw) {
   if (juce::exactlyEqual(correlation_, value)) return;
   correlation_ = value;
   listeners.call([](Listener& l) { l.correlationChanged(); });
-}
-
-void MeterStore::applyWham(float raw) {
-  const float value = std::isfinite(raw) && raw >= 0.0f ? std::round(juce::jmin(1.0f, raw) * 100.0f) / 100.0f : -1.0f;
-  if (juce::exactlyEqual(wham_, value)) return;
-  wham_ = value;
-  listeners.call([](Listener& l) { l.whamChanged(); });
 }
 
 }  // namespace t3k::ui

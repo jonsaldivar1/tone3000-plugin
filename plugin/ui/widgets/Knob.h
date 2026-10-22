@@ -86,13 +86,6 @@ public:
   // Detents on or off at runtime (the pitch deck's STEP toggle). Applies to the
   // next emitted value; the owner snaps the current one if it wants to.
   void setSteps(std::optional<int> steps) { options_.steps = steps; }
-  // Fork (TK3J): relabel in place (the Pitch knob reads Toe under wham).
-  void setLabel(const juce::String& label, std::optional<help::Key> help = {}) {
-    options_.label = label;
-    setTitle(label);
-    if (help) setHelpText(help::text(*help));
-    repaint();
-  }
 
   // Every emitted value: drag steps, typed entries, resets.
   std::function<void(float)> onChange;

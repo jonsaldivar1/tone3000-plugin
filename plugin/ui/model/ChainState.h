@@ -192,8 +192,6 @@ struct MeterLevels {
   std::vector<Block> blocks;
   float cpu = 0;
   float correlation = 1;
-  // Fork (TK3J): the wham pedal's position, 0..1; -1 while off.
-  float wham = -1;
 
   static MeterLevels parse(const juce::var& v);
 };

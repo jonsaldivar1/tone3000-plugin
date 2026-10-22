@@ -1252,10 +1252,6 @@ juce::var TONE3000Processor::getMeterLevels() const {
   root->setProperty("correlation", stereoEnabled.load() ? stereoOffset.correlation()
                                                         : spread.correlation());
 
-  // Fork (TK3J): the wham pedal's live position for the deck's rocker
-  // (0..1, -1 while off).
-  root->setProperty("wham", whamPosition.load());
-
   juce::DynamicObject::Ptr blocks = new juce::DynamicObject();
   {
     // Meter values are atomics; the lock only guards chain iteration. Hold

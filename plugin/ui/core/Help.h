@@ -50,7 +50,6 @@ enum class Key {
   setArtTile, clearArtTile, footswitchTile,
   // Fork (TK3J): split channel strip
   laneStripLinked, laneStrip1, laneStrip2,
-  whamMode, whamPedal, whamHeel, whamRate, whamShape, whamRetrig, whamToe,
 };
 
 // The (touch-reworded when applicable) copy for a key.

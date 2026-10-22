@@ -11,29 +11,22 @@
 //    lowest note it holds a full period of, and how often it splices; the
 //    latency it reports to the host is half of it plus 1 ms. Attacks always
 //    pass in a few ms whatever the buffer.
-// Plain controls, no power switches, in the gate deck's style.
-//
-// Fork (TK3J): below them, WHAM, a virtual expression pedal (Wham.h):
-// OFF | PEDAL | AUTO, then Heel, Rate, Shape and RETRIG, and the pedal
-// itself down the right side. Off dims the row; PEDAL dims the LFO's
-// controls. While on, the faceplate Pitch knob reads Toe.
+// Plain controls, no power switches, same footprint as the gate deck so the
+// two read as one family.
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include "services/Services.h"
 #include "widgets/ParamControls.h"
-#include "WhamPedal.h"
-#include "widgets/DimGroup.h"
 #include "widgets/Popover.h"
-#include "widgets/SegmentedText.h"
 
 namespace t3k::ui {
 
 class PitchDeckPanel : public Popover {
 public:
-  static constexpr int kWidth = 416;
-  static constexpr int kHeight = 200;
+  static constexpr int kWidth = 262;
+  static constexpr int kHeight = 85;
   // Gap between the panel's bottom edge and its anchor's top.
   static constexpr int kGap = 6;
 
@@ -47,17 +40,8 @@ public:
   void resized() override;
 
 private:
-  void syncWham();
-
   ParamTextToggle step_;
   ParamKnob tonality_, window_;
-  // Fork (TK3J): wham.
-  ParamBinding whamMode_;
-  SegmentedText modeSwitch_;
-  DimGroup heelDim_, autoDim_;
-  ParamKnob heel_, rate_, shape_;
-  ParamTextToggle retrig_;
-  WhamPedal pedal_;
 };
 
 }  // namespace t3k::ui

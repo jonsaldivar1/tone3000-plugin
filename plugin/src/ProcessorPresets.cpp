@@ -35,9 +35,6 @@ const std::vector<juce::String>& TONE3000Processor::presetParameterIds() {
       "tk3jSplitStrip", "inputLevel2",  "gateEnabled2",
       "gateThreshold2", "toneEqEnabled2", "toneBass2",
       "toneMid2",       "toneTreble2",  "outputLevel2",
-      // Fork (TK3J): wham (the pitch shifter's virtual expression pedal).
-      "whamMode",       "whamPedal",    "whamHeel",
-      "whamRate",       "whamShape",    "whamRetrig",
   };
   return ids;
 }

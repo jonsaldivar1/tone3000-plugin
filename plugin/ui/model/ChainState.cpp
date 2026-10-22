@@ -219,7 +219,6 @@ MeterLevels MeterLevels::parse(const juce::var& v) {
   }
   m.cpu = static_cast<float>(num(v, "cpu", 0));
   m.correlation = static_cast<float>(num(v, "correlation", 1));
-  m.wham = static_cast<float>(num(v, "wham", -1));
   return m;
 }
 

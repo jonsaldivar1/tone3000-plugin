@@ -24,8 +24,6 @@ public:
     virtual void meterChanged(const juce::String& /*id*/) {}
     virtual void cpuChanged() {}
     virtual void correlationChanged() {}
-    // Fork (TK3J): the wham pedal moved (see whamPosition).
-    virtual void whamChanged() {}
   };
 
   static constexpr float kFloorDb = -60;
@@ -50,8 +48,6 @@ public:
   float cpuPercent() const { return cpuPercent_; }
   // Spread output correlation, -1..1 (1 when idle), 0.05 steps.
   float correlation() const { return correlation_; }
-  // Fork (TK3J): the wham pedal's live position, 0..1 (0.01 steps); -1 off.
-  float whamPosition() const { return wham_; }
 
   void addListener(Listener* l);
   void removeListener(Listener* l);
@@ -62,8 +58,6 @@ private:
   void update(const juce::String& id, float raw);
   void applyCpu(float raw);
   void applyCorrelation(float raw);
-  void applyWham(float raw);
-  float wham_ = -1;
 
   Backend& backend_;
   UiClock& clock_;
