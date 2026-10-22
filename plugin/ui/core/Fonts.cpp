@@ -76,6 +76,20 @@ juce::Font Fonts::unbounded(float px) {
                         .withPointHeight(px));
 }
 
+juce::Font Fonts::anton(float px) {
+  Hold cache;
+  return juce::Font(juce::FontOptions(lazily(cache->anton, UiBinaryData::AntonRegular_ttf,
+                                             UiBinaryData::AntonRegular_ttfSize))
+                        .withPointHeight(px));
+}
+
+juce::Font Fonts::cinzel(float px) {
+  Hold cache;
+  return juce::Font(juce::FontOptions(lazily(cache->cinzel, UiBinaryData::CinzelBold_ttf,
+                                             UiBinaryData::CinzelBold_ttfSize))
+                        .withPointHeight(px));
+}
+
 juce::Font Fonts::tracked(const juce::Font& font, float em) {
   // withExtraKerningFactor is relative to the JUCE height; CSS em is relative
   // to the point size.

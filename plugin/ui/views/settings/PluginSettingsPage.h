@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "MidiMapSection.h"
+#include "core/Skin.h"
 #include "core/DelayedCall.h"
 #include "services/ParamBinding.h"
 #include "services/Services.h"
@@ -58,7 +59,12 @@ private:
   ToggleRow myGearFirst_;
   // Fork (TK3J): the skin (core/Skin.h), machine-wide.
   FieldRow skin_;
-  RadioOption skinStock_, skinZenith_, skinTidal_;
+  RadioOption skinStock_, skinZenith_, skinTidal_, skinInferno_, skinIronwave_, skinHologram_, skinGilded_;
+  std::vector<std::pair<RadioOption*, skin::Id>> skinOptions() {
+    return {{&skinStock_, skin::Id::stock},       {&skinZenith_, skin::Id::zenith},     {&skinTidal_, skin::Id::tidal},
+            {&skinInferno_, skin::Id::inferno},   {&skinIronwave_, skin::Id::ironwave}, {&skinHologram_, skin::Id::hologram},
+            {&skinGilded_, skin::Id::gilded}};
+  }
   FieldRow namSize_;
   RadioOption lite_, full_;
   ToggleRow blockSize_;

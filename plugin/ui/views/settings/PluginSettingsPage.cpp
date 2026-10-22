@@ -106,6 +106,10 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
       skinStock_("Stock", "The TONE3000 look: black, yellow and white"),
       skinZenith_("Zenith", "Deep indigo and gold, sacred geometry and a starfield"),
       skinTidal_("Tidal", "Dark teal and violet, a 7-against-4 polyrhythm over waveforms"),
+      skinInferno_("Inferno", "Photo: a wall of skulls lit red"),
+      skinIronwave_("Ironwave", "Photo: cold steel ribs, ice blue"),
+      skinHologram_("Hologram", "Photo: holographic foil, orange and cyan"),
+      skinGilded_("Gilded", "Photo: a gold skull bust on black"),
       namSize_("NAM A2 Size",
                "Default size for new NAM blocks. Existing blocks keep their own, so presets load as saved."),
       lite_("A2-Lite", "Sounds great and uses less CPU"),
@@ -180,10 +184,10 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   // Fork (TK3J): Skin.
   skin_.setInlineLabel();
   skin_.content().setGap(form::kControlGap);
-  for (auto* option : {&skinStock_, &skinZenith_, &skinTidal_}) skin_.content().add(*option);
-  skinStock_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::stock)); };
-  skinZenith_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::zenith)); };
-  skinTidal_.onSelect = [this] { services_.prefs.set(skin::kPrefKey, skin::toString(skin::Id::tidal)); };
+  for (auto [option, id] : skinOptions()) {
+    skin_.content().add(*option);
+    option->onSelect = [this, id = id] { services_.prefs.set(skin::kPrefKey, skin::toString(id)); };
+  }
   add(skin_);
 
   // NAM A2 Size.
@@ -299,9 +303,7 @@ void PluginSettingsPage::syncPrefs() {
   sceneBar_.setValue(services_.prefs.getBool(UiPrefs::kShowSceneBar, true));
   myGearFirst_.setValue(services_.myGear.openFirst());
   const auto skinId = skin::fromString(services_.prefs.get(skin::kPrefKey));
-  skinStock_.setSelected(skinId == skin::Id::stock);
-  skinZenith_.setSelected(skinId == skin::Id::zenith);
-  skinTidal_.setSelected(skinId == skin::Id::tidal);
+  for (auto [option, id] : skinOptions()) option->setSelected(skinId == id);
   repaint();
   const bool size = services_.prefs.getBool(UiPrefs::kShowBlockSizeControl, false);
   blockSize_.setValue(size);

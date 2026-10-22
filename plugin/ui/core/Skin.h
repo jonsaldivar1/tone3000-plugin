@@ -12,15 +12,22 @@
 //   Tidal   dark teal, a 7-against-4 polyrhythm diagram over layered
 //           waveforms, soft round tiles, a heavy Unbounded logo.
 //
-// All art is original geometry drawn in code: no band names, logos or
-// album art. The skin lives in UiPrefs (kPrefKey) and applies machine-wide.
+//   Inferno / Ironwave / Hologram / Gilded: photo skins. A color-graded
+//           photo (red skull wall, steel ribs, holographic foil, a gold
+//           skull bust) behind the chain, each with its own logo face.
+//
+// The geometric art is drawn in code; the photos are free-license (Unsplash
+// / Pexels) shots, graded and embedded. No band names, logos or album art. The skin lives in UiPrefs (kPrefKey) and applies machine-wide.
 #pragma once
 
 #include <juce_graphics/juce_graphics.h>
 
 namespace t3k::ui::skin {
 
-enum class Id { stock, zenith, tidal };
+enum class Id { stock, zenith, tidal, inferno, ironwave, hologram, gilded };
+
+// Every skin, in the order Settings lists them.
+inline constexpr Id kAll[] = {Id::stock, Id::zenith, Id::tidal, Id::inferno, Id::ironwave, Id::hologram, Id::gilded};
 
 inline constexpr const char* kPrefKey = "t3k.fork.skin";
 
@@ -36,6 +43,17 @@ void apply(Id id);
 // Stock. Painted under every view; opaque views (header, plate, panels)
 // cover it, the chain area shows it.
 void paintBackdrop(juce::Graphics& g, juce::Rectangle<float> area);
+
+// The photo skins' decoded / pre-scaled image. Held by the editor root
+// (SharedResourcePointer) so the JPEG is decoded once and rescaled only when
+// the editor size or skin changes, never per paint.
+struct PhotoCache {
+  Id id = Id::stock;
+  juce::Image source, scaled;
+  juce::Rectangle<int> scaledFor;
+  float scaledAt = 0.0f;
+};
+using PhotoHold = juce::SharedResourcePointer<PhotoCache>;
 
 // Header logo.
 struct Logo {
