@@ -18,6 +18,10 @@ name: TK3J Windows build
 on:
   push:
     branches: [main]
+    # dJONt has its own workflow; its changes don't rebuild TK3J.
+    paths-ignore:
+      - "djont/**"
+      - ".github/workflows/djont-windows.yml"
   workflow_dispatch:
   schedule:
     - cron: "17 11 * * *"   # daily, 4:17 AM Pacific (11:17 UTC)
