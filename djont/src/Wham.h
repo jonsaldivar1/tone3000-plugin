@@ -41,11 +41,13 @@ public:
     float pedal = 0.0f;  // 0..1, PEDAL mode
     float rateHz = kDefaultRateHz;
     bool retrig = false;
+    // PEDAL: how long the pedal takes to get where it's sent (a footswitch
+    // jumps it 0 <-> 100; this turns that into a sweep).
+    float glideMs = 0.0f;
   };
 
   void prepare(double sampleRate) {
     fs_ = sampleRate > 0 ? sampleRate : 48000.0;
-    glide_ = coefficient(kGlideMs);
     fastAttack_ = coefficient(0.5f);
     fastRelease_ = coefficient(15.0f);
     slowAttack_ = coefficient(40.0f);
@@ -56,7 +58,7 @@ public:
 
   void reset() {
     phase_ = 0.0;
-    position_ = 0.0f;
+    position_ = ramped_ = 0.0f;
     fast_ = slow_ = 0.0f;
     sinceOnset_ = refractorySamples_;
     held_ = false;
@@ -86,8 +88,16 @@ public:
       if (held_ && s.shape == Shape::rise) target = 1.0f;
     }
 
-    const float g = std::pow(glide_, static_cast<float>(numSamples));
-    position_ = g * position_ + (1.0f - g) * target;
+    // PEDAL with GLIDE: travel at a steady speed, a full heel-to-toe sweep
+    // taking glideMs. Then the short smoothing either way.
+    if (s.mode == Mode::pedal && s.glideMs > 1.0f) {
+      const float step = static_cast<float>(numSamples / (fs_ * s.glideMs * 0.001));
+      ramped_ = target > ramped_ ? juce::jmin(target, ramped_ + step) : juce::jmax(target, ramped_ - step);
+    } else {
+      ramped_ = target;
+    }
+    const float g = static_cast<float>(std::exp(-static_cast<double>(numSamples) / (fs_ * kGlideMs * 0.001)));
+    position_ = g * position_ + (1.0f - g) * ramped_;
     return position_;
   }
 
@@ -126,8 +136,7 @@ private:
 
   double fs_ = 48000.0;
   double phase_ = 0.0;
-  float position_ = 0.0f;
-  float glide_ = 0.0f;
+  float position_ = 0.0f, ramped_ = 0.0f;
   float fast_ = 0.0f, slow_ = 0.0f;
   float fastAttack_ = 0.0f, fastRelease_ = 0.0f, slowAttack_ = 0.0f, slowRelease_ = 0.0f;
   int refractorySamples_ = 4320, sinceOnset_ = 4320;

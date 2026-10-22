@@ -1,15 +1,21 @@
 # dJONt
 
 A low-end toolkit plugin (VST3 + standalone) to run before your amp sim
-(T3KJ or anything else). Mono in; five modules, each with a power LED:
+(T3KJ or anything else). Mono in; six modules, each with a power LED:
 
 | Module | Controls | What it does |
 |---|---|---|
 | **Wham** | Pedal / Auto, Heel, Toe, Rate, Shape, Retrig, the pedal, presets | A virtual whammy: pitch sweeps between Heel and Toe (±24 st). Pedal: drag the rocker, automate it or MIDI-map it in your DAW. Auto: an LFO (Sine, Triangle, Rise, Square) moves it; Retrig restarts it on every pick. Name and save your settings as presets (kept in `%APPDATA%\dJONt\wham-presets.json`). Adds ~16 ms latency while on. |
+| **Sustain** | Hold / Sustainer. Hold: HOLD, Latch, Chord / Pile-up, Fade, Level. Sustainer: Fund / Harm / Mix, Sustain, Bloom | Hold is a freeze, like a piano's sustain pedals: Chord holds what was ringing when you pressed (sostenuto), Pile-up keeps adding while held (damper); you play over it. Sustainer keeps each note at its picked level as the string dies (like a sustainer pickup), and Harm / Mix bloom into the octave. |
 | **Tight** | Amount, Freq | Lifts each pick attack / palm mute in the Freq band and trims the decay, so chugs hit harder and stop sooner. |
 | **Grit** | Drive, Blend, Freq | A fuzz layer on the lows only (below Freq), blended under the dry signal. |
 | **Sub** | Clean / Synth, Blend, Tone | An octave down under the dry signal. Clean = pitch shifter (handles chords, ~20 ms behind). Synth = analog-style divider (zero delay, single notes, buzzier). |
 | **Lo-Fi** | Tone, Blend | Radio / telephone band-pass around Tone with a touch of drive. |
+
+MIDI learn: right-click any control → MIDI Learn, then press a footswitch or
+move a pedal (a QC footswitch sending a CC works). Mappings save with the
+plugin's state. HOLD with Latch on flips on each press of a momentary switch.
+Wham's Glide turns a footswitch's on/off into a timed sweep.
 
 Two looks (gear → Settings): **Chrome** (orange on chrome foil) and **Red
 Foil** (red on red/blue foil), both color-graded free-license photos. The bar

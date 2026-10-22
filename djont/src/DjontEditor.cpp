@@ -168,6 +168,7 @@ Knob::Knob(juce::AudioProcessorValueTreeState& state, const juce::String& id, co
   slider_.onDragEnd = [this] { repaint(); };
   addAndMakeVisible(slider_);
   attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, id, slider_);
+  getProperties().set(kParamIdProp, id);
   param_ = state.getParameter(id);
   if (param_ != nullptr)
     slider_.setDoubleClickReturnValue(true, param_->convertFrom0to1(param_->getDefaultValue()));
@@ -197,7 +198,8 @@ void Knob::paint(juce::Graphics& g) {
 // ---------------------------------------------------------------- power LED
 PowerLed::PowerLed(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& name,
                    juce::String description)
-    : juce::Button(name), name_(name), description_(std::move(description)) {
+    : LeftClickOnly<juce::Button>(name), name_(name), description_(std::move(description)) {
+  getProperties().set(kParamIdProp, id);
   setClickingTogglesState(true);
   setTitle(name + " power");
   setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -259,6 +261,7 @@ void Segmented::paint(juce::Graphics& g) {
 }
 
 void Segmented::mouseDown(const juce::MouseEvent& e) {
+  if (e.mods.isPopupMenu()) return;
   const int i = juce::jlimit(0, labels_.size() - 1, e.x * labels_.size() / juce::jmax(1, getWidth()));
   setIndex(i);
   if (onSelect) onSelect(i);
@@ -268,6 +271,7 @@ ParamSegmented::ParamSegmented(juce::AudioProcessorValueTreeState& state, const 
                                juce::StringArray labels, juce::String description, int width)
     : Segmented(std::move(labels), std::move(description), width) {
   setTitle(id);
+  getProperties().set(kParamIdProp, id);
   attachment_ = std::make_unique<juce::ParameterAttachment>(*state.getParameter(id),
                                                             [this](float v) { setIndex(juce::roundToInt(v)); });
   attachment_->sendInitialUpdate();
@@ -362,11 +366,12 @@ void Module::resized() {
 // ---------------------------------------------------------------- toggles
 ParamToggle::ParamToggle(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& label,
                          juce::String description, int width)
-    : juce::Button(label), description_(std::move(description)) {
+    : LeftClickOnly<juce::Button>(label), description_(std::move(description)) {
   setClickingTogglesState(true);
   setTitle(label);
   setMouseCursor(juce::MouseCursor::PointingHandCursor);
   attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, id, *this);
+  getProperties().set(kParamIdProp, id);
   setSize(width, 24);
 }
 
@@ -386,7 +391,7 @@ void ParamToggle::paintButton(juce::Graphics& g, bool highlighted, bool) {
 }
 
 Chip::Chip(const juce::String& label, juce::String description, int width)
-    : juce::Button(label), description_(std::move(description)) {
+    : LeftClickOnly<juce::Button>(label), description_(std::move(description)) {
   setTitle(label);
   setMouseCursor(juce::MouseCursor::PointingHandCursor);
   setSize(width, 24);
@@ -409,6 +414,7 @@ void Chip::paintButton(juce::Graphics& g, bool highlighted, bool down) {
 WhamPedal::WhamPedal(DjontProcessor& processor)
     : processor_(processor), pedal_(processor.params.getParameter("whamPedal")) {
   setTitle("Wham pedal");
+  getProperties().set(kParamIdProp, "whamPedal");
   attachment_ = std::make_unique<juce::ParameterAttachment>(*pedal_, [this](float v) {
     value_ = v / 100.0f;
     repaint();
@@ -472,22 +478,22 @@ void WhamPedal::paint(juce::Graphics& g) {
   g.fillRoundedRectangle(bed.getX() - 2.0f, barY - 2.0f, bed.getWidth() + 4.0f, 4.0f, 2.0f);
 }
 
-void WhamPedal::mouseDown(const juce::MouseEvent&) {
-  if (!pedalMode()) return;
+void WhamPedal::mouseDown(const juce::MouseEvent& e) {
+  if (!pedalMode() || e.mods.isPopupMenu()) return;
   dragStart_ = value_;
   attachment_->beginGesture();
 }
 
 void WhamPedal::mouseDrag(const juce::MouseEvent& e) {
-  if (!pedalMode()) return;
+  if (!pedalMode() || e.mods.isPopupMenu()) return;
   const float travel = juce::jmax(20.0f, static_cast<float>(getHeight()) - 40.0f);
   const float k = e.mods.isShiftDown() ? 0.25f : 1.0f;
   const float v = juce::jlimit(0.0f, 1.0f, dragStart_ - k * static_cast<float>(e.getDistanceFromDragStartY()) / travel);
   attachment_->setValueAsPartOfGesture(v * 100.0f);
 }
 
-void WhamPedal::mouseUp(const juce::MouseEvent&) {
-  if (pedalMode()) attachment_->endGesture();
+void WhamPedal::mouseUp(const juce::MouseEvent& e) {
+  if (pedalMode() && !e.mods.isPopupMenu()) attachment_->endGesture();
 }
 
 void WhamPedal::mouseDoubleClick(const juce::MouseEvent&) {
@@ -508,23 +514,26 @@ WhamModule::WhamModule(DjontProcessor& processor)
       power_(processor.params, "whamOn", "Wham", "A virtual whammy pedal: pitch sweeps between Heel and Toe. Adds about 16 ms of latency while on."),
       mode_(processor.params, "whamMode", juce::StringArray{"PEDAL", "AUTO"},
             "Wham · Mode: Pedal, you move the pedal (drag, automation, MIDI). Auto, it moves itself at Rate in Shape.",
-            128),
+            120),
       retrig_(processor.params, "whamRetrig", "RETRIG",
               "Wham · Retrig: Auto's sweep restarts at the heel on every pick, so it follows your playing. "
               "Rise + Retrig = one scoop per pick.",
-              76),
+              70),
       heel_(processor.params, "whamHeel", "Heel", 44, "Wham · Heel: the pitch with the pedal all the way up, ±24 semitones."),
       toe_(processor.params, "whamToe", "Toe", 44, "Wham · Toe: the pitch with the pedal all the way down, ±24 semitones."),
       rate_(processor.params, "whamRate", "Rate", 44, "Wham · Rate: how fast Auto sweeps, 0.1-10 Hz."),
       shape_(processor.params, "whamShape", "Shape", 44,
              "Wham · Shape: Auto's sweep. Sine (smooth), Triangle, Rise (heel to toe, then snaps back), Square (jumps)."),
+      glide_(processor.params, "whamGlide", "Glide", 44,
+             "Wham · Glide: how long the pedal takes to sweep heel to toe. Turn it up for a footswitch: press = "
+             "sweep up, release = sweep back. 0: follows instantly."),
       pedal_(processor),
       save_("SAVE", "Save: name the current Heel / Toe / Rate / Shape / Retrig / Mode as a preset. Same name replaces it.", 46),
       del_("DEL", "Delete: remove the selected preset (yours only; click twice).", 40) {
   addAndMakeVisible(power_);
   addAndMakeVisible(body_);
   for (juce::Component* c : std::initializer_list<juce::Component*>{&mode_, &retrig_, &heel_, &toe_, &rate_, &shape_,
-                                                                     &pedal_, &presets_, &save_, &del_})
+                                                                     &glide_, &pedal_, &presets_, &save_, &del_})
     body_.addAndMakeVisible(*c);
   body_.addChildComponent(name_);
   heel_.setBipolar();
@@ -565,6 +574,7 @@ WhamModule::WhamModule(DjontProcessor& processor)
   name_.onEscapeKey = [this] { finishNaming(false); };
   name_.onFocusLost = [this] { finishNaming(false); };
   refreshPresets();
+  tick();
   setSize(kWidth, 260);
 }
 
@@ -618,8 +628,10 @@ void WhamModule::finishNaming(bool save) {
 void WhamModule::tick() {
   pedal_.tick();
   const bool autoMode = processor_.params.getRawParameterValue("whamMode")->load() > 0.5f;
+  // AUTO shows its LFO (Rate, Shape, Retrig); PEDAL shows Glide.
   for (juce::Component* c : std::initializer_list<juce::Component*>{&rate_, &shape_, &retrig_})
-    c->setAlpha(autoMode ? 1.0f : 0.38f);
+    c->setVisible(autoMode);
+  glide_.setVisible(!autoMode);
   if (delArmedTicks_ > 0 && --delArmedTicks_ == 0) del_.setButtonText("DEL");
   // Every half second: show which preset (if any) the knobs match now.
   if (++ticks_ % 15 == 0 && !name_.isVisible() && !presets_.isPopupActive()) {
@@ -649,7 +661,7 @@ void WhamModule::resized() {
   body_.setBounds(0, 52, getWidth(), getHeight() - 52);
   const int w = body_.getWidth(), h = body_.getHeight();
   mode_.setTopLeftPosition(12, 0);
-  retrig_.setTopLeftPosition(mode_.getRight() + 8, 0);
+  retrig_.setTopLeftPosition(mode_.getRight() + 6, 0);
   const int pedalW = 48;
   const int presetY = h - 34;
   pedal_.setBounds(w - 12 - pedalW, 0, pedalW, presetY - 8);
@@ -662,10 +674,146 @@ void WhamModule::resized() {
   toe_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0);
   rate_.setTopLeftPosition(x0, y0 + rowH);
   shape_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0 + rowH);
+  glide_.setTopLeftPosition(x0, y0 + rowH);
   del_.setTopRightPosition(w - 12, presetY);
   save_.setTopRightPosition(del_.getX() - 6, presetY);
   presets_.setBounds(12, presetY, save_.getX() - 18, 24);
   name_.setBounds(presets_.getBounds());
+}
+
+// ---------------------------------------------------------------- hold
+HoldButton::HoldButton(juce::AudioProcessorValueTreeState& state) : state_(state) {
+  setTitle("Hold");
+  getProperties().set(kParamIdProp, "holdOn");
+  setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  attachment_ = std::make_unique<juce::ParameterAttachment>(*state.getParameter("holdOn"), [this](float v) {
+    on_ = v > 0.5f;
+    repaint();
+  });
+  attachment_->sendInitialUpdate();
+  setSize(110, 44);
+}
+
+bool HoldButton::latch() const { return state_.getRawParameterValue("holdLatch")->load() > 0.5f; }
+
+juce::String HoldButton::hint() const {
+  return juce::String("Hold: ") + (on_ ? "HOLDING. " : "") +
+         (latch() ? "click to hold what's ringing, click again to let go."
+                  : "hold the mouse down to hold what's ringing; let go to release.") +
+         " Right-click to put it on a footswitch (MIDI learn).";
+}
+
+void HoldButton::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(1.5f);
+  if (on_) {
+    g.setColour(L.accent.withAlpha(0.25f));
+    g.fillRoundedRectangle(box.expanded(1.0f), 8.0f);
+    g.setColour(L.accent);
+    g.fillRoundedRectangle(box.reduced(3.0f), 6.0f);
+  } else {
+    g.setColour(L.bg.withAlpha(0.6f));
+    g.fillRoundedRectangle(box, 8.0f);
+  }
+  g.setColour(on_ ? L.accent : L.ink);
+  g.drawRoundedRectangle(box, 8.0f, 2.0f);
+  g.setColour(on_ ? juce::Colours::black : L.ink);
+  g.setFont(DjontLookAndFeel::display(*this, 24.0f));
+  g.drawText("HOLD", box, juce::Justification::centred, false);
+}
+
+void HoldButton::mouseDown(const juce::MouseEvent& e) {
+  if (e.mods.isPopupMenu()) return;
+  attachment_->setValueAsCompleteGesture(latch() ? (on_ ? 0.0f : 1.0f) : 1.0f);
+}
+
+void HoldButton::mouseUp(const juce::MouseEvent& e) {
+  if (e.mods.isPopupMenu() || latch()) return;
+  attachment_->setValueAsCompleteGesture(0.0f);
+}
+
+// ---------------------------------------------------------------- sustain module
+SustainModule::SustainModule(DjontProcessor& processor)
+    : processor_(processor),
+      power_(processor.params, "sustainOn", "Sustain",
+             "Hold (a freeze, like a piano's sustain pedal) or Sustainer (like a sustainer pickup)."),
+      page_(processor.params, "sustainMode", juce::StringArray{"HOLD", "SUSTAINER"},
+            "Sustain · Mode: Hold freezes what's ringing so you can play over it. Sustainer keeps each note from "
+            "dying, like a Sustainiac.",
+            200),
+      hold_(processor.params),
+      latch_(processor.params, "holdLatch", "LATCH",
+             "Hold · Latch: on, one press holds and the next lets go (use with a momentary footswitch). Off, it "
+             "holds only while pressed (or use a latching footswitch).",
+             70),
+      holdType_(processor.params, "holdType", juce::StringArray{"CHORD", "PILE-UP"},
+                "Hold · Type: Chord holds what was ringing when you pressed (a piano's middle pedal). Pile-up keeps "
+                "adding everything you play while held (the right pedal).",
+                190),
+      fade_(processor.params, "holdFade", "Fade", 44,
+            "Hold · Fade: how fast the held sound swells in and dies away when you let go."),
+      level_(processor.params, "holdLevel", "Level", 44, "Hold · Level: the held sound against your live playing."),
+      sustainerType_(processor.params, "sustainerType", juce::StringArray{"FUND", "HARM", "MIX"},
+                     "Sustainer · Type: Fund keeps the note you played. Harm blooms into the octave, like a "
+                     "sustainer's harmonic mode. Mix blooms halfway.",
+                     190),
+      amount_(processor.params, "sustainerAmount", "Sustain", 58,
+              "Sustainer · Sustain: how much it holds the note up as the string dies (up to 40 dB of make-up)."),
+      bloom_(processor.params, "sustainerBloom", "Bloom", 58,
+             "Sustainer · Bloom: how long Harm / Mix takes to bloom into the octave after each pick.") {
+  addAndMakeVisible(power_);
+  addAndMakeVisible(body_);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&page_, &hold_, &latch_, &holdType_, &fade_,
+                                                                     &level_, &sustainerType_, &amount_, &bloom_})
+    body_.addAndMakeVisible(*c);
+  power_.onPower = [this](bool on) { setPowered(on); };
+  setPowered(power_.getToggleState());
+  tick();
+}
+
+void SustainModule::setPowered(bool on) { body_.setAlpha(on ? 1.0f : 0.38f); }
+
+void SustainModule::tick() {
+  const int page = processor_.params.getRawParameterValue("sustainMode")->load() > 0.5f ? 1 : 0;
+  if (page == shownPage_) return;
+  shownPage_ = page;
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&hold_, &latch_, &holdType_, &fade_, &level_})
+    c->setVisible(page == 0);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&sustainerType_, &amount_, &bloom_})
+    c->setVisible(page == 1);
+}
+
+void SustainModule::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(0.5f);
+  g.setColour(L.plate);
+  g.fillRoundedRectangle(box, 6.0f);
+  g.setColour(L.plateBorder);
+  g.drawRoundedRectangle(box, 6.0f, 1.0f);
+  g.setColour(L.ink);
+  g.setFont(DjontLookAndFeel::display(*this, 34.0f));
+  g.drawText("SUSTAIN", 14, 8, getWidth() - 60, 40, juce::Justification::centredLeft, false);
+}
+
+void SustainModule::resized() {
+  power_.setTopRightPosition(getWidth() - 12, 15);
+  body_.setBounds(0, 52, getWidth(), getHeight() - 52);
+  const int w = body_.getWidth();
+  const int cx = w / 2;
+  page_.setTopLeftPosition(cx - page_.getWidth() / 2, 0);
+  // Hold page.
+  holdType_.setTopLeftPosition(cx - holdType_.getWidth() / 2, 34);
+  const int rowW = hold_.getWidth() + 10 + latch_.getWidth();
+  hold_.setTopLeftPosition(cx - rowW / 2, 68);
+  latch_.setTopLeftPosition(hold_.getRight() + 10, 68 + (hold_.getHeight() - latch_.getHeight()) / 2);
+  const int knobsW = fade_.getWidth() * 2 + 10;
+  fade_.setTopLeftPosition(cx - knobsW / 2, 122);
+  level_.setTopLeftPosition(fade_.getRight() + 10, 122);
+  // Sustainer page.
+  sustainerType_.setTopLeftPosition(cx - sustainerType_.getWidth() / 2, 34);
+  const int bigW = amount_.getWidth() * 2 + 10;
+  amount_.setTopLeftPosition(cx - bigW / 2, 84);
+  bloom_.setTopLeftPosition(amount_.getRight() + 10, 84);
 }
 
 // ---------------------------------------------------------------- gear
@@ -729,7 +877,7 @@ SettingsPanel::SettingsPanel(DjontProcessor& processor, std::function<void(const
     devices_ = &h->deviceManager;
     // Inputs as single channels (dJONt is mono: it plays the first enabled
     // input), outputs as up to a stereo pair (it feeds both).
-    selector_ = std::make_unique<juce::AudioDeviceSelectorComponent>(*devices_, 1, 2, 1, 2, false, false, false, false);
+    selector_ = std::make_unique<juce::AudioDeviceSelectorComponent>(*devices_, 1, 2, 1, 2, true, false, false, false);
     viewport_.setViewedComponent(selector_.get(), false);
     viewport_.setScrollBarsShown(true, false);
     addAndMakeVisible(viewport_);
@@ -845,6 +993,7 @@ DjontEditor::DjontEditor(DjontProcessor& processor)
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
       output_(processor.params, "output", "Output", 44, "Output: level out of dJONt."),
       wham_(processor),
+      sustain_(processor),
       settings_(processor, [this](const juce::String& id) { setLook(id); }) {
   setLookAndFeel(&lnf_);
   input_.setBipolar();
@@ -881,6 +1030,9 @@ DjontEditor::DjontEditor(DjontProcessor& processor)
   lofi->addKnob(std::make_unique<Knob>(s, "lofiBlend", "Blend", 58, "Lo-Fi · Blend: dry to fully filtered."));
 
   addAndMakeVisible(wham_);
+  addAndMakeVisible(sustain_);
+  // Right-clicks anywhere inside come here too (MIDI learn).
+  addMouseListener(this, true);
   for (auto* m : {tight.get(), grit.get(), sub.get(), lofi.get()}) addAndMakeVisible(*m);
   modules_.push_back(std::move(tight));
   modules_.push_back(std::move(grit));
@@ -914,6 +1066,7 @@ void DjontEditor::showSettings(bool show) {
   gear_.setToggleState(show, juce::dontSendNotification);
   for (auto& m : modules_) m->setVisible(!show);
   wham_.setVisible(!show);
+  sustain_.setVisible(!show);
   if (show) settings_.toFront(false);
   repaint();
 }
@@ -925,6 +1078,23 @@ void DjontEditor::timerCallback() {
     repaint(meterBox_);
   }
   wham_.tick();
+  sustain_.tick();
+  // MIDI learn: a CC arrived for the control waiting for one.
+  if (const int learned = processor_.learnedCount.load(); learned != learnedSeen_) {
+    learnedSeen_ = learned;
+    if (learnTarget_ != nullptr) {
+      const auto id = learnTarget_->getProperties()[kParamIdProp].toString();
+      confirm_ = learnName_ + " is on MIDI CC " + juce::String(processor_.ccFor(id)) + ". Right-click it to forget.";
+      confirmTicks_ = 120;
+    }
+    learnTarget_ = nullptr;
+    repaint();
+  }
+  if (learnTarget_ != nullptr && processor_.learning().isEmpty()) {  // cancelled
+    learnTarget_ = nullptr;
+    repaint();
+  }
+  if (confirmTicks_ > 0 && --confirmTicks_ == 0) confirm_ = {};
   updateHint();
 }
 
@@ -932,7 +1102,9 @@ void DjontEditor::updateHint() {
   juce::String text = kDefaultHint;
   auto* c = juce::Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
   if (c != nullptr && (c == this || isParentOf(c))) {
+    juce::String paramId;
     for (; c != nullptr && c != this; c = c->getParentComponent()) {
+      if (paramId.isEmpty()) paramId = c->getProperties()[kParamIdProp].toString();
       if (auto* src = dynamic_cast<HintSource*>(c)) {
         text = src->hint();
         break;
@@ -942,11 +1114,68 @@ void DjontEditor::updateHint() {
         break;
       }
     }
+    if (paramId.isNotEmpty())
+      if (const int cc = processor_.ccFor(paramId); cc >= 0) text << "  · MIDI CC " << cc;
   }
+  if (learnTarget_ != nullptr)
+    text = "MIDI learn: press a footswitch or move a pedal on your controller to control " + learnName_ +
+           ". Right-click to cancel.";
+  else if (confirm_.isNotEmpty())
+    text = confirm_;
   if (text != hint_) {
     hint_ = text;
     repaint(hintBox_);
   }
+}
+
+void DjontEditor::mouseDown(const juce::MouseEvent& e) {
+  if (!e.mods.isPopupMenu()) return;
+  // The control under the click, if it's bound to a parameter.
+  juce::Component* target = nullptr;
+  for (auto* c = e.eventComponent; c != nullptr && c != this; c = c->getParentComponent())
+    if (c->getProperties().contains(kParamIdProp)) {
+      target = c;
+      break;
+    }
+  juce::PopupMenu menu;
+  if (learnTarget_ != nullptr) {
+    menu.addItem(3, "Cancel MIDI learn");
+  } else if (target != nullptr) {
+    const auto id = target->getProperties()[kParamIdProp].toString();
+    auto* param = processor_.params.getParameter(id);
+    const auto name = param != nullptr ? param->getName(64) : id;
+    menu.addSectionHeader(name);
+    menu.addItem(1, "MIDI Learn");
+    if (const int cc = processor_.ccFor(id); cc >= 0) menu.addItem(2, "Forget MIDI CC " + juce::String(cc));
+  } else {
+    return;
+  }
+  juce::Component::SafePointer<juce::Component> safeTarget(target);
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea({e.getScreenX(), e.getScreenY(), 1, 1}),
+                     [this, safeTarget](int result) {
+                       if (result == 3) {
+                         processor_.cancelLearn();
+                         learnTarget_ = nullptr;
+                       } else if (safeTarget != nullptr && (result == 1 || result == 2)) {
+                         const auto id = safeTarget->getProperties()[kParamIdProp].toString();
+                         if (result == 1) {
+                           auto* param = processor_.params.getParameter(id);
+                           learnName_ = param != nullptr ? param->getName(64) : id;
+                           learnTarget_ = safeTarget.getComponent();
+                           processor_.startLearn(id);
+                         } else {
+                           processor_.forget(id);
+                         }
+                       }
+                       repaint();
+                     });
+}
+
+void DjontEditor::paintOverChildren(juce::Graphics& g) {
+  if (learnTarget_ == nullptr) return;
+  const auto r = getLocalArea(learnTarget_, learnTarget_->getLocalBounds()).toFloat().expanded(4.0f);
+  g.setColour(lnf_.look().accent);
+  g.drawRoundedRectangle(r, 6.0f, 2.5f);
 }
 
 void DjontEditor::paint(juce::Graphics& g) {
@@ -1029,7 +1258,8 @@ void DjontEditor::resized() {
   const int bottom = hintBox_.getY() - 10;
   const int left = 18, gap = 10;
   wham_.setBounds(left, top, WhamModule::kWidth, bottom - top);
-  const int x0 = wham_.getRight() + gap;
+  sustain_.setBounds(wham_.getRight() + gap, top, SustainModule::kWidth, bottom - top);
+  const int x0 = sustain_.getRight() + gap;
   const int n = static_cast<int>(modules_.size());
   const int w = (getWidth() - left - x0 - gap * (n - 1)) / n;
   for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(x0 + i * (w + gap), top, w, bottom - top);

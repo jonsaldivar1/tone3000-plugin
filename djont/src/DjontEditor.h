@@ -61,6 +61,38 @@ struct HintSource {
   virtual juce::String hint() const = 0;
 };
 
+// Every control bound to a parameter carries its id as the component
+// property "paramId": the editor's right-click menu (MIDI learn) and the
+// hint bar's "MIDI CC n" read it.
+inline const juce::Identifier kParamIdProp{"paramId"};
+
+// A slider a right-click doesn't turn (right-click is the MIDI menu).
+class KnobSlider : public juce::Slider {
+public:
+  void mouseDown(const juce::MouseEvent& e) override {
+    if (!e.mods.isPopupMenu()) juce::Slider::mouseDown(e);
+  }
+  void mouseDrag(const juce::MouseEvent& e) override {
+    if (!e.mods.isPopupMenu()) juce::Slider::mouseDrag(e);
+  }
+  void mouseUp(const juce::MouseEvent& e) override {
+    if (!e.mods.isPopupMenu()) juce::Slider::mouseUp(e);
+  }
+};
+
+// A button a right-click doesn't press.
+template <typename Base>
+class LeftClickOnly : public Base {
+public:
+  using Base::Base;
+  void mouseDown(const juce::MouseEvent& e) override {
+    if (!e.mods.isPopupMenu()) Base::mouseDown(e);
+  }
+  void mouseUp(const juce::MouseEvent& e) override {
+    if (!e.mods.isPopupMenu()) Base::mouseUp(e);
+  }
+};
+
 // A knob with its label underneath; while it's being turned the label shows
 // the value.
 class Knob : public juce::Component, public HintSource {
@@ -77,14 +109,14 @@ public:
 private:
   juce::String valueText() const;
   juce::RangedAudioParameter* param_ = nullptr;
-  juce::Slider slider_;
+  KnobSlider slider_;
   juce::String name_, description_;
   int size_;
   std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment_;
 };
 
 // Round power LED bound to a bool parameter.
-class PowerLed : public juce::Button, public HintSource {
+class PowerLed : public LeftClickOnly<juce::Button>, public HintSource {
 public:
   PowerLed(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& name,
            juce::String description);
@@ -143,7 +175,7 @@ private:
 };
 
 // A small text toggle bound to a bool parameter (Wham's RETRIG).
-class ParamToggle : public juce::Button, public HintSource {
+class ParamToggle : public LeftClickOnly<juce::Button>, public HintSource {
 public:
   ParamToggle(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& label,
               juce::String description, int width);
@@ -156,7 +188,7 @@ private:
 };
 
 // A small text button (SAVE / DEL).
-class Chip : public juce::Button, public HintSource {
+class Chip : public LeftClickOnly<juce::Button>, public HintSource {
 public:
   Chip(const juce::String& label, juce::String description, int width);
   void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
@@ -214,7 +246,7 @@ private:
   juce::Component body_;
   ParamSegmented mode_;
   ParamToggle retrig_;
-  Knob heel_, toe_, rate_, shape_;
+  Knob heel_, toe_, rate_, shape_, glide_;
   WhamPedal pedal_;
   juce::ComboBox presets_;
   juce::TextEditor name_;
@@ -222,6 +254,49 @@ private:
   WhamPresets store_;
   juce::String shownPreset_;
   int ticks_ = 0, delArmedTicks_ = 0;
+};
+
+// The big HOLD switch: lit while holding. LATCH on: a click toggles it;
+// off: it holds while the mouse is down (like a footswitch).
+class HoldButton : public juce::Component, public HintSource {
+public:
+  HoldButton(juce::AudioProcessorValueTreeState& state);
+  void paint(juce::Graphics& g) override;
+  void mouseDown(const juce::MouseEvent& e) override;
+  void mouseUp(const juce::MouseEvent& e) override;
+  juce::String hint() const override;
+
+private:
+  bool latch() const;
+  juce::AudioProcessorValueTreeState& state_;
+  std::unique_ptr<juce::ParameterAttachment> attachment_;
+  bool on_ = false;
+};
+
+// The Sustain module: HOLD | SUSTAINER picks the page.
+//   Hold:      the HOLD switch, LATCH, CHORD | PILE-UP, Fade, Level.
+//   Sustainer: FUND | HARM | MIX, Sustain, Bloom.
+class SustainModule : public juce::Component {
+public:
+  explicit SustainModule(DjontProcessor& processor);
+  void tick();
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  static constexpr int kWidth = 250;
+
+private:
+  void setPowered(bool on);
+  DjontProcessor& processor_;
+  PowerLed power_;
+  juce::Component body_;
+  ParamSegmented page_;
+  HoldButton hold_;
+  ParamToggle latch_;
+  ParamSegmented holdType_;
+  Knob fade_, level_;
+  ParamSegmented sustainerType_;
+  Knob amount_, bloom_;
+  int shownPage_ = -1;
 };
 
 // The gear in the header.
@@ -259,7 +334,7 @@ private:
 
 class DjontEditor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-  static constexpr int kWidth = 1120, kHeight = 432;
+  static constexpr int kWidth = 1290, kHeight = 432;
 
   explicit DjontEditor(DjontProcessor& processor);
   ~DjontEditor() override;
@@ -270,15 +345,23 @@ public:
   void showSettings(bool show);
   juce::String currentHint() const { return hint_; }
 
+  // MIDI learn: right-click any control.
+  void mouseDown(const juce::MouseEvent& e) override;
+
 private:
   void timerCallback() override;
   void updateHint();
+  void paintOverChildren(juce::Graphics& g) override;
+  juce::Component* learnTarget_ = nullptr;
+  juce::String learnName_, confirm_;
+  int confirmTicks_ = 0, learnedSeen_ = 0;
 
   DjontProcessor& processor_;
   DjontLookAndFeel lnf_;
   Knob input_, output_;
   GearButton gear_;
   WhamModule wham_;
+  SustainModule sustain_;
   std::vector<std::unique_ptr<Module>> modules_;
   SettingsPanel settings_;
   juce::Image photo_, photoScaled_;

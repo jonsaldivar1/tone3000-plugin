@@ -38,7 +38,7 @@ float realValue(juce::AudioProcessorValueTreeState& state, const juce::String& i
 }  // namespace
 
 const juce::StringArray& WhamPresets::paramIds() {
-  static const juce::StringArray ids{"whamMode", "whamHeel", "whamToe", "whamRate", "whamShape", "whamRetrig"};
+  static const juce::StringArray ids{"whamMode", "whamHeel", "whamToe", "whamRate", "whamShape", "whamRetrig", "whamGlide"};
   return ids;
 }
 

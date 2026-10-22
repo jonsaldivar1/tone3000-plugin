@@ -204,6 +204,111 @@ int main(int argc, char** argv) {
     file.deleteFile();
   }
   {
+    // Sustain / Hold: Chord keeps a picked note sounding after the input
+    // stops, and lets it go on release; Pile-up keeps adding notes.
+    const auto set = [](DjontProcessor& proc, const char* id, float v) {
+      auto* param = proc.params.getParameter(id);
+      param->setValueNotifyingHost(param->convertTo0to1(v));
+    };
+    const auto rms = [](const std::vector<float>& x, size_t from) {
+      double e = 0;
+      for (size_t i = from; i < x.size(); ++i) e += static_cast<double>(x[i]) * x[i];
+      return std::sqrt(e / static_cast<double>(x.size() - from));
+    };
+    auto p = make({{"sustainOn", 1}, {"sustainMode", 0}, {"holdType", 0}, {"holdFade", 0.05f}, {"holdLevel", 100}});
+    run(*p, sine(220.0, 0.5, 0.3f));
+    set(*p, "holdOn", 1);
+    const auto held = run(*p, std::vector<float>(static_cast<size_t>(1.5 * kFs), 0.0f));
+    const double heldRms = rms(held, held.size() / 2);
+    std::printf("      hold rms %.3f (input sine rms 0.212)\n", heldRms);
+    check(heldRms > 0.08 && heldRms < 0.5, "Hold (Chord) keeps the note sounding after you stop playing");
+    check(tone(held, 220.0, held.size() / 2) > 50.0 * tone(held, 330.0, held.size() / 2), "Hold keeps the pitch (220 Hz)");
+    set(*p, "holdOn", 0);
+    const auto released = run(*p, std::vector<float>(static_cast<size_t>(0.5 * kFs), 0.0f));
+    check(rms(released, released.size() / 2) < 0.002, "letting go of Hold fades it out");
+
+    auto q = make({{"sustainOn", 1}, {"sustainMode", 0}, {"holdType", 1}, {"holdFade", 0.05f}, {"holdLevel", 100}});
+    run(*q, sine(220.0, 0.5, 0.3f));
+    set(*q, "holdOn", 1);
+    run(*q, sine(330.0, 0.5, 0.3f));
+    const auto piled = run(*q, std::vector<float>(static_cast<size_t>(1.0 * kFs), 0.0f));
+    check(tone(piled, 220.0, piled.size() / 2) > 1e-5 && tone(piled, 330.0, piled.size() / 2) > 1e-5,
+          "Hold (Pile-up) keeps both the first note and one played while held");
+  }
+  {
+    // Sustainer: a plucked note that decays keeps much more of its level.
+    std::vector<float> pluck(static_cast<size_t>(2.0 * kFs));
+    for (size_t i = 0; i < pluck.size(); ++i) {
+      const double t = static_cast<double>(i) / kFs;
+      pluck[i] = static_cast<float>(0.3 * std::exp(-t * 3.0) * std::sin(juce::MathConstants<double>::twoPi * 110.0 * t));
+    }
+    const auto tail = [](const std::vector<float>& x) {
+      double e = 0;
+      for (size_t i = static_cast<size_t>(1.5 * kFs); i < x.size(); ++i) e += static_cast<double>(x[i]) * x[i];
+      return std::sqrt(e);
+    };
+    const auto dry = run(*make({}), pluck);
+    const auto fund = run(*make({{"sustainOn", 1}, {"sustainMode", 1}, {"sustainerType", 0}, {"sustainerAmount", 100}}), pluck);
+    check(tail(fund) > 5.0 * tail(dry), "Sustainer holds a decaying note up (Fundamental)");
+    const auto harm = run(*make({{"sustainOn", 1}, {"sustainMode", 1}, {"sustainerType", 1}, {"sustainerAmount", 100},
+                                 {"sustainerBloom", 0.3f}}),
+                          pluck);
+    check(tone(harm, 220.0, static_cast<size_t>(1.2 * kFs)) > 3.0 * tone(harm, 110.0, static_cast<size_t>(1.2 * kFs)),
+          "Sustainer Harmonic blooms into the octave");
+    check(finite(harm, 4.0f) && finite(fund, 4.0f), "Sustainer stays bounded");
+  }
+  {
+    // Wham Glide: a footswitch jump of the pedal becomes a timed sweep.
+    djont::Wham w;
+    w.prepare(kFs);
+    djont::Wham::Settings st;
+    st.mode = djont::Wham::Mode::pedal;
+    st.pedal = 1.0f;
+    st.glideMs = 500.0f;
+    std::vector<float> quiet(32, 0.0f);
+    float pos = 0;
+    for (int i = 0; i < static_cast<int>(0.25 * kFs / 32); ++i) pos = w.advance(st, quiet.data(), 32);
+    check(pos > 0.4f && pos < 0.6f, "Wham Glide 500 ms: halfway after 250 ms");
+  }
+  {
+    // MIDI learn: the next CC maps; HOLD with LATCH flips on each press.
+    auto p = make({{"holdLatch", 1}});
+    const auto send = [&](int cc, int v) {
+      juce::MidiBuffer m;
+      m.addEvent(juce::MidiMessage::controllerEvent(1, cc, v), 0);
+      juce::AudioBuffer<float> b(2, 64);
+      b.clear();
+      p->processBlock(b, m);
+    };
+    const auto hold = [&] { return p->params.getRawParameterValue("holdOn")->load() > 0.5f; };
+    p->startLearn("holdOn");
+    send(20, 127);
+    send(20, 0);
+    check(p->ccFor("holdOn") == 20 && p->learning().isEmpty(), "MIDI learn maps the next CC");
+    check(!hold(), "the press that teaches doesn't also act");
+    send(20, 127);
+    send(20, 0);
+    check(hold(), "LATCH: a momentary footswitch press holds (and its release doesn't let go)");
+    send(20, 127);
+    send(20, 0);
+    check(!hold(), "LATCH: the next press lets go");
+    auto* latch = p->params.getParameter("holdLatch");
+    latch->setValueNotifyingHost(0.0f);
+    send(20, 127);
+    check(hold(), "no LATCH: holds while pressed");
+    send(20, 0);
+    check(!hold(), "no LATCH: lets go on release");
+    p->startLearn("whamPedal");
+    send(11, 0);
+    send(11, 64);
+    check(std::abs(p->params.getRawParameterValue("whamPedal")->load() - 50.4f) < 0.5f, "a CC moves a knob");
+    juce::MemoryBlock state;
+    p->getStateInformation(state);
+    auto r = make({});
+    r->setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    check(r->ccFor("holdOn") == 20 && r->ccFor("whamPedal") == 11, "MIDI mappings save with the state");
+  }
+  {
     // The editor: the look round-trips through the state, and the hint bar
     // starts on its default line.
     DjontProcessor p;
@@ -224,17 +329,22 @@ int main(int argc, char** argv) {
   // --snapshot <png> [--look chrome|redfoil] [--settings]
   juce::String snapshotPath, look = "chrome";
   bool settings = false;
+  juce::StringArray sets;  // --set id=value (real units), any number
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
     if (arg == "--snapshot" && i + 1 < argc) snapshotPath = argv[++i];
     else if (arg == "--look" && i + 1 < argc) look = argv[++i];
     else if (arg == "--settings") settings = true;
+    else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
   }
   if (snapshotPath.isNotEmpty()) {
     DjontProcessor p;
     p.prepareToPlay(kFs, kBlock);
-    for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}, {"whamOn", 1}})
+    for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}, {"whamOn", 1}, {"sustainOn", 1}})
       p.params.getParameter(id)->setValueNotifyingHost(v);
+    for (const auto& kv : sets)
+      if (auto* param = p.params.getParameter(kv.upToFirstOccurrenceOf("=", false, false)))
+        param->setValueNotifyingHost(param->convertTo0to1(kv.fromFirstOccurrenceOf("=", false, false).getFloatValue()));
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (auto* e = dynamic_cast<djont::DjontEditor*>(editor.get())) {
       e->setLook(look);
