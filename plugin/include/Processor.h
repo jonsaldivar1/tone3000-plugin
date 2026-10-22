@@ -25,6 +25,7 @@
 #include "MidiMapper.h"
 #include "NoiseGate.h"
 #include "PitchShift.h"
+#include "Wham.h"
 #include "Spread.h"
 #include "StereoOffset.h"
 #include "PresetManager.h"
@@ -1112,6 +1113,10 @@ private:
   // adds is reported from the message thread (see updateLatency), never
   // from processBlock.
   PitchShift pitchShift;
+  // Fork (TK3J): the shifter's virtual expression pedal (Wham.h), and its
+  // position for the deck's rocker (0..1; -1 while WHAM is off or idle).
+  t3k::Wham wham;
+  std::atomic<float> whamPosition{-1.0f};
 
   // Raw APVTS parameter atomics, resolved once in the constructor. The audio
   // thread reads these every block; getRawParameterValue is a string-keyed
@@ -1169,6 +1174,13 @@ private:
     std::atomic<float>* toneMid2 = nullptr;
     std::atomic<float>* toneTreble2 = nullptr;
     std::atomic<float>* outputLevel2 = nullptr;
+    // Fork (TK3J): wham (the pitch shifter's virtual expression pedal).
+    std::atomic<float>* whamMode = nullptr;
+    std::atomic<float>* whamPedal = nullptr;
+    std::atomic<float>* whamHeel = nullptr;
+    std::atomic<float>* whamRate = nullptr;
+    std::atomic<float>* whamShape = nullptr;
+    std::atomic<float>* whamRetrig = nullptr;
   } paramRefs;
   void resolveParamRefs();
 
@@ -1247,6 +1259,9 @@ private:
   float cacheInputCalibrationLevel = 12.0f;
   bool cachePitchEnabled = false;
   PitchShift::Params cachePitch;
+  // Fork (TK3J): wham. Toe is the Pitch knob (cachePitch.semitones).
+  t3k::Wham::Settings cacheWham;
+  float cacheWhamHeel = 0.0f;
 
   // Fork (TK3J): split channel strip. Lane 1 reads the stock caches above;
   // these are lane 2's own.

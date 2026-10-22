@@ -270,6 +270,19 @@ std::map<Key, String> buildTable() {
       U("Lane 2 Strip: the plate's knobs control lane 2 only: its own Input, Gate, tone stack and Output. "
         "Click: split the strip and edit lane 2.");
 
+  // Fork (TK3J): wham (the pitch shifter's virtual expression pedal)
+  t[Key::whamMode] = U("Wham: a virtual expression pedal for the pitch shift. Pedal: you move it (drag, "
+                       "automation or MIDI CC) · Auto: it sweeps by itself. On, the Pitch knob sets the toe.");
+  t[Key::whamPedal] = U("Wham Pedal: heel (bottom) to toe (top). Drag it, automate it, or MIDI-learn an "
+                        "expression pedal to it. Double-click: back to the heel.");
+  t[Key::whamHeel] = knobDesktop("Heel", "pitch with the pedal up, ±24 st. The Pitch knob is the toe.");
+  t[Key::whamRate] = knobDesktop("Rate", "how fast Auto sweeps, 0.1-10 Hz.");
+  t[Key::whamShape] = knobDesktop("Shape", "Auto's sweep: Sine · Triangle · Rise (with RETRIG: one scoop per "
+                                           "pick) · Square (jumps).");
+  t[Key::whamRetrig] = U("RETRIG: restart Auto's sweep at the heel on every pick, so it follows your playing.");
+  t[Key::whamToe] = knobDesktop("Toe", "pitch with the pedal all the way down, ±24 st. Right-click: wham and "
+                                       "advanced.");
+
   for (auto& [key, value] : t) value = touchify(value);
   return t;
 }

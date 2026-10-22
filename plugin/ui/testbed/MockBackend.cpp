@@ -59,6 +59,9 @@ constexpr SliderDefault kSliders[] = {
     // Fork (TK3J): lane 2's split-strip controls.
     {"inputLevel2", 0.5f},       {"outputLevel2", 0.5f},  {"gateThreshold2", 0.35f},
     {"toneBass2", 0.5f},         {"toneMid2", 0.5f},      {"toneTreble2", 0.5f},
+    // Fork (TK3J): wham off, pedal at the heel, heel 0 st, 1 Hz, Sine.
+    {"whamMode", 0.0f},          {"whamPedal", 0.0f},     {"whamHeel", 0.5f},
+    {"whamRate", 0.5f},          {"whamShape", 0.0f},
 };
 struct ToggleDefault {
   const char* id;
@@ -76,7 +79,7 @@ constexpr ToggleDefault kToggles[] = {
     {"pitchEnabled", false},           {"pitchStep", true},
     {"calibrateInput", false},         {"osEnabled", false},
     {"tk3jSplitStrip", false},         {"gateEnabled2", true},
-    {"toneEqEnabled2", true},
+    {"toneEqEnabled2", true},          {"whamRetrig", false},
 };
 
 }  // namespace
@@ -453,7 +456,8 @@ juce::var MockBackend::getMeterLevels() {
               {"output", juce::Array<juce::var>{-12, -14}},
               {"blocks", juce::var(blocks)},
               {"cpu", 0.11},
-              {"correlation", 0.85}});
+              {"correlation", 0.85},
+              {"wham", 0.62}});
 }
 
 }  // namespace t3k::ui::testbed

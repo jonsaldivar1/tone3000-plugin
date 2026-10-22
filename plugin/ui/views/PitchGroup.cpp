@@ -37,6 +37,7 @@ PitchGroup::PitchGroup(Services& services)
       semitones_(services.backend, "pitchSemitones", semitoneKnob()),
       power_(services.backend, "pitchEnabled", help::Key::pitchPower),
       step_(services.backend, "pitchStep"),
+      whamMode_(services.backend, "whamMode"),
       deck_(services) {
   dim_.addAndMakeVisible(semitones_);
   dim_.setOff(!power_.value(), false);
@@ -45,6 +46,12 @@ PitchGroup::PitchGroup(Services& services)
   addAndMakeVisible(power_);
   step_.onChange = [this] { syncStep(); };
   syncStep();
+  const auto syncWham = [this] {
+    const bool on = whamMode_.normalised() > 0.25f;
+    semitones_.setLabel(on ? "Toe" : "Pitch", on ? help::Key::whamToe : help::Key::pitch);
+  };
+  whamMode_.onChange = syncWham;
+  syncWham();
 
   // One gesture resets the whole effect, deck included.
   semitones_.onReset = [this] { PitchDeckPanel::resetDeck(services_.backend); };

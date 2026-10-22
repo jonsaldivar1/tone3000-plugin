@@ -134,6 +134,33 @@ inline const KnobScale& tonalityHz() {
   }();
   return s;
 }
+// Fork (TK3J): wham. Rate on a log map, 0.1-10 Hz (Wham.h); the shape is
+// four detents.
+inline const KnobScale& whamRateHz() {
+  static const KnobScale s = [] {
+    KnobScale c;
+    const auto hz = [](double n) { return 0.1 * std::pow(100.0, n); };
+    c.toDisplay = hz;
+    c.fromDisplay = [](double d) { return std::log(d / 0.1) / std::log(100.0); };
+    c.format = [hz](double n) { return labels::toFixed(hz(n), hz(n) < 1.0 ? 2 : 1) + " Hz"; };
+    c.editText = [hz](double n) { return labels::toFixed(hz(n), 2); };
+    return c;
+  }();
+  return s;
+}
+inline const KnobScale& whamShape() {
+  static const KnobScale s = [] {
+    KnobScale c;
+    static const char* const kNames[] = {"Sine", "Triangle", "Rise", "Square"};
+    const auto index = [](double n) { return juce::jlimit(0, 3, juce::roundToInt(n * 3)); };
+    c.toDisplay = [index](double n) { return index(n); };
+    c.fromDisplay = [](double d) { return juce::jlimit(0.0, 3.0, std::round(d)) / 3.0; };
+    c.format = [index](double n) { return juce::String(kNames[index(n)]); };
+    c.editText = [index](double n) { return juce::String(index(n)); };
+    return c;
+  }();
+  return s;
+}
 inline const KnobScale& bufferMs() {
   static const KnobScale s = [] {
     KnobScale c;

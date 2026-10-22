@@ -175,6 +175,12 @@ void TONE3000Processor::resolveParamRefs() {
   paramRefs.toneMid2 = get("toneMid2");
   paramRefs.toneTreble2 = get("toneTreble2");
   paramRefs.outputLevel2 = get("outputLevel2");
+  paramRefs.whamMode = get("whamMode");
+  paramRefs.whamPedal = get("whamPedal");
+  paramRefs.whamHeel = get("whamHeel");
+  paramRefs.whamRate = get("whamRate");
+  paramRefs.whamShape = get("whamShape");
+  paramRefs.whamRetrig = get("whamRetrig");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createParameterLayout() {
@@ -399,6 +405,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createPar
   layout.add(std::make_unique<juce::AudioParameterFloat>(
       juce::ParameterID{"toneTreble2", 51}, "toneTreble2", 0.0f, 10.0f, 5.0f));
   layout.add(normParam("outputLevel2", 52, 0.5f));
+
+  // Fork (TK3J): wham, the pitch shifter's virtual expression pedal (see
+  // Wham.h). Off by default, so the Pitch knob is the shift as before; on,
+  // the knob is the toe, Heel the rest position, and the pedal (PEDAL) or
+  // an LFO (AUTO) sweeps between them. The pedal is the one to automate or
+  // map to a MIDI expression pedal.
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID{"whamMode", 53}, "whamMode", juce::StringArray{"Off", "Pedal", "Auto"}, 0));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"whamPedal", 54}, "whamPedal", 0.0f, 1.0f, 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"whamHeel", 55}, "whamHeel",
+      static_cast<float>(-PitchShift::kSemitoneRange), static_cast<float>(PitchShift::kSemitoneRange), 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"whamRate", 56}, "whamRate",
+      juce::NormalisableRange<float>(
+          t3k::Wham::kMinRateHz, t3k::Wham::kMaxRateHz,
+          [](float start, float end, float norm) { return start * std::pow(end / start, norm); },
+          [](float start, float end, float hz) { return std::log(hz / start) / std::log(end / start); }),
+      t3k::Wham::kDefaultRateHz));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID{"whamShape", 57}, "whamShape", juce::StringArray{"Sine", "Triangle", "Rise", "Square"}, 0));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"whamRetrig", 58}, "whamRetrig", false));
 
   return layout;
 }
@@ -918,6 +948,7 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   // The oversampler is minimum-phase (zero reported latency), so the boundary
   // and a powered pitch shifter are the only latency sources at any factor.
   pitchShift.prepare(sampleRate, juce::jmax(1, samplesPerBlock));
+  wham.prepare(sampleRate);
   updateLatency();
   DBG("Chain boundary " << (boundaryNeeded ? "engaged" : "bypassed")
       << " (latency: " << chainBoundaryLatency << " samples)");
@@ -1283,6 +1314,15 @@ void TONE3000Processor::updateCachedParameters() {
   cachePitch.tonalityHz = tonalityHz < PitchShift::kTonalityOffHz ? tonalityHz : 0.0f;
   cachePitch.window =
       PitchShift::windowFromIndex(static_cast<int>(std::lround(paramRefs.pitchWindow->load())));
+
+  // Fork (TK3J): wham. STEP rounds the heel like the toe.
+  cacheWham.mode = static_cast<t3k::Wham::Mode>(juce::jlimit(0, 2, static_cast<int>(std::lround(paramRefs.whamMode->load()))));
+  cacheWham.shape = static_cast<t3k::Wham::Shape>(juce::jlimit(0, 3, static_cast<int>(std::lround(paramRefs.whamShape->load()))));
+  cacheWham.pedal = paramRefs.whamPedal->load();
+  cacheWham.rateHz = paramRefs.whamRate->load();
+  cacheWham.retrig = loadBool(paramRefs.whamRetrig);
+  const float heel = paramRefs.whamHeel->load();
+  cacheWhamHeel = loadBool(paramRefs.pitchStep) ? std::round(heel) : heel;
 
   // Fork (TK3J): split channel strip.
   cacheSplitStrip = loadBool(paramRefs.splitStrip);
@@ -2040,9 +2080,28 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // passthrough. The latency report rides the power parameter
   // (updateLatency), not this path.
   pitchShift.setEnabled(cachePitchEnabled);
-  if (pitchShift.isRunning()) {
+  if (pitchShift.isRunning() && cacheWham.mode != t3k::Wham::Mode::off) {
+    // Fork (TK3J): wham. The pedal moves per slice, so a sweep is smooth
+    // whatever the host buffer; the knob's value is the toe.
+    const int numSamples = buffer.getNumSamples();
+    const float toe = cachePitch.semitones;
+    auto params = cachePitch;
+    float position = 0.0f;
+    for (int start = 0; start < numSamples; start += t3k::Wham::kSliceSamples) {
+      const int len = juce::jmin(t3k::Wham::kSliceSamples, numSamples - start);
+      position = wham.advance(cacheWham, buffer, start, len);
+      params.semitones = cacheWhamHeel + (toe - cacheWhamHeel) * position;
+      pitchShift.setParams(params);
+      juce::AudioBuffer<float> slice(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), start, len);
+      pitchShift.process(slice);
+    }
+    whamPosition.store(position);
+  } else if (pitchShift.isRunning()) {
     pitchShift.setParams(cachePitch);
     pitchShift.process(buffer);
+    whamPosition.store(-1.0f);
+  } else {
+    whamPosition.store(-1.0f);
   }
 
   // #########################

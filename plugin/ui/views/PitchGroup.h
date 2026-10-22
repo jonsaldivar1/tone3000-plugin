@@ -45,6 +45,8 @@ private:
   ParamPowerButton power_;
   // The deck's STEP toggle decides whether the knob detents (see syncStep).
   ParamBinding step_;
+  // Fork (TK3J): with wham on, the knob is the pedal's toe (relabelled).
+  ParamBinding whamMode_;
   PitchDeckPanel deck_;
 };
 

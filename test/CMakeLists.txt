@@ -40,6 +40,7 @@ target_sources(DspTests PRIVATE
     src/processor_tests.cpp
     src/scene_tests.cpp
     src/split_strip_tests.cpp
+    src/wham_tests.cpp
     src/spread_tests.cpp
     src/state_cache_tests.cpp
     src/swap_fade_tests.cpp
