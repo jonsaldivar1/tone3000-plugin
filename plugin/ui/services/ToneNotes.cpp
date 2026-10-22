@@ -84,7 +84,7 @@ ToneNotes::Info ToneNotes::resolved(const ToneSummary& tone) const {
 
 void ToneNotes::store(const ToneSummary& tone, const Info& info) {
   if (const auto sidecar = sidecarFor(tone); sidecar != juce::File()) {
-    // Keep keys other tools (or later TK3J versions) wrote.
+    // Keep keys other tools (or later T3KJ versions) wrote.
     auto existing = readJson(sidecar);
     auto* obj = existing.isObject() ? existing.getDynamicObject() : new juce::DynamicObject();
     juce::var keep(obj);

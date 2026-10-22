@@ -1,4 +1,4 @@
-// Fork (TK3J): the one-row footswitch picker a tile's "Footswitch..." menu
+// Fork (T3KJ): the one-row footswitch picker a tile's "Footswitch..." menu
 // row opens: 1-8 in their colors (the current one filled) and None.
 #pragma once
 

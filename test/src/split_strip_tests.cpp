@@ -1,4 +1,4 @@
-// Fork (TK3J): split channel strip. With two lanes running and the split
+// Fork (T3KJ): split channel strip. With two lanes running and the split
 // on, lane 2 (channel 1) has its own input gain, gate, tone stack and output
 // level; lane 1 keeps the stock controls. The contracts:
 //

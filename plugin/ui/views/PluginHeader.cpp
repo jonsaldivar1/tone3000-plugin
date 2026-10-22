@@ -17,19 +17,19 @@ constexpr int kGroupGap = 40;  // between header items
 constexpr int kPairGap = 16;   // tight pairs (undo/redo)
 constexpr int kLogoWidth = 160;
 constexpr int kLogoHeight = 24;  // 160 * 32 / 210, rounded like the browser
-constexpr int kForkLogoHeight = 44;  // Fork (TK3J): ForkLogo
+constexpr int kForkLogoHeight = 44;  // Fork (T3KJ): ForkLogo
 }  // namespace
 
 // The wordmark links to tone3000.com.
 class PluginHeader::LogoLink : public Clickable {
 public:
   LogoLink() : Clickable({}) {
-    setTitle("TK3J (TONE3000)");  // tone3000.com, to a screen reader
+    setTitle("T3KJ (TONE3000)");  // tone3000.com, to a screen reader
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     onClick = [] { juce::URL("https://www.tone3000.com").launchInDefaultBrowser(); };
   }
   void paintButton(juce::Graphics& g, bool, bool) override {
-    // Fork (TK3J): the TOAN grid wordmark instead of the stock logo.
+    // Fork (T3KJ): the TOAN grid wordmark instead of the stock logo.
     fork_logo::draw(g, getLocalBounds().toFloat());
   }
 };
@@ -130,7 +130,7 @@ void PluginHeader::resized() {
     return c.getX();
   };
 
-  // Fork (TK3J): the TOAN grid needs the header's height to stay legible.
+  // Fork (T3KJ): the TOAN grid needs the header's height to stay legible.
   const int logoH = kForkLogoHeight;
   logo_->setBounds(area.getX(), cy - logoH / 2,
                    static_cast<int>(std::ceil(fork_logo::widthFor(static_cast<float>(logoH)))), logoH);

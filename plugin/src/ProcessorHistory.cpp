@@ -30,7 +30,7 @@ juce::ValueTree TONE3000Processor::captureChainSnapshot(bool includeModelData) c
   serializeChainToTree(lane(ChainSide::Right), right, includeModelData);
   snapshot.appendChild(right, nullptr);
 
-  // Fork (TK3J): active scene + scene names.
+  // Fork (T3KJ): active scene + scene names.
   snapshot.appendChild(serializeSceneSet(), nullptr);
 
   return snapshot;
@@ -230,7 +230,7 @@ TONE3000Processor::Lane TONE3000Processor::restoreChainSnapshot(const juce::Valu
   reconcileChainFromTree(snapshot.getChildWithName("ChainBlocks"), lane(ChainSide::Left), retired);
   reconcileChainFromTree(snapshot.getChildWithName("RightChainBlocks"), lane(ChainSide::Right),
                          retired);
-  applySceneSet(snapshot);  // Fork (TK3J)
+  applySceneSet(snapshot);  // Fork (T3KJ)
 
   const bool wasStereo = stereoEnabled.load();
   const bool snapStereo = static_cast<bool>(snapshot.getProperty("stereoEnabled", false));

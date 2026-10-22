@@ -42,9 +42,11 @@ bool MyGear::isToneFile(const juce::File& file) { return file.existsAsFile() && 
 juce::File MyGear::root() const {
   const auto saved = prefs_.get(kRoot);
   if (saved.isNotEmpty()) return juce::File(saved);
-  const auto fallback =
-      juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile("TK3J Tones");
-  return fallback.isDirectory() ? fallback : juce::File();
+  const auto docs = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+  // The folder from before the rename (TK3J Tones) still counts.
+  for (const char* name : {"T3KJ Tones", "TK3J Tones"})
+    if (const auto folder = docs.getChildFile(name); folder.isDirectory()) return folder;
+  return {};
 }
 
 void MyGear::setRoot(const juce::File& folder) { prefs_.set(kRoot, folder.getFullPathName()); }

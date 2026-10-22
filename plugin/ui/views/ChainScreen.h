@@ -38,8 +38,8 @@ public:
   void resized() override;
 
 private:
-  void prefChanged(const juce::String& key) override;  // Fork (TK3J): scene bar toggle
-  // Fork (TK3J): the bar shows on the gallery only; the block card needs the
+  void prefChanged(const juce::String& key) override;  // Fork (T3KJ): scene bar toggle
+  // Fork (T3KJ): the bar shows on the gallery only; the block card needs the
   // full height for its knobs and model picker.
   void updateSceneBar();
   void openDetail(const std::string& blockId);
@@ -48,7 +48,7 @@ private:
   Services& services_;
   ChainView gallery_;
   std::unique_ptr<BlockDetail> detail_;
-  SceneBar scenes_;  // Fork (TK3J)
+  SceneBar scenes_;  // Fork (T3KJ)
 };
 
 }  // namespace t3k::ui

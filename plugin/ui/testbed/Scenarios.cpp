@@ -99,19 +99,19 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Align:", /*right=*/true);
          wait(200);
        }},
-      // Fork (TK3J): + on an empty slot opens My Gear before the browser.
+      // Fork (T3KJ): + on an empty slot opens My Gear before the browser.
       {"main-mygear",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "Add Tone:");
          wait(300);
        }},
-      // Fork (TK3J): a local tone's menu carries the art rows.
+      // Fork (T3KJ): a local tone's menu carries the art rows.
       {"main-art-menu",
        [](PluginRoot& root, MockBackend&) {
          clickByHelp(root, "Zuta GBG120.", /*right=*/true);
          wait(300);
        }},
-      // Fork (TK3J): scenes.
+      // Fork (T3KJ): scenes.
       {"main-scenes-preview",
        [](PluginRoot& root, MockBackend&) {
          wait(200);
@@ -126,7 +126,7 @@ const std::map<juce::String, Drive>& drives() {
          clickByHelp(root, "Footswitch:");
          wait(400);
        }},
-      // Fork (TK3J): split channel strip, editing lane 2.
+      // Fork (T3KJ): split channel strip, editing lane 2.
       {"main-split-strip",
        [](PluginRoot& root, MockBackend&) {
          wait(200);

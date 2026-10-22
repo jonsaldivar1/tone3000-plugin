@@ -1,4 +1,4 @@
-// Fork (TK3J): "My Gear", the player's own local tones, offered before the
+// Fork (T3KJ): "My Gear", the player's own local tones, offered before the
 // TONE3000 search when a slot is filled. Three lists, all on disk paths:
 //   - Library: every folder under the chosen tones folder (up to kMaxDepth
 //     levels down) that directly holds .nam or IR .wav files, plus loose
@@ -55,7 +55,7 @@ public:
   // Open My Gear (instead of going straight to the search) on + and swap.
   bool openFirst() const { return prefs_.getBool(kOpenFirst, true); }
 
-  // The tones folder. Unset: Documents/TK3J Tones when that folder exists.
+  // The tones folder. Unset: Documents/T3KJ Tones when that folder exists.
   juce::File root() const;
   void setRoot(const juce::File& folder);
   // Async folder picker; `done` runs on the message thread when a folder

@@ -1,4 +1,4 @@
-// Fork (TK3J): the "My Gear" picker. Opens on + / swap before the TONE3000
+// Fork (T3KJ): the "My Gear" picker. Opens on + / swap before the TONE3000
 // search: the player's pinned, recent and on-disk tones in one scrolling
 // list. Picking a row loads that file or folder into the slot; "Browse
 // TONE3000" falls through to the stock search for the same slot.

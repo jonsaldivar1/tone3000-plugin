@@ -58,7 +58,7 @@ public:
   bool swapChains() override { return true; }
   bool setChainBranch(const juce::String&, const std::string&) override { return true; }
   bool clearChainBranch() override { return true; }
-  // Fork (TK3J): scenes and footswitches, mirrored into the fixture chain.
+  // Fork (T3KJ): scenes and footswitches, mirrored into the fixture chain.
   bool selectScene(int index) override;
   bool renameScene(int index, const juce::String& name) override;
   bool setBlockFootswitch(const std::string& blockId, const juce::String& letter) override;

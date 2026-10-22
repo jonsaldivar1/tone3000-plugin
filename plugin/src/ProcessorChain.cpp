@@ -161,7 +161,7 @@ juce::var TONE3000Processor::makeToneSummary(const juce::var& toneVar) {
   const bool local = static_cast<bool>(tone->getProperty("local"));
   if (local)
     out->setProperty("local", true);
-  // Fork (TK3J): the on-disk source, for custom art (ToneArt).
+  // Fork (T3KJ): the on-disk source, for custom art (ToneArt).
   if (local && tone->hasProperty("source_path"))
     out->setProperty("source_path", tone->getProperty("source_path"));
 
@@ -990,7 +990,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     float inputGain = 0.5f, outputGain = 0.5f, mix = 1.0f;
     juce::var eq;
     bool rtFailed = false;
-    // Fork (TK3J): footswitch letter + power per scene (the active scene's
+    // Fork (T3KJ): footswitch letter + power per scene (the active scene's
     // entry is the live power).
     juce::String footswitch;
     std::array<bool, ChainBlock::kNumScenes> sceneOn{};
@@ -1001,7 +1001,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   bool stereo = false, canUndo = false, canRedo = false, branched = false;
   bool canPaste = false, atDefault = false;
   juce::String presetId, presetName, branchSide, activeSide, branchAfter;
-  int sceneActive = 0;  // Fork (TK3J)
+  int sceneActive = 0;  // Fork (T3KJ)
   std::array<juce::String, ChainBlock::kNumScenes> sceneNameCopy;
 
   {
@@ -1147,7 +1147,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
       params->setProperty("eq", row.eq);
       item->setProperty("params", juce::var(params.get()));
 
-      // Fork (TK3J): footswitch + per-scene power (the active scene is live).
+      // Fork (T3KJ): footswitch + per-scene power (the active scene is live).
       juce::DynamicObject::Ptr fork = new juce::DynamicObject();
       if (row.footswitch.isNotEmpty())
         fork->setProperty("footswitch", row.footswitch);
@@ -1185,7 +1185,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     state->setProperty("preset", juce::var(preset.get()));
   }
   state->setProperty("stereoEnabled", stereo);
-  // Fork (TK3J): scenes.
+  // Fork (T3KJ): scenes.
   {
     juce::DynamicObject::Ptr scenes = new juce::DynamicObject();
     scenes->setProperty("active", sceneActive);

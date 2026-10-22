@@ -11,7 +11,7 @@ const std::vector<MappableTarget>& mappableTargets() {
         // programmed with CC / note buttons instead of program changes.
         {"presetPrevious", "Previous Preset", "Presets", K::trigger},
         {"presetNext", "Next Preset", "Presets", K::trigger},
-        // Fork (TK3J): scenes (the CC value picks: 0-3 = A-D) and the
+        // Fork (T3KJ): scenes (the CC value picks: 0-3 = A-D) and the
         // footswitches blocks are put on from their tile menu (added below).
         {"tk3jScene", "Scene (value 0-3 = A-D)", "Scenes", K::continuous},
         {"inputLevel", "Input Gain", "Global", K::continuous},
@@ -32,7 +32,7 @@ const std::vector<MappableTarget>& mappableTargets() {
         {"toneBass", "Bass", "Tone Stack", K::continuous},
         {"toneMid", "Mid", "Tone Stack", K::continuous},
         {"toneTreble", "Treble", "Tone Stack", K::continuous},
-        // Fork (TK3J): the split channel strip's lane 2 controls.
+        // Fork (T3KJ): the split channel strip's lane 2 controls.
         {"tk3jSplitStrip", "Split Strip (lane 2 own controls)", "Lane 2 Strip", K::toggle},
         {"inputLevel2", "Lane 2 Input Gain", "Lane 2 Strip", K::continuous},
         {"gateEnabled2", "Lane 2 Gate Power", "Lane 2 Strip", K::toggle},
@@ -66,7 +66,7 @@ const std::vector<MappableTarget>& mappableTargets() {
         {"chainInvertLeft", "Invert L", "Stereo", K::toggle},
         {"chainInvertRight", "Invert R", "Stereo", K::toggle},
     };
-    // Fork (TK3J): footswitches 1-8, right after the scene target.
+    // Fork (T3KJ): footswitches 1-8, right after the scene target.
     {
       auto at = t.begin() + 3;  // presetPrevious, presetNext, tk3jScene
       for (int i = 8; i >= 1; --i)
@@ -111,7 +111,7 @@ juce::String sourceLabel(const MidiMapping& mapping) {
 juce::String behaviorLabel(const MidiMapping& mapping) {
   const auto* target = targetById(mapping.targetId);
   const auto kind = target != nullptr ? std::optional(target->kind) : std::nullopt;
-  if (mapping.targetId == "tk3jScene") return "Picks scene";  // Fork (TK3J)
+  if (mapping.targetId == "tk3jScene") return "Picks scene";  // Fork (T3KJ)
   if (kind == TargetKind::trigger) return "Trigger";
   if (kind == TargetKind::toggle || mapping.source == MidiSource::note) return "Toggle";
   return "Absolute";

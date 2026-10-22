@@ -24,7 +24,7 @@ public:
     std::optional<juce::Colour> track;
     // Minimum cell width (the pan rail's [S|Ø] squares up to ICON_BOX).
     int minCellWidth = 0;
-    // Fork (TK3J): the engaged fill follows the skin's accent at paint time
+    // Fork (T3KJ): the engaged fill follows the skin's accent at paint time
     // (onBg is ignored), so a live skin change reaches built controls.
     bool accentOn = false;
   };

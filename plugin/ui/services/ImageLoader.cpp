@@ -99,7 +99,7 @@ void ImageLoader::load(const juce::String& url, int side, Request& request,
 // Worker thread.
 juce::Image ImageLoader::produce(const juce::String& url, int side, Job& job) {
   juce::Image source;
-  // Fork (TK3J): local tones' custom art is a file on disk (ToneArt), never
+  // Fork (T3KJ): local tones' custom art is a file on disk (ToneArt), never
   // the network, so the offline switch doesn't apply to it.
   if (const auto art = ToneArt::fileFromUrl(url); art != juce::File()) {
     source = juce::ImageFileFormat::loadFrom(art);

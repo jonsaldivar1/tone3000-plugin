@@ -257,7 +257,7 @@ void ChainView::layoutColumn() {
   const int width = std::max(scroller_->getWidth(), content + 2 * gallery::kEdgeFadeWidth);
   const int lanesHeight = stereo() ? tile * 2 + gallery::kLaneGap : tile;
   const int height = scroller_->getHeight();
-  // Fork (TK3J): the block labels sit under the lane; centre both together.
+  // Fork (T3KJ): the block labels sit under the lane; centre both together.
   const int labelsHeight = showLabels() ? TileCaption::kTopGap + TileCaption::kHeight : 0;
   const int lanesTop = std::max(0, (height - lanesHeight - labelsHeight) / 2);
   column_->setSize(width, height);
@@ -277,7 +277,7 @@ void ChainView::layoutColumn() {
   }
 }
 
-// Fork (TK3J): block labels.
+// Fork (T3KJ): block labels.
 bool ChainView::showLabels() const {
   return !stereo() && services_.prefs.getBool(UiPrefs::kShowBlockLabels, true);
 }
@@ -351,7 +351,7 @@ void ChainView::paint(juce::Graphics& g) {
 
 // Fade the lanes out under the gutters as they scroll.
 void ChainView::paintOverChildren(juce::Graphics& g) {
-  if (skin::hasBackdrop()) return;  // Fork (TK3J): keep the skin's art whole
+  if (skin::hasBackdrop()) return;  // Fork (T3KJ): keep the skin's art whole
   paint::edgeFades(g, scroller_->getBounds().toFloat(), gallery::kEdgeFadeWidth, theme::kBackground);
 }
 

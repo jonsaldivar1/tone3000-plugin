@@ -206,7 +206,7 @@ juce::ValueTree TONE3000Processor::serializeBlockSettings(const ChainBlock& bloc
     blockState.setProperty("toneJson", block.toneJson, nullptr);
     blockState.setProperty("activeModelId", block.activeModelId, nullptr);
     blockState.appendChild(block.eq.toValueTree(), nullptr);
-    // Fork (TK3J): scenes + footswitch (ProcessorScenes.cpp).
+    // Fork (T3KJ): scenes + footswitch (ProcessorScenes.cpp).
     if (auto scenes = serializeBlockScenes(block); scenes.isValid())
       blockState.appendChild(scenes, nullptr);
     if (block.footswitch.isNotEmpty())
@@ -239,7 +239,7 @@ void TONE3000Processor::applyBlockSettings(ChainBlock& block, const juce::ValueT
     // prepareChain has seen.
     block.eq.restoreFromValueTree(blockState.getChildWithName("Eq"));
     prepareBlockForChainRate(block);
-    // Fork (TK3J): scenes + footswitch.
+    // Fork (T3KJ): scenes + footswitch.
     applyBlockScenes(block, blockState);
   }
 }

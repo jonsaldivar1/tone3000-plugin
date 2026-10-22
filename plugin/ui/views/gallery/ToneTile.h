@@ -34,7 +34,7 @@ public:
 
   // A fresh snapshot of the same block (resync).
   void setBlock(const ChainItem& block);
-  // Fork (TK3J): the scene bar is hovering a scene that would turn this
+  // Fork (T3KJ): the scene bar is hovering a scene that would turn this
   // block on (true) or off (false); nullopt = no preview.
   void setScenePreview(std::optional<bool> turnsOn);
   const ChainItem& block() const { return block_; }
@@ -54,7 +54,7 @@ protected:
   void travellingChanged(bool travelling) override;
 
 private:
-  // Fork (TK3J): custom art changed somewhere (ToneArt); re-resolve ours.
+  // Fork (T3KJ): custom art changed somewhere (ToneArt); re-resolve ours.
   void changeListenerCallback(juce::ChangeBroadcaster*) override;
   void refreshArt();
 
@@ -104,7 +104,7 @@ private:
   juce::Component ledSlot_;
   BlockLed led_;
   HoverWatcher hover_{*this};
-  // Fork (TK3J): footswitch picker and scene preview.
+  // Fork (T3KJ): footswitch picker and scene preview.
   std::unique_ptr<FootswitchPicker> picker_;
   std::optional<bool> scenePreview_;
   void openFootswitchPicker();

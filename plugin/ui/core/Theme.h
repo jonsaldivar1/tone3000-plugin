@@ -41,7 +41,7 @@ inline const juce::Colour kLinkBlue{0xff40a6ff};
 inline const juce::Colour kWhite{0xffffffff};
 inline const juce::Colour kBlack{0xff000000};
 
-// Fork (TK3J): skins. The tokens from here down to kPanelBg are written by
+// Fork (T3KJ): skins. The tokens from here down to kPanelBg are written by
 // skin::apply (core/Skin.h) before the UI builds and again on a skin change,
 // so they are plain globals rather than constants; these four are the
 // skin's own (stock: black, the brand yellow, white connector lines).

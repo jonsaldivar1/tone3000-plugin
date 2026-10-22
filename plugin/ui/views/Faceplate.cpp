@@ -215,7 +215,7 @@ private:
   std::unique_ptr<Menu> menu_;
 };
 
-// Fork (TK3J): split channel strip switch. Three segments in the input
+// Fork (T3KJ): split channel strip switch. Three segments in the input
 // group's chrome row: Shared (the link glyph: one strip for both lanes, the
 // stock behaviour), 1 and 2 (the strip is split; the plate's knobs edit that
 // lane). Only shown while two lanes run (stereo chains or dual mono).
@@ -352,7 +352,7 @@ Faceplate::Faceplate(Services& services)
   addChildComponent(balance_);
   addAndMakeVisible(output_);
 
-  // Fork (TK3J): lane 2's strip, laid out over the stock one (syncFlags
+  // Fork (T3KJ): lane 2's strip, laid out over the stock one (syncFlags
   // shows one set at a time) and the Shared | 1 | 2 switch.
   addChildComponent(*laneSwitch_);
   addChildComponent(input2_);
@@ -420,7 +420,7 @@ void Faceplate::seedLane2FromLane1() {
 void Faceplate::syncFlags() {
   const auto& chain = services_.chain.state();
 
-  // Fork (TK3J): split channel strip. The switch shows while two lanes run;
+  // Fork (T3KJ): split channel strip. The switch shows while two lanes run;
   // split, the plate shows the edited lane's set.
   const bool twoLanes = chain.stereoEnabled || chain.dualMonoActive;
   const bool split = twoLanes && splitStrip_.boolValue();

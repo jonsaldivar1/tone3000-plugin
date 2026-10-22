@@ -137,7 +137,7 @@ void drawKnobFace(juce::Graphics& g, juce::Rectangle<float> box, float angleDeg,
   if (to - from >= 0.25f) {
     juce::Path arc;
     arc.addCentredArc(c.x, c.y, R(kArcRadius), R(kArcRadius), 0.0f, rad(from), rad(to), true);
-    g.setColour(theme::kAccent);  // Fork (TK3J): the skin's arc colour (stock: brand yellow)
+    g.setColour(theme::kAccent);  // Fork (T3KJ): the skin's arc colour (stock: brand yellow)
     g.strokePath(arc, juce::PathStrokeType(R(kArcWidth), juce::PathStrokeType::curved,
                                            juce::PathStrokeType::butt));
   }

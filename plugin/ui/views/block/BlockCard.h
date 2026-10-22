@@ -144,7 +144,7 @@ private:
   LoadingDots loading_;
   RetryLoadBadge retry_;
   ToneMeta meta_;
-  // Fork (TK3J): the player's own labels / creator / notes, in the info view.
+  // Fork (T3KJ): the player's own labels / creator / notes, in the info view.
   ToneNotesPanel notesPanel_;
   void changeListenerCallback(juce::ChangeBroadcaster*) override;  // ToneNotes changed
   ToneSummary metaTone() const;

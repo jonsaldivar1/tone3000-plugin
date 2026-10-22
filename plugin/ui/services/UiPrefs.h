@@ -64,9 +64,9 @@ public:
   static constexpr const char* kShowPresetPcNumbers = "t3k.showPresetPcNumbers";
   // Fork (fit-to-window): shrink chain tiles to fit instead of scrolling.
   static constexpr const char* kFitChainToWindow = "t3k.fork.fitChainToWindow";
-  // Fork (TK3J): gear / product caption under each chain tile.
+  // Fork (T3KJ): gear / product caption under each chain tile.
   static constexpr const char* kShowBlockLabels = "t3k.fork.showBlockLabels";
-  // Fork (TK3J): the scene bar under the chain.
+  // Fork (T3KJ): the scene bar under the chain.
   static constexpr const char* kShowSceneBar = "t3k.fork.showSceneBar";
   static constexpr const char* kTokens = "t3k_tokens";
   static constexpr const char* kCachedUser = "t3k.cachedUser";

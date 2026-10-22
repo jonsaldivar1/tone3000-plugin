@@ -46,9 +46,9 @@ enum class Key {
   clipDot,
   // The hint bar itself
   cpuLoad, hideHints,
-  // Fork (TK3J): tile art
+  // Fork (T3KJ): tile art
   setArtTile, clearArtTile, footswitchTile,
-  // Fork (TK3J): split channel strip
+  // Fork (T3KJ): split channel strip
   laneStripLinked, laneStrip1, laneStrip2,
 };
 

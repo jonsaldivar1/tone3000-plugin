@@ -1,4 +1,4 @@
-// Fork (TK3J): the player's own info about a tone, in the block card's info
+// Fork (T3KJ): the player's own info about a tone, in the block card's info
 // view (ToneNotes holds it). Local tones get the full card: gear, product,
 // creator, link, description and notes; TONE3000 tones already carry their
 // creator and description, so just gear, product and notes. Edits save on

@@ -5,7 +5,7 @@
 namespace t3k::ui::testbed {
 
 namespace {
-// Fork (TK3J): "{fixtures}" in a scenario's chain (a local tone's
+// Fork (T3KJ): "{fixtures}" in a scenario's chain (a local tone's
 // source_path) is the fixtures folder, as in seeded prefs (Host.cpp).
 juce::var withFixturesPath(const juce::var& chain) {
   const auto json = juce::JSON::toString(chain, true);
@@ -56,7 +56,7 @@ constexpr SliderDefault kSliders[] = {
     // Pitch shift at 0 st (centre) with its deck at the defaults: tonality
     // Off (top), the 30 ms buffer (second of four detents).
     {"pitchSemitones", 0.5f},    {"pitchTonality", 1.0f},  {"pitchWindow", 1.0f / 3.0f},
-    // Fork (TK3J): lane 2's split-strip controls.
+    // Fork (T3KJ): lane 2's split-strip controls.
     {"inputLevel2", 0.5f},       {"outputLevel2", 0.5f},  {"gateThreshold2", 0.35f},
     {"toneBass2", 0.5f},         {"toneMid2", 0.5f},      {"toneTreble2", 0.5f},
 };
@@ -162,7 +162,7 @@ void MockBackend::bumpChain() {
   o->setProperty("revision", static_cast<int>(o->getProperty("revision")) + 1);
 }
 
-// Fork (TK3J): scenes read each block's tk3j.sceneOn; the live power is
+// Fork (T3KJ): scenes read each block's tk3j.sceneOn; the live power is
 // params.enabled (the active scene's entry follows it, like native).
 namespace {
 void forEachTone(juce::var& chain, const std::function<void(juce::var& block)>& fn) {

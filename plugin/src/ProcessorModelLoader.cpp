@@ -556,7 +556,7 @@ juce::var TONE3000Processor::finishLocalToneLoad(const juce::String& title,
   if (gear.isNotEmpty())
     tone->setProperty("gear", gear);
 
-  // Fork (TK3J): where the tone came from on disk (the file or folder that
+  // Fork (T3KJ): where the tone came from on disk (the file or folder that
   // was loaded), saved with the chain and presets. The UI looks for custom
   // art (cover.jpg and friends, see ToneArt) next to it.
   if (source != juce::File())

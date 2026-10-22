@@ -91,7 +91,7 @@ struct ToneSummary {
   juce::String gear;
   bool local = false;
   juce::String image;  // first image only
-  juce::String sourcePath;  // Fork (TK3J): local tones' file/folder on disk
+  juce::String sourcePath;  // Fork (T3KJ): local tones' file/folder on disk
   std::optional<ToneUserRef> user;
   juce::String publishedAt;
   std::vector<ToneModelRef> models;
@@ -121,7 +121,7 @@ struct ChainItem {
   std::optional<double> inputLevelDbu;
   std::optional<double> outputLevelDbu;
   BlockParams params;
-  // Fork (TK3J): footswitch ("1".."8" or empty) and the block's power
+  // Fork (T3KJ): footswitch ("1".."8" or empty) and the block's power
   // in each scene A-D (the active scene's entry is the live power).
   juce::String footswitch;
   std::vector<bool> sceneOn;
@@ -168,7 +168,7 @@ struct ChainState {
   std::vector<ChainItem> chain;
   std::optional<std::vector<ChainItem>> chainRight;
   std::optional<ChainBranch> branch;
-  // Fork (TK3J): scenes. Empty names show as "Scene A".."Scene D".
+  // Fork (T3KJ): scenes. Empty names show as "Scene A".."Scene D".
   int activeScene = 0;
   std::vector<juce::String> sceneNames;
 

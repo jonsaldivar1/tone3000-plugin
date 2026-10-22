@@ -18,7 +18,7 @@ inline constexpr int kLaneGap = 24;
 inline constexpr int kEdgeFadeWidth = 32;
 // Connector lines and the branch elbow.
 inline constexpr float kLineWidth = 2.0f;
-// Fork (TK3J): written by skin::apply (Zenith squares the tiles, Tidal rounds them).
+// Fork (T3KJ): written by skin::apply (Zenith squares the tiles, Tidal rounds them).
 inline float kTileCorner = 16.0f;
 // Add tile's dashed border, and the green one an OS file drag arms.
 inline constexpr float kAddTileBorderWidth = 2.0f;

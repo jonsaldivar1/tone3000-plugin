@@ -1,4 +1,4 @@
-# TK3J (fork of TONE3000): Windows build + nightly upstream sync.
+# T3KJ (fork of TONE3000): Windows build + nightly upstream sync.
 #
 # - push to main      -> build the Windows installer
 # - nightly / manual  -> merge tone-3000/tone3000-plugin main into this
@@ -7,18 +7,18 @@
 #                        emails the repo owner) and nothing is pushed.
 #
 # Output: the installer as a run artifact, and on the rolling pre-release
-# "tk3j-latest" (Releases page) for a one-click download.
+# "t3kj-latest" (Releases page) for a one-click download.
 #
 # Optional secret T3K_PUBLISHABLE_KEY (your own key from tone3000.com >
 # Settings > API Keys) enables TONE3000 sign-in and library browsing.
 # Without it, local .nam / IR files work and sign-in shows an error.
 
-name: TK3J Windows build
+name: T3KJ Windows build
 
 on:
   push:
     branches: [main]
-    # dJONt has its own workflow; its changes don't rebuild TK3J.
+    # dJONt has its own workflow; its changes don't rebuild T3KJ.
     paths-ignore:
       - "djont/**"
       - ".github/workflows/djont-windows.yml"
@@ -30,7 +30,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: tk3j-windows
+  group: t3kj-windows
   cancel-in-progress: false
 
 env:
@@ -51,14 +51,14 @@ jobs:
       - id: merge
         name: Merge upstream main
         run: |
-          git config user.name "tk3j-sync"
-          git config user.email "tk3j-sync@users.noreply.github.com"
+          git config user.name "t3kj-sync"
+          git config user.email "t3kj-sync@users.noreply.github.com"
           git remote add upstream https://github.com/tone-3000/tone3000-plugin.git
           git fetch upstream main
           before=$(git rev-parse HEAD)
           if ! git merge --no-edit upstream/main; then
             git merge --abort
-            echo "::error::Upstream TONE3000 changes conflict with TK3J changes. Resolve the merge by hand (or ask Claude), then push to main."
+            echo "::error::Upstream TONE3000 changes conflict with T3KJ changes. Resolve the merge by hand (or ask Claude), then push to main."
             exit 1
           fi
           if [ "$(git rev-parse HEAD)" != "$before" ]; then
@@ -69,7 +69,7 @@ jobs:
           fi
 
   windows:
-    name: Build TK3J (Windows x64)
+    name: Build T3KJ (Windows x64)
     needs: sync
     if: >-
       always() && needs.sync.result != 'failure' &&
@@ -149,26 +149,26 @@ jobs:
           & $iscc /DVersion=$env:T3K_VERSION `
             /DArtefactsDir="$env:GITHUB_WORKSPACE\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
             /DOutputDir="$env:GITHUB_WORKSPACE\build" `
-            script\installer\windows\tk3j.iss
+            script\installer\windows\t3kj.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TK3J-v${{ env.T3K_VERSION }}-windows-x64
-          path: build/TK3J-v*-windows-x64.exe
+          name: T3KJ-v${{ env.T3K_VERSION }}-windows-x64
+          path: build/T3KJ-v*-windows-x64.exe
           if-no-files-found: error
 
       # Rolling pre-release: always the newest installer at one stable link.
-      - name: Publish tk3j-latest release
+      - name: Publish t3kj-latest release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          exe=$(ls build/TK3J-v*-windows-x64.exe)
-          gh release delete tk3j-latest --cleanup-tag -y || true
-          gh release create tk3j-latest "$exe" \
+          exe=$(ls build/T3KJ-v*-windows-x64.exe)
+          gh release delete t3kj-latest --cleanup-tag -y || true
+          gh release create t3kj-latest "$exe" \
             --prerelease \
             --target "$(git rev-parse HEAD)" \
-            --title "TK3J latest (v${T3K_VERSION}, $(git rev-parse --short HEAD))" \
+            --title "T3KJ latest (v${T3K_VERSION}, $(git rev-parse --short HEAD))" \
             --notes "Built from main at $(git rev-parse --short HEAD). Unsigned personal build: Windows SmartScreen will warn on first run (More info > Run anyway)."

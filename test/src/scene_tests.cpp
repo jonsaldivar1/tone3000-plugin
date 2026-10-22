@@ -1,4 +1,4 @@
-// Fork (TK3J): scenes and footswitches. A scene recalls every tone block's
+// Fork (T3KJ): scenes and footswitches. A scene recalls every tone block's
 // power / knobs / EQ without touching the loaded models; tweaks made in a
 // scene stick to it; scenes and footswitch letters survive the state round
 // trip; footswitches flip their blocks together; MIDI picks scenes by value

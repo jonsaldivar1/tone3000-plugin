@@ -107,7 +107,7 @@ public:
   std::unique_ptr<juce::ComponentTraverser> createKeyboardFocusTraverser() override;
 
 private:
-  // Fork (TK3J): a skin change re-tints and repaints the whole editor.
+  // Fork (T3KJ): a skin change re-tints and repaints the whole editor.
   void prefChanged(const juce::String& key) override;
 
   enum class BannerPhase { hidden, waiting, shown };
@@ -148,7 +148,7 @@ private:
   DragScroller* frontScroller();
 
   Services& services_;
-  // Fork (TK3J): the saved skin, applied before any view below is built.
+  // Fork (T3KJ): the saved skin, applied before any view below is built.
   bool skinApplied_;
   PluginHeader header_;
   HintBar hintBar_;
@@ -162,7 +162,7 @@ private:
   juce::Component overlay_;
   ToastView toast_;
   std::unique_ptr<UpdateNotice> updateNotice_;
-  // Fork (TK3J): My Gear, opened by + / swap before the tone browser.
+  // Fork (T3KJ): My Gear, opened by + / swap before the tone browser.
   std::unique_ptr<MyGearModal> myGear_;
   void openMyGear(ChainSide side, const std::string& targetId);
   void closeMyGear();

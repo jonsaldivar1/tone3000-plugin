@@ -124,7 +124,7 @@ bool ChainStore::setBranch(ChainSide side, const std::string& afterBlockId) {
   return run([&] { return backend_.setChainBranch(toString(side), afterBlockId); });
 }
 
-// Fork (TK3J): scenes and footswitches.
+// Fork (T3KJ): scenes and footswitches.
 bool ChainStore::selectScene(int index) {
   return run([&] { return backend_.selectScene(index); });
 }

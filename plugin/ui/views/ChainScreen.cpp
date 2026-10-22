@@ -5,7 +5,7 @@
 namespace t3k::ui {
 
 ChainScreen::ChainScreen(Services& services) : services_(services), gallery_(services), scenes_(services) {
-  // Fork (TK3J): the scene bar under the chain; hovering a scene previews it
+  // Fork (T3KJ): the scene bar under the chain; hovering a scene previews it
   // on the tiles.
   scenes_.onPreview = [this](int scene) { gallery_.setScenePreview(scene); };
   addChildComponent(scenes_);

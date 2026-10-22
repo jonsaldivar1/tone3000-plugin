@@ -76,7 +76,7 @@ void MidiMapper::processMidi(const juce::MidiBuffer& midi) {
 }
 
 void MidiMapper::applyEvent(Mapping& mapping, const juce::MidiMessage& msg) {
-  // Fork (TK3J): a scene control picks by value (CC 0-3 = A-D; a note picks
+  // Fork (T3KJ): a scene control picks by value (CC 0-3 = A-D; a note picks
   // by its number mod 4). Values past 3 are ignored rather than guessed at.
   if (mapping.kind == Kind::scene) {
     const int index = msg.isController() ? msg.getControllerValue() : msg.getNoteNumber() % 4;
@@ -121,7 +121,7 @@ void MidiMapper::applyEvent(Mapping& mapping, const juce::MidiMessage& msg) {
         pendingPresetSteps.fetch_add(mapping.presetDelta);
         triggerAsyncUpdate();
         return;
-      case Kind::footswitch:  // Fork (TK3J)
+      case Kind::footswitch:  // Fork (T3KJ)
         pendingFootswitchToggles.fetch_xor(1 << mapping.footswitch);
         triggerAsyncUpdate();
         return;
@@ -281,7 +281,7 @@ void MidiMapper::handleAsyncUpdate() {
   if (const int steps = pendingPresetSteps.exchange(0); steps != 0 && onPresetStep)
     onPresetStep(steps);
 
-  // Fork (TK3J): scenes and footswitches.
+  // Fork (T3KJ): scenes and footswitches.
   if (const int scene = pendingScene.exchange(-1); scene >= 0 && onSceneSelect)
     onSceneSelect(scene);
   auto footswitches = pendingFootswitchToggles.exchange(0);
@@ -323,7 +323,7 @@ void MidiMapper::restoreFromValueTree(const juce::ValueTree& tree) {
       if (!child.hasType("Mapping"))
         continue;
       auto targetId = child.getProperty("targetId").toString();
-      // Fork (TK3J): the first build's footswitches E-H are now 1-4.
+      // Fork (T3KJ): the first build's footswitches E-H are now 1-4.
       if (const int fs = footswitchIndexFor(targetId); fs >= 0)
         targetId = "tk3jFootswitch" + juce::String(fs + 1);
       if (!isValidTarget(targetId))

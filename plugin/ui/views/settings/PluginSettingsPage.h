@@ -52,12 +52,12 @@ private:
   ToggleRow showGate_, showPitch_;
   // Fork (fit-to-window): the chain view reads the same key.
   ToggleRow fitChain_;
-  // Fork (TK3J): gear / product captions under the chain tiles.
+  // Fork (T3KJ): gear / product captions under the chain tiles.
   ToggleRow blockLabels_;
-  ToggleRow sceneBar_;  // Fork (TK3J)
-  // Fork (TK3J): + / swap open My Gear before the TONE3000 search.
+  ToggleRow sceneBar_;  // Fork (T3KJ)
+  // Fork (T3KJ): + / swap open My Gear before the TONE3000 search.
   ToggleRow myGearFirst_;
-  // Fork (TK3J): the skin (core/Skin.h), machine-wide.
+  // Fork (T3KJ): the skin (core/Skin.h), machine-wide.
   FieldRow skin_;
   RadioOption skinStock_, skinZenith_, skinTidal_, skinInferno_, skinIronwave_, skinHologram_, skinGilded_;
   std::vector<std::pair<RadioOption*, skin::Id>> skinOptions() {

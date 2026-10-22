@@ -1,4 +1,4 @@
-// Fork (TK3J): the small label under a chain tile:
+// Fork (T3KJ): the small label under a chain tile:
 //   Gear: Amp Head
 //   Product: Zuta GBG120
 // Click it to edit both in place (Enter / click away saves, Esc cancels).

@@ -1,4 +1,4 @@
-// Fork (TK3J): scenes and footswitches.
+// Fork (T3KJ): scenes and footswitches.
 //
 // A scene is a per-preset snapshot of every tone block's power, In / Out /
 // Mix and EQ (never the loaded model: switching captures reloads, which is a

@@ -1,4 +1,4 @@
-// Fork (TK3J): the header wordmark. "TOAN" spelled three ways at once, a
+// Fork (T3KJ): the header wordmark. "TOAN" spelled three ways at once, a
 // word-search grid reading across, down and diagonally from one T, then
 // "3000", in the stock logo's yellow / red / blue stacked print.
 //

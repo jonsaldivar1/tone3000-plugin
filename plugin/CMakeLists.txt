@@ -21,17 +21,19 @@ endif()
 set(PLUGIN_NAME "TONE3000")            # Name of the plugin (used in the UI)
 set(PLUGIN_CODE T3K0)                # Unique 4-letter code for the plugin
 
-# Fork (TK3J): its own name, plugin code, IDs and icon, so it installs and
+# Fork (T3KJ): its own name, plugin code, IDs and icon, so it installs and
 # shows up in DAWs next to the official TONE3000 instead of replacing it.
 # -DT3K_FORK_EDITION=OFF builds the stock identity.
-option(T3K_FORK_EDITION "Build under the fork's own identity (TK3J)" ON)
+option(T3K_FORK_EDITION "Build under the fork's own identity (T3KJ)" ON)
 set(T3K_PRODUCT_NAME "TONE3000")
 set(T3K_LV2_URI "https://www.tone3000.com/plugin")
 set(T3K_CLAP_ID "com.tone3000.plugin")
 if(T3K_FORK_EDITION)
-    set(PLUGIN_NAME "TK3J")
+    set(PLUGIN_NAME "T3KJ")
     set(PLUGIN_CODE T3KJ)
-    set(T3K_PRODUCT_NAME "TK3J")
+    set(T3K_PRODUCT_NAME "T3KJ")
+    # The plugin code (above) and these IDs keep the pre-rename "tk3j"
+    # spelling on purpose: hosts find saved projects by them.
     set(T3K_LV2_URI "https://www.tone3000.com/plugin/tk3j")
     set(T3K_CLAP_ID "com.tone3000.plugin.tk3j")
 endif()
@@ -173,7 +175,7 @@ if(APPLE AND NOT T3K_IOS)
 else()
     set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon.png")
     if(T3K_FORK_EDITION)
-        set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon-tk3j.png")
+        set(_app_icon "${CMAKE_CURRENT_SOURCE_DIR}/icon/icon-t3kj.png")
     endif()
 endif()
 

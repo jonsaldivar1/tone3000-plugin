@@ -1,4 +1,4 @@
-// Fork (TK3J): custom artwork for local tones, kept on disk next to the
+// Fork (T3KJ): custom artwork for local tones, kept on disk next to the
 // tone itself so it follows the files (and every preset that loads them):
 //   - a folder tone: cover.jpg / cover.png (or folder.jpg / .png) inside it
 //   - a single file: an image with the same name next to it

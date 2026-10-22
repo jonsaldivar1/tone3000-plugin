@@ -88,9 +88,9 @@ public:
   ImageLoader images;
   BrowserState browser;
   LocalFiles localFiles;
-  MyGear myGear;  // Fork (TK3J): local tones offered before the search
-  ToneArt toneArt;  // Fork (TK3J): custom art for local tones
-  ToneNotes toneNotes;  // Fork (TK3J): gear/product labels, creator, notes
+  MyGear myGear;  // Fork (T3KJ): local tones offered before the search
+  ToneArt toneArt;  // Fork (T3KJ): custom art for local tones
+  ToneNotes toneNotes;  // Fork (T3KJ): gear/product labels, creator, notes
   ModelLoads modelLoads;
   ConnectionGate connection;
   ToneLoadFlow loadFlow;

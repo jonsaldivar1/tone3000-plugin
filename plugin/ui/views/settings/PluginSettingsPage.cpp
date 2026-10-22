@@ -181,7 +181,7 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
   myGearFirst_.onChange = [this](bool on) { services_.prefs.setBool(MyGear::kOpenFirst, on); };
   add(myGearFirst_);
 
-  // Fork (TK3J): Skin.
+  // Fork (T3KJ): Skin.
   skin_.setInlineLabel();
   skin_.content().setGap(form::kControlGap);
   for (auto [option, id] : skinOptions()) {

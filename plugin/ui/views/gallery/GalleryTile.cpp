@@ -59,7 +59,7 @@ void GalleryTile::openMenu(juce::Point<int> at) {
     old->close();
     juce::MessageManager::callAsync([old] { delete old; });
   }
-  menuPoint_ = at;  // Fork (TK3J)
+  menuPoint_ = at;  // Fork (T3KJ)
   menu_ = std::make_unique<ContextMenu>(menuItems());
   menu_->onDismiss = [this] { menuDismissedMs_ = juce::Time::currentTimeMillis(); };
   menu_->openAtPoint(*this, at);

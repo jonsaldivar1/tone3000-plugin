@@ -96,7 +96,7 @@ TONE3000Processor::TONE3000Processor()
     toggleBlockPower(index, right);
   };
   midiMapper.onStereoToggle = [this] { setStereoMode(!isStereoMode()); };
-  // Fork (TK3J): QC scene / footswitch messages.
+  // Fork (T3KJ): QC scene / footswitch messages.
   midiMapper.onSceneSelect = [this](int index) { selectScene(index); };
   midiMapper.onFootswitchToggle = [this](int index) {
     toggleFootswitch(juce::String(index + 1));
@@ -378,7 +378,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createPar
       static_cast<int>(PitchShift::kDefaultWindow),
       juce::AudioParameterChoiceAttributes().withAutomatable(false)));
 
-  // Fork (TK3J): split channel strip. With two lanes running (stereo chains
+  // Fork (T3KJ): split channel strip. With two lanes running (stereo chains
   // or dual mono) and the split on, lane 2 gets its own input gain, gate
   // threshold + power, 3-band tone stack + power and output level; lane 1
   // keeps the stock parameters. The gate's release / hold / range stay
@@ -1113,7 +1113,7 @@ void TONE3000Processor::updateEqCoefficients() {
 }
 
 // ##########################################
-// Fork (TK3J): SPLIT CHANNEL STRIP (per lane)
+// Fork (T3KJ): SPLIT CHANNEL STRIP (per lane)
 // ##########################################
 // Message thread (prepareToPlay): mono filters at host rate, flat to start
 // (the first processed block computes the real coefficients), and the lane
@@ -1224,7 +1224,7 @@ void TONE3000Processor::updateCachedParameters() {
       }
     }
   };
-  // Fork (TK3J): lane 2's own tone knobs dirty only lane 2's filters.
+  // Fork (T3KJ): lane 2's own tone knobs dirty only lane 2's filters.
   auto updateLane2Tone = [&](float& cached, const std::atomic<float>* param) {
     const float value = param->load();
     if (std::abs(value - cached) > epsilon) {
@@ -1284,7 +1284,7 @@ void TONE3000Processor::updateCachedParameters() {
   cachePitch.window =
       PitchShift::windowFromIndex(static_cast<int>(std::lround(paramRefs.pitchWindow->load())));
 
-  // Fork (TK3J): split channel strip.
+  // Fork (T3KJ): split channel strip.
   cacheSplitStrip = loadBool(paramRefs.splitStrip);
   updateFloat(cacheInputLevel2, paramRefs.inputLevel2);
   updateFloat(cacheGateThreshold2, paramRefs.gateThreshold2);
@@ -1942,7 +1942,7 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // Input gain + noise gate
   // #########################
 
-  // Fork (TK3J): split channel strip. Active only while two lanes really run
+  // Fork (T3KJ): split channel strip. Active only while two lanes really run
   // on two buffer channels (stereo chains, or dual mono engaged); channel 0
   // is lane 1, channel 1 lane 2. Entering or leaving it resets the gates and
   // re-seats the output smoothers: the levels move between the stock output
@@ -2136,7 +2136,7 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
       else
         processOversampledChainStage(channels, channels, sliceLen);
 
-      // Fork (TK3J): each lane's own tone stack + output level, pre-matrix.
+      // Fork (T3KJ): each lane's own tone stack + output level, pre-matrix.
       if (rtSplitStrip)
         processLaneStrips(channels[0], channels[1], sliceLen);
 

@@ -274,7 +274,7 @@ struct ChainBlock {
   // while the UI has this block's EQ view open (atomic enabled flag).
   BlockSpectrum spectrum;
 
-  // Fork (TK3J): scenes and footswitches (ProcessorScenes.cpp). Each scene
+  // Fork (T3KJ): scenes and footswitches (ProcessorScenes.cpp). Each scene
   // slot holds this block's power, knobs and EQ as last left in that scene;
   // the ACTIVE scene's slot is stale by design (the live fields above are
   // the active scene), and is refreshed from them whenever the scene is left.

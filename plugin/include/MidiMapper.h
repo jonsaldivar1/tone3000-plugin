@@ -106,13 +106,13 @@ public:
   /** Mapped preset prev/next controls fired; delta is the net step count
       (+1 per next press, -1 per previous, coalesced like the toggles). */
   std::function<void(int delta)> onPresetStep;
-  /** Fork (TK3J): a mapped scene control picked scene 0-3 (the CC value, or
+  /** Fork (T3KJ): a mapped scene control picked scene 0-3 (the CC value, or
       the note number mod 4). Last one wins within an async hop. */
   std::function<void(int index)> onSceneSelect;
-  /** Fork (TK3J): a mapped footswitch fired (0-7 = 1-8), parity-coalesced. */
+  /** Fork (T3KJ): a mapped footswitch fired (0-7 = 1-8), parity-coalesced. */
   std::function<void(int index)> onFootswitchToggle;
 
-  /** Fork (TK3J) virtual targets: "tk3jScene" (value picks the scene) and
+  /** Fork (T3KJ) virtual targets: "tk3jScene" (value picks the scene) and
       "tk3jFootswitch1".."tk3jFootswitch8" (toggles; the first build's
       "tk3jFootswitchE".."H" still load, as 1-4). */
   static constexpr const char* kSceneTarget = "tk3jScene";
@@ -128,7 +128,7 @@ public:
 private:
   enum class Source : int { cc = 0, note = 1 };
   enum class Kind : int { parameter = 0, blockPower = 1, stereoMode = 2, presetStep = 3,
-                          scene = 4, footswitch = 5 };  // Fork (TK3J): scene, footswitch
+                          scene = 4, footswitch = 5 };  // Fork (T3KJ): scene, footswitch
 
   /** Virtual target id for the chain's stereo on/off (chain state, not an
       APVTS parameter; the UI catalog uses the same id). */
@@ -209,8 +209,8 @@ private:
   std::atomic<juce::uint64> pendingRightBlockToggles{0};
   std::atomic<int> pendingStereoToggles{0};  // flip count; parity applies
   std::atomic<int> pendingPresetSteps{0};    // signed sum of ±1 steps
-  std::atomic<int> pendingScene{-1};          // Fork (TK3J): last scene wins
-  std::atomic<int> pendingFootswitchToggles{0};  // Fork (TK3J): XOR bitmask, 1-8
+  std::atomic<int> pendingScene{-1};          // Fork (T3KJ): last scene wins
+  std::atomic<int> pendingFootswitchToggles{0};  // Fork (T3KJ): XOR bitmask, 1-8
   std::atomic<bool> mapDirty{false};                 // gate for onChanged
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiMapper)

@@ -1,4 +1,4 @@
-// Fork (TK3J): the scene and footswitch palette. Each scene letter and
+// Fork (T3KJ): the scene and footswitch palette. Each scene letter and
 // footswitch number keeps one color everywhere it shows (scene bar, tile
 // outline and badge, picker), so "orange 1" means the same switch on screen
 // and on the floor.

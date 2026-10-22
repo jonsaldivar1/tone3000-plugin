@@ -1,4 +1,4 @@
-// Fork (TK3J): the player's own info about a tone: a gear / product label
+// Fork (T3KJ): the player's own info about a tone: a gear / product label
 // (shown under its tile in the chain), creator, link, description and
 // personal notes (the block card's info view).
 //
@@ -10,7 +10,7 @@
 //                       description fall back to the folder's tk3j.json
 //                       (a pack's details), notes and labels don't
 //   - a TONE3000 tone: per-machine prefs keyed by its tone id
-//   - a local tone with no recorded source (loaded before TK3J kept paths):
+//   - a local tone with no recorded source (loaded before T3KJ kept paths):
 //     prefs keyed by its title
 // Only what the player typed is stored; empty fields fall back to the tone's
 // own data (catalog gear, title, creator) at display time.

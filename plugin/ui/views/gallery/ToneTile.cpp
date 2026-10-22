@@ -115,7 +115,7 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
   };
   for (auto& item : localLoadItems()) items.push_back(std::move(item));
 
-  // Fork (TK3J): put the block on a footswitch (opens the 1-8 picker).
+  // Fork (T3KJ): put the block on a footswitch (opens the 1-8 picker).
   items.push_back({block_.footswitch.isNotEmpty() ? "Footswitch: " + block_.footswitch : juce::String("Footswitch..."),
                    Icon::Power, help::Key::footswitchTile, [this] {
                      // After the menu has gone (this runs inside its row's click).
@@ -124,8 +124,8 @@ std::vector<ContextMenu::Item> ToneTile::menuItems() {
                      });
                    }});
 
-  // Fork (TK3J): art for tones loaded from disk (ToneArt). Tones loaded
-  // before TK3J recorded the source have no path: reload them to enable.
+  // Fork (T3KJ): art for tones loaded from disk (ToneArt). Tones loaded
+  // before T3KJ recorded the source have no path: reload them to enable.
   const auto& tone = block_.tone;
   if (tone.local && tone.sourcePath.isNotEmpty() && juce::File::isAbsolutePath(tone.sourcePath)) {
     const juce::File source(tone.sourcePath);
@@ -196,7 +196,7 @@ void ToneTile::resized() {
 }
 
 void ToneTile::paint(juce::Graphics& g) {
-  // Fork (TK3J): a skin change re-shapes the corners of tiles already built.
+  // Fork (T3KJ): a skin change re-shapes the corners of tiles already built.
   if (image_.cornerRadius() != gallery::kTileCorner) image_.setCornerRadius(gallery::kTileCorner);
   paint::fill(g, getLocalBounds().toFloat(), gallery::kTileCorner, theme::kSurface);
   if (dropArmed()) {
@@ -206,7 +206,7 @@ void ToneTile::paint(juce::Graphics& g) {
 }
 
 void ToneTile::paintOverChildren(juce::Graphics& g) {
-  // Fork (TK3J): footswitch outline + letter badge (bottom-left; the clip LED
+  // Fork (T3KJ): footswitch outline + letter badge (bottom-left; the clip LED
   // owns bottom-right), and the scene-bar hover preview.
   const auto box = getLocalBounds().toFloat();
   if (block_.footswitch.isNotEmpty() && !dropArmed()) {
@@ -233,7 +233,7 @@ void ToneTile::paintOverChildren(juce::Graphics& g) {
     g.fillRoundedRectangle(tag, 10.0f);
     paint::text(g, text, tag.toNearestInt(), font, juce::Colours::black, juce::Justification::centred);
   }
-  // Fork (TK3J): Zenith's registration ticks on the four corners.
+  // Fork (T3KJ): Zenith's registration ticks on the four corners.
   if (skin::tileCornerTicks() && !dropArmed()) {
     const float inset = 5.0f, len = juce::jlimit(8.0f, 14.0f, box.getWidth() * 0.07f);
     g.setColour(theme::kAccent.withAlpha(0.85f));

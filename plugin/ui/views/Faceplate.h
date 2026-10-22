@@ -47,13 +47,13 @@ public:
 
 private:
   class InputModeButton;
-  class LaneSwitch;  // Fork (TK3J): Shared | 1 | 2 split channel strip
+  class LaneSwitch;  // Fork (T3KJ): Shared | 1 | 2 split channel strip
 
   void chainChanged(const ChainState&) override { syncFlags(); }
   void autoMeasureChanged() override;
   void prefChanged(const juce::String& key) override;
   void syncFlags();
-  // Fork (TK3J): split channel strip. `lane` 0 = Shared (stock strip for
+  // Fork (T3KJ): split channel strip. `lane` 0 = Shared (stock strip for
   // both lanes), 1 / 2 = split, editing that lane's strip.
   void pickLane(int lane);
   // First split of a rig: lane 2 starts as a copy of lane 1 (only while all
@@ -87,7 +87,7 @@ private:
   // Mono-mode spread makes the balance trim audible on a stereo rig.
   ParamBinding spreadEnabled_;
 
-  // Fork (TK3J): split channel strip. Lane 2's own set sits exactly where
+  // Fork (T3KJ): split channel strip. Lane 2's own set sits exactly where
   // the stock set does; the plate shows one set at a time.
   std::unique_ptr<LaneSwitch> laneSwitch_;
   ParamBinding splitStrip_;

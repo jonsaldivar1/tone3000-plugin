@@ -1,4 +1,4 @@
-// Fork (TK3J): skins. A skin re-tints the theme tokens (core/Theme.h: the
+// Fork (T3KJ): skins. A skin re-tints the theme tokens (core/Theme.h: the
 // background, surfaces, grays, borders, the accent on knob arcs and armed
 // buttons, the connector wire), re-shapes the chain tiles' corners, redraws
 // the header logo in its own face and colours, and paints its own

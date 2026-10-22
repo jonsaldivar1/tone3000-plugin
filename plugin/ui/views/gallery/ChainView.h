@@ -41,7 +41,7 @@ public:
 
   // Preset load / reset: back to the gallery at the left edge.
   void returnToGallery();
-  // Fork (TK3J): hovering scene `scene` in the scene bar (-1 = none): tiles
+  // Fork (T3KJ): hovering scene `scene` in the scene bar (-1 = none): tiles
   // the scene would turn on or off say so.
   void setScenePreview(int scene);
 
@@ -95,7 +95,7 @@ private:
   void updateFitTile();
   int fitTile_ = 0;
 
-  // Fork (TK3J): gear / product captions under the mono lane's tone tiles
+  // Fork (T3KJ): gear / product captions under the mono lane's tone tiles
   // (TileCaption), placed in the scrolling column; hidden mid-drag and in
   // stereo (the lanes leave no room).
   bool showLabels() const;

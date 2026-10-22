@@ -1908,7 +1908,7 @@
    "id": "main-mygear",
    "section": "main",
    "title": "Main: My Gear picker (fork)",
-   "description": "Fork (TK3J): clicking an empty slot opens My Gear over the chain: pinned, recent and the tones folder.",
+   "description": "Fork (T3KJ): clicking an empty slot opens My Gear over the chain: pinned, recent and the tones folder.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -2222,7 +2222,7 @@
    "id": "main-art",
    "section": "main",
    "title": "Main: custom art on local tones (fork)",
-   "description": "Fork (TK3J): local tones show cover art found next to their files: a folder cover.jpg (Zuta), a folder cover.png (Vogg), a same-name image beside a single IR (Mix 1), and no art (ENGL: gear glyph).",
+   "description": "Fork (T3KJ): local tones show cover art found next to their files: a folder cover.jpg (Zuta), a folder cover.png (Vogg), a same-name image beside a single IR (Mix 1), and no art (ENGL: gear glyph).",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -2582,7 +2582,7 @@
    "id": "main-art-menu",
    "section": "main",
    "title": "Main: tile menu with Set Art / Clear Art (fork)",
-   "description": "Fork (TK3J): right-clicking a local tone loaded from disk offers Set Art... (and Clear Art when it has its own cover).",
+   "description": "Fork (T3KJ): right-clicking a local tone loaded from disk offers Set Art... (and Clear Art when it has its own cover).",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -2942,7 +2942,7 @@
    "id": "main-art-detail",
    "section": "main",
    "title": "Main: local tone detail card with notes (fork)",
-   "description": "Fork (TK3J): a local tone opened: its cover art, the creator card and personal notes read from tk3j.json next to its files.",
+   "description": "Fork (T3KJ): a local tone opened: its cover art, the creator card and personal notes read from tk3j.json next to its files.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -3305,7 +3305,7 @@
    "id": "main-scenes",
    "section": "main",
    "title": "Main: scene bar + footswitch outlines (fork)",
-   "description": "Fork (TK3J): scenes A-D under the chain, blocks on footswitches E/F outlined in their color with a letter badge.",
+   "description": "Fork (T3KJ): scenes A-D under the chain, blocks on footswitches E/F outlined in their color with a letter badge.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -3708,7 +3708,7 @@
    "id": "main-scenes-preview",
    "section": "main",
    "title": "Main: hovering a scene previews it (fork)",
-   "description": "Fork (TK3J): hovering Scene C marks the blocks it turns on or off.",
+   "description": "Fork (T3KJ): hovering Scene C marks the blocks it turns on or off.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -4111,7 +4111,7 @@
    "id": "main-scenes-picker",
    "section": "main",
    "title": "Main: Footswitch picker (fork)",
-   "description": "Fork (TK3J): right-click a block, Footswitch: pick E-H or None.",
+   "description": "Fork (T3KJ): right-click a block, Footswitch: pick E-H or None.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -4514,7 +4514,7 @@
    "id": "main-split-strip",
    "section": "main",
    "title": "Main: Split channel strip, lane 2 (fork)",
-   "description": "Fork (TK3J): Shared | 1 | 2 on the faceplate; lane 2 selected shows its own Input / Gate / tone stack / Output.",
+   "description": "Fork (T3KJ): Shared | 1 | 2 on the faceplate; lane 2 selected shows its own Input / Gate / tone stack / Output.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -4875,7 +4875,7 @@
    "id": "main-skin-zenith",
    "section": "main",
    "title": "Main: Zenith skin (fork)",
-   "description": "Fork (TK3J): the Zenith skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Zenith skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -5280,7 +5280,7 @@
    "id": "main-skin-tidal",
    "section": "main",
    "title": "Main: Tidal skin (fork)",
-   "description": "Fork (TK3J): the Tidal skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Tidal skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -5685,7 +5685,7 @@
    "id": "main-skin-inferno",
    "section": "main",
    "title": "Main: Inferno skin (fork)",
-   "description": "Fork (TK3J): the Inferno skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Inferno skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -6090,7 +6090,7 @@
    "id": "main-skin-ironwave",
    "section": "main",
    "title": "Main: Ironwave skin (fork)",
-   "description": "Fork (TK3J): the Ironwave skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Ironwave skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -6495,7 +6495,7 @@
    "id": "main-skin-hologram",
    "section": "main",
    "title": "Main: Hologram skin (fork)",
-   "description": "Fork (TK3J): the Hologram skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Hologram skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,
@@ -6900,7 +6900,7 @@
    "id": "main-skin-gilded",
    "section": "main",
    "title": "Main: Gilded skin (fork)",
-   "description": "Fork (TK3J): the Gilded skin over the scenes rig.",
+   "description": "Fork (T3KJ): the Gilded skin over the scenes rig.",
    "chain": {
     "revision": 1,
     "canUndo": true,

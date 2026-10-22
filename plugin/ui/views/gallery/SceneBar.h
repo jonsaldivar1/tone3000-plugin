@@ -1,8 +1,8 @@
-// Fork (TK3J): the scene bar under the chain. Left: scene chips A-D (click
+// Fork (T3KJ): the scene bar under the chain. Left: scene chips A-D (click
 // to switch, double-click to rename, hover to preview which blocks the scene
 // changes). Right: one chip per footswitch that has blocks on it (click =
 // the same as stepping on that switch). Everything lives in the chain state
-// (ProcessorScenes.cpp), so the QC driving TK3J over MIDI lights the same
+// (ProcessorScenes.cpp), so the QC driving T3KJ over MIDI lights the same
 // chips.
 #pragma once
 

@@ -52,7 +52,7 @@ PluginRoot::PluginRoot(Services& services)
   // The add / swap browse flows: + and ⇄ open the tone browser through the
   // load flow, which remembers the target slot or block for the pick.
   main_.chainScreen().onSelectTone = [this](ChainSide side, const std::string& id) {
-    // Fork (TK3J): local tones first; the picker falls through to this same
+    // Fork (T3KJ): local tones first; the picker falls through to this same
     // browse flow on "Browse TONE3000".
     if (services_.myGear.openFirst()) openMyGear(side, id);
     else services_.loadFlow.select(side, id);
@@ -132,7 +132,7 @@ std::unique_ptr<Modal> PluginRoot::openModal(Args&&... args) {
   return modal;
 }
 
-// Fork (TK3J): My Gear. Below the update notice and the connection modal.
+// Fork (T3KJ): My Gear. Below the update notice and the connection modal.
 void PluginRoot::openMyGear(ChainSide side, const std::string& targetId) {
   closeMyGear();
   auto modal = openModal<MyGearModal>(services_.myGear, services_.images);
@@ -455,7 +455,7 @@ void PluginRoot::logout() {
   services_.session.logout();
 }
 
-// Fork (TK3J): skins. The theme tokens change in place, so a repaint picks
+// Fork (T3KJ): skins. The theme tokens change in place, so a repaint picks
 // them up everywhere; the header re-lays out for the logo's new width.
 void PluginRoot::prefChanged(const juce::String& key) {
   if (key != skin::kPrefKey) return;
@@ -469,7 +469,7 @@ void PluginRoot::prefChanged(const juce::String& key) {
 // Layout
 void PluginRoot::paint(juce::Graphics& g) {
   g.fillAll(theme::kBackground);
-  skin::paintBackdrop(g, getLocalBounds().toFloat());  // Fork (TK3J): the skin's art, behind the chain
+  skin::paintBackdrop(g, getLocalBounds().toFloat());  // Fork (T3KJ): the skin's art, behind the chain
 }
 
 void PluginRoot::openSettings(SettingsScreen::Tab tab) {

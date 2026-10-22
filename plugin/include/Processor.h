@@ -245,7 +245,7 @@ public:
   // deferredRevisionBump) so drag-rate calls never force full chain resyncs.
   bool setBlockParam(const std::string& blockId, const juce::String& param, double value);
 
-  // Fork (TK3J): scenes (A-D = 0-3) and footswitches ("1".."8").
+  // Fork (T3KJ): scenes (A-D = 0-3) and footswitches ("1".."8").
   // selectScene stores every tone block's current power / knobs / EQ into the
   // scene being left, then applies the new scene's (blocks never visited in
   // it keep their state). No model loads, so it is gapless. Not undoable: a
@@ -863,7 +863,7 @@ private:
   // outside stereo mode, so an inert lane is never edited invisibly.
   bool toggleBlockPower(int position, bool rightLane);
 
-  // Fork (TK3J): scenes and footswitches (ProcessorScenes.cpp).
+  // Fork (T3KJ): scenes and footswitches (ProcessorScenes.cpp).
   // Scene state lives under chainMutex: the active scene index and the four
   // names ride the chain snapshot (presets, undo, DAW state).
   int activeScene = 0;
@@ -1159,7 +1159,7 @@ private:
     std::atomic<float>* pitchStep = nullptr;
     std::atomic<float>* pitchTonality = nullptr;
     std::atomic<float>* pitchWindow = nullptr;
-    // Fork (TK3J): split channel strip (lane 2's own controls).
+    // Fork (T3KJ): split channel strip (lane 2's own controls).
     std::atomic<float>* splitStrip = nullptr;
     std::atomic<float>* inputLevel2 = nullptr;
     std::atomic<float>* gateEnabled2 = nullptr;
@@ -1248,7 +1248,7 @@ private:
   bool cachePitchEnabled = false;
   PitchShift::Params cachePitch;
 
-  // Fork (TK3J): split channel strip. Lane 1 reads the stock caches above;
+  // Fork (T3KJ): split channel strip. Lane 1 reads the stock caches above;
   // these are lane 2's own.
   bool cacheSplitStrip = false;
   float cacheInputLevel2 = 0.5f;

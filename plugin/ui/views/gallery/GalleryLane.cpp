@@ -89,7 +89,7 @@ void GalleryLane::setItems(const std::vector<ChainItem>& items, int tileSize) {
     }
     if (auto* add = dynamic_cast<AddTile*>(tile.get())) {
       add->setRouting(AddTile::routingFor(static_cast<int>(i), static_cast<int>(items_.size())));
-      // Fork (TK3J): only the first empty slot of a run shows the full add
+      // Fork (T3KJ): only the first empty slot of a run shows the full add
       // tile; the ones after it stay quiet (still clickable / drop targets).
       add->setQuiet(i > 0 && items_[i - 1].isInsert);
       add->setCanPaste(canPaste_);

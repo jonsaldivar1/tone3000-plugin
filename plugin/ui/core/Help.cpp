@@ -256,7 +256,7 @@ std::map<Key, String> buildTable() {
   t[Key::cpuLoad] = U("CPU: audio engine load.");
   t[Key::hideHints] = U("Hide Info Bar: hide this bar. Re-enable in Settings.");
 
-  // Fork (TK3J): tile art
+  // Fork (T3KJ): tile art
   t[Key::setArtTile] =
       U("Set Art: pick a JPG or PNG for this tone. Saved next to its files as cover art.");
   t[Key::clearArtTile] = U("Clear Art: remove this tone's cover art (moved to the trash).");

@@ -349,13 +349,13 @@ void BlockCard::syncHeader() {
   eqView_->select(eqViewMode_ == BlockEqView::View::sliders ? 0 : 1);
   for (auto* c : std::initializer_list<juce::Component*>{&eqPower_, &preGroup_, eqView_.get()}) c->setVisible(showEq_);
 
-  info_.setVisible(true);  // Fork (TK3J): local tones open their notes there
+  info_.setVisible(true);  // Fork (T3KJ): local tones open their notes there
   info_.setOpen(showInfo_);
   share_.setVisible(!isLocal());
   layoutHeader(getLocalBounds().reduced(1).removeFromTop(kHeaderHeight));
 }
 
-// Fork (TK3J): a local tone shows the creator the player typed (and its
+// Fork (T3KJ): a local tone shows the creator the player typed (and its
 // folder's creator picture) on the creator line.
 ToneSummary BlockCard::metaTone() const {
   auto tone = block_.tone;
@@ -628,7 +628,7 @@ int BlockCard::layoutInfoBody(juce::Rectangle<int> body) {
   const int metaW = content.getRight() - metaX;
   const int metaH = meta_.heightFor(metaW);
   meta_.setBounds(metaX, content.getY(), metaW, metaH);
-  // Fork (TK3J): the notes panel under the tone's own info.
+  // Fork (T3KJ): the notes panel under the tone's own info.
   const int notesH = notesHeight(metaW);
   notesPanel_.setBounds(metaX, content.getY() + metaH + kNotesGap, metaW, juce::jmax(0, notesH - kNotesGap));
   return kBodyPadding + std::max(kImageSizeInfo, metaH + notesH) + kInfoBottomPad;
