@@ -18,7 +18,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 set(REPO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(LIB_DIR "${REPO_DIR}/libs")
-include("${LIB_DIR}/cpm/CPM_0.40.2.cmake")
+include("${REPO_DIR}/cmake/cpm.cmake")  # fetches CPM into libs/cpm (gitignored) when missing
 CPMAddPackage(
     NAME JUCE
     GIT_TAG 9.0.3
