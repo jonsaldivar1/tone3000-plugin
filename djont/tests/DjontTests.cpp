@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
         p.params.getParameter(id)->setValueNotifyingHost(v);
       std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
       const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);
-      juce::File file(juce::String(argv[i + 1]));
+      const juce::File file{juce::String(argv[i + 1])};
       file.deleteFile();
       juce::FileOutputStream stream(file);
       juce::PNGImageFormat().writeImageToStream(image, stream);
