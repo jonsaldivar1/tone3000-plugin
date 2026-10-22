@@ -34,12 +34,39 @@ std::unique_ptr<juce::AudioParameterBool> power(const char* id, const char* name
   return std::make_unique<juce::AudioParameterBool>(juce::ParameterID{id, 1}, name, def);
 }
 
+std::unique_ptr<juce::AudioParameterFloat> semitones(const char* id, const char* name, float def) {
+  return std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{id, 1}, name, juce::NormalisableRange<float>(-24.0f, 24.0f, 1.0f), def,
+      juce::AudioParameterFloatAttributes().withLabel("st").withStringFromValueFunction([](float v, int) {
+        const int st = juce::roundToInt(v);
+        return (st > 0 ? "+" : "") + juce::String(st);
+      }));
+}
+
 }  // namespace
 
 juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout() {
   juce::AudioProcessorValueTreeState::ParameterLayout layout;
   layout.add(decibels("input", "Input"));
   layout.add(decibels("output", "Output"));
+  // Wham (Wham.h): off by default; Auto, so it does something with no pedal.
+  layout.add(power("whamOn", "Wham", false));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"whamMode", 1}, "Wham Mode",
+                                                          juce::StringArray{"Pedal", "Auto"}, 1));
+  layout.add(percent("whamPedal", "Wham Pedal", 0.0f));
+  layout.add(semitones("whamHeel", "Wham Heel", 0.0f));
+  layout.add(semitones("whamToe", "Wham Toe", 12.0f));
+  {
+    juce::NormalisableRange<float> rate(Wham::kMinRateHz, Wham::kMaxRateHz);
+    rate.setSkewForCentre(1.0f);
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"whamRate", 1}, "Wham Rate", rate, Wham::kDefaultRateHz,
+        juce::AudioParameterFloatAttributes().withLabel("Hz").withStringFromValueFunction(
+            [](float v, int) { return juce::String(v, v < 1.0f ? 2 : 1); })));
+  }
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID{"whamShape", 1}, "Wham Shape", juce::StringArray{"Sine", "Triangle", "Rise", "Square"}, 0));
+  layout.add(power("whamRetrig", "Wham Retrig", false));
   layout.add(power("tightOn", "Tight", true));
   layout.add(percent("tightAmount", "Tight Amount", 50.0f));
   layout.add(hertz("tightFreq", "Tight Freq", 60.0f, 1000.0f, 180.0f));
@@ -62,7 +89,24 @@ DjontProcessor::DjontProcessor()
     : AudioProcessor(BusesProperties()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      params(*this, nullptr, "dJONt", createLayout()) {}
+      params(*this, nullptr, "dJONt", createLayout()) {
+  params.addParameterListener("whamOn", this);
+  PitchShift::Params p;
+  p.window = kWhamWindow;
+  whamShift_.setParams(p);
+}
+
+DjontProcessor::~DjontProcessor() {
+  params.removeParameterListener("whamOn", this);
+  cancelPendingUpdate();
+}
+
+void DjontProcessor::parameterChanged(const juce::String&, float) { triggerAsyncUpdate(); }
+void DjontProcessor::handleAsyncUpdate() { updateLatency(); }
+
+void DjontProcessor::updateLatency() {
+  setLatencySamples(value("whamOn") > 0.5f ? PitchShift::latencySamples(kWhamWindow, sampleRate_) : 0);
+}
 
 bool DjontProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   const auto in = layouts.getMainInputChannelSet();
@@ -78,6 +122,10 @@ void DjontProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   grit_.prepare(sampleRate);
   sub_.prepare(sampleRate, samplesPerBlock);
   lofi_.prepare(sampleRate);
+  sampleRate_ = sampleRate;
+  whamShift_.prepare(sampleRate, juce::jmax(1, samplesPerBlock));
+  wham_.prepare(sampleRate);
+  updateLatency();
   dry_.setSize(1, juce::jmax(1, samplesPerBlock));
   const char* powers[kNumModules] = {"tightOn", "gritOn", "subOn", "lofiOn"};
   for (int m = 0; m < kNumModules; ++m) {
@@ -100,6 +148,14 @@ void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
   sub_.set(value("subMode") > 0.5f ? Sub::Mode::synth : Sub::Mode::clean, value("subBlend") / 100.0f,
            value("subTone"), value("subOn") > 0.5f);
   lofi_.set(value("lofiTone"), value("lofiBlend") / 100.0f);
+  whamSettings_.mode = value("whamMode") > 0.5f ? Wham::Mode::autoSweep : Wham::Mode::pedal;
+  whamSettings_.shape = static_cast<Wham::Shape>(juce::jlimit(0, 3, juce::roundToInt(value("whamShape"))));
+  whamSettings_.pedal = value("whamPedal") / 100.0f;
+  whamSettings_.rateHz = value("whamRate");
+  whamSettings_.retrig = value("whamRetrig") > 0.5f;
+  whamHeel_ = value("whamHeel");
+  whamToe_ = value("whamToe");
+  whamShift_.setEnabled(value("whamOn") > 0.5f);
   inGain_.setTargetValue(dbToGain(value("input")));
   outGain_.setTargetValue(dbToGain(value("output")));
   const char* powers[kNumModules] = {"tightOn", "gritOn", "subOn", "lofiOn"};
@@ -120,8 +176,32 @@ void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
   for (int ch = 1; ch < buffer.getNumChannels(); ++ch) buffer.copyFrom(ch, 0, buffer, 0, 0, n);
 }
 
+// The shifter runs while powered and through its power blend; once that
+// lands it is skipped entirely (a bit-exact, zero-delay passthrough).
+void DjontProcessor::processWham(float* x, int n) {
+  if (!whamShift_.isRunning()) {
+    whamPosition.store(-1.0f);
+    wham_.reset();
+    return;
+  }
+  auto p = PitchShift::Params{};
+  p.window = kWhamWindow;
+  float position = 0.0f;
+  for (int start = 0; start < n; start += Wham::kSliceSamples) {
+    const int len = juce::jmin(Wham::kSliceSamples, n - start);
+    position = wham_.advance(whamSettings_, x + start, len);
+    p.semitones = whamHeel_ + (whamToe_ - whamHeel_) * position;
+    whamShift_.setParams(p);
+    float* channels[1] = {x + start};
+    juce::AudioBuffer<float> view(channels, 1, len);
+    whamShift_.process(view);
+  }
+  whamPosition.store(position);
+}
+
 void DjontProcessor::processMono(float* x, int n) {
   inGain_.applyGain(x, n);
+  processWham(x, n);
   for (int m = 0; m < kNumModules; ++m) {
     auto& p = power_[static_cast<size_t>(m)];
     // Off and settled: skip the module, and clear its state so it comes

@@ -1,6 +1,6 @@
 // dJONt: the plugin. Mono in (a stereo input uses the left channel), the
-// processed signal on every output channel. Input gain -> Tight -> Grit ->
-// Sub -> Lo-Fi -> output gain. Each module's power glides in and out over
+// processed signal on every output channel. Input gain -> Wham -> Tight ->
+// Grit -> Sub -> Lo-Fi -> output gain. Each module's power glides in and out over
 // ~20 ms, so stomping one mid-riff doesn't click.
 #pragma once
 
@@ -9,13 +9,17 @@
 #include <array>
 
 #include "Dsp.h"
+#include "PitchShift.h"
+#include "Wham.h"
 
 namespace djont {
 
-class DjontProcessor : public juce::AudioProcessor {
+class DjontProcessor : public juce::AudioProcessor,
+                       private juce::AudioProcessorValueTreeState::Listener,
+                       private juce::AsyncUpdater {
 public:
   DjontProcessor();
-  ~DjontProcessor() override = default;
+  ~DjontProcessor() override;
 
   static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
 
@@ -45,17 +49,32 @@ public:
 
   // Output peak (dB, -60 floor) for the editor's meter.
   std::atomic<float> outputPeakDb{-60.0f};
+  // The wham pedal's live position (0..1) for the editor's rocker; -1 off.
+  std::atomic<float> whamPosition{-1.0f};
+
+  // Wham's shifter buffer: the latency it adds while on.
+  static constexpr PitchShift::Window kWhamWindow = PitchShift::Window::ms30;
 
 private:
   enum Module { kTight, kGrit, kSub, kLoFi, kNumModules };
 
   float value(const char* id) const { return params.getRawParameterValue(id)->load(); }
   void processMono(float* x, int n);
+  void processWham(float* x, int n);
+  // Latency follows Wham's power (reported from the message thread).
+  void parameterChanged(const juce::String& id, float value) override;
+  void handleAsyncUpdate() override;
+  void updateLatency();
 
   Tight tight_;
   Grit grit_;
   Sub sub_;
   LoFi lofi_;
+  PitchShift whamShift_;
+  Wham wham_;
+  Wham::Settings whamSettings_;
+  float whamHeel_ = 0.0f, whamToe_ = 12.0f;
+  double sampleRate_ = 48000.0;
   std::array<juce::SmoothedValue<float>, kNumModules> power_;
   juce::SmoothedValue<float> inGain_, outGain_;
   juce::AudioBuffer<float> dry_;  // one module's input, for the power crossfade

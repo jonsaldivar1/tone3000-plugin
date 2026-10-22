@@ -91,6 +91,12 @@ void DjontLookAndFeel::setLook(const Look& look) {
   setColour(juce::Slider::backgroundColourId, look.track);
   setColour(juce::Slider::textBoxTextColourId, look.ink);
   setColour(juce::Slider::textBoxOutlineColourId, look.ink.withAlpha(0.2f));
+  setColour(juce::TextEditor::backgroundColourId, panel);
+  setColour(juce::TextEditor::textColourId, look.ink);
+  setColour(juce::TextEditor::outlineColourId, look.accent);
+  setColour(juce::TextEditor::focusedOutlineColourId, look.accent);
+  setColour(juce::TextEditor::highlightColourId, look.accent.withAlpha(0.4f));
+  setColour(juce::CaretComponent::caretColourId, look.accent);
   setColour(juce::BubbleComponent::backgroundColourId, look.bg);
   setColour(juce::BubbleComponent::outlineColourId, look.ink);
 }
@@ -353,6 +359,315 @@ void Module::resized() {
   }
 }
 
+// ---------------------------------------------------------------- toggles
+ParamToggle::ParamToggle(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& label,
+                         juce::String description, int width)
+    : juce::Button(label), description_(std::move(description)) {
+  setClickingTogglesState(true);
+  setTitle(label);
+  setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, id, *this);
+  setSize(width, 24);
+}
+
+void ParamToggle::paintButton(juce::Graphics& g, bool highlighted, bool) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(1.0f);
+  const bool on = getToggleState();
+  if (on) {
+    g.setColour(L.accent);
+    g.fillRect(box);
+  }
+  g.setColour(on ? juce::Colours::black : L.ink.withAlpha(highlighted ? 1.0f : 0.85f));
+  g.setFont(DjontLookAndFeel::label(10.0f));
+  g.drawText(getButtonText(), box, juce::Justification::centred, false);
+  g.setColour(on ? L.accent : L.ink);
+  g.drawRect(box, 2.0f);
+}
+
+Chip::Chip(const juce::String& label, juce::String description, int width)
+    : juce::Button(label), description_(std::move(description)) {
+  setTitle(label);
+  setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  setSize(width, 24);
+}
+
+void Chip::paintButton(juce::Graphics& g, bool highlighted, bool down) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(1.0f);
+  if (down || highlighted) {
+    g.setColour(L.ink.withAlpha(down ? 0.3f : 0.14f));
+    g.fillRect(box);
+  }
+  g.setColour(L.ink);
+  g.drawRect(box, 1.5f);
+  g.setFont(DjontLookAndFeel::label(10.0f));
+  g.drawText(getButtonText(), box, juce::Justification::centred, false);
+}
+
+// ---------------------------------------------------------------- wham pedal
+WhamPedal::WhamPedal(DjontProcessor& processor)
+    : processor_(processor), pedal_(processor.params.getParameter("whamPedal")) {
+  setTitle("Wham pedal");
+  attachment_ = std::make_unique<juce::ParameterAttachment>(*pedal_, [this](float v) {
+    value_ = v / 100.0f;
+    repaint();
+  });
+  attachment_->sendInitialUpdate();
+}
+
+bool WhamPedal::pedalMode() const { return processor_.params.getRawParameterValue("whamMode")->load() < 0.5f; }
+
+float WhamPedal::shown() const {
+  if (pedalMode()) return value_;
+  return juce::jmax(0.0f, processor_.whamPosition.load());
+}
+
+void WhamPedal::tick() {
+  setMouseCursor(pedalMode() ? juce::MouseCursor::UpDownResizeCursor : juce::MouseCursor::NormalCursor);
+  const float now = std::round(shown() * 100.0f) / 100.0f;
+  if (!juce::exactlyEqual(now, lastShown_)) {
+    lastShown_ = now;
+    repaint();
+  }
+}
+
+juce::String WhamPedal::hint() const {
+  const auto pos = juce::String(juce::roundToInt(shown() * 100.0f)) + "%";
+  if (pedalMode())
+    return "Wham · Pedal: drag up toward the toe, down to the heel (scroll works too; double-click: heel). Automate "
+           "it or map a MIDI CC to Wham Pedal in your DAW.  " + pos;
+  return "Wham · Pedal: Auto is moving it for you. Switch to PEDAL to play it by hand.  " + pos;
+}
+
+void WhamPedal::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const float pos = shown();
+  const auto area = getLocalBounds().toFloat();
+  constexpr float kLabelH = 12.0f;
+  g.setFont(DjontLookAndFeel::label(8.5f));
+  g.setColour(pos > 0.5f ? L.accent : L.ink.withAlpha(0.6f));
+  g.drawText("TOE", area.withHeight(kLabelH), juce::Justification::centred, false);
+  g.setColour(pos <= 0.5f ? L.ink : L.ink.withAlpha(0.6f));
+  g.drawText("HEEL", area.withTrimmedTop(area.getHeight() - kLabelH), juce::Justification::centred, false);
+
+  const auto housing = area.withTrimmedTop(kLabelH + 2).withTrimmedBottom(kLabelH + 2);
+  g.setColour(L.bg.withAlpha(0.85f));
+  g.fillRoundedRectangle(housing, 6.0f);
+  g.setColour(L.plateBorder.withAlpha(0.9f));
+  g.drawRoundedRectangle(housing.reduced(0.5f), 6.0f, 1.0f);
+
+  const auto bed = housing.reduced(5.0f);
+  g.setGradientFill(juce::ColourGradient(L.faceHi, bed.getX(), bed.getY(), L.faceLo, bed.getRight(), bed.getBottom(), false));
+  g.fillRoundedRectangle(bed, 3.0f);
+  const float barY = bed.getBottom() - bed.getHeight() * pos;
+  g.setColour(L.accent.withAlpha(0.22f));
+  g.fillRoundedRectangle(bed.withTop(barY), 3.0f);
+  g.setColour(juce::Colours::black.withAlpha(0.55f));
+  for (int i = 1; i < 10; ++i) {
+    const float y = bed.getY() + bed.getHeight() * static_cast<float>(i) / 10.0f;
+    g.drawLine(bed.getX() + 4.0f, y, bed.getRight() - 4.0f, y, 1.0f);
+  }
+  g.setColour(L.accent);
+  g.fillRoundedRectangle(bed.getX() - 2.0f, barY - 2.0f, bed.getWidth() + 4.0f, 4.0f, 2.0f);
+}
+
+void WhamPedal::mouseDown(const juce::MouseEvent&) {
+  if (!pedalMode()) return;
+  dragStart_ = value_;
+  attachment_->beginGesture();
+}
+
+void WhamPedal::mouseDrag(const juce::MouseEvent& e) {
+  if (!pedalMode()) return;
+  const float travel = juce::jmax(20.0f, static_cast<float>(getHeight()) - 40.0f);
+  const float k = e.mods.isShiftDown() ? 0.25f : 1.0f;
+  const float v = juce::jlimit(0.0f, 1.0f, dragStart_ - k * static_cast<float>(e.getDistanceFromDragStartY()) / travel);
+  attachment_->setValueAsPartOfGesture(v * 100.0f);
+}
+
+void WhamPedal::mouseUp(const juce::MouseEvent&) {
+  if (pedalMode()) attachment_->endGesture();
+}
+
+void WhamPedal::mouseDoubleClick(const juce::MouseEvent&) {
+  if (pedalMode()) attachment_->setValueAsCompleteGesture(0.0f);
+}
+
+void WhamPedal::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) {
+  if (!pedalMode()) {
+    Component::mouseWheelMove(e, wheel);
+    return;
+  }
+  attachment_->setValueAsCompleteGesture(juce::jlimit(0.0f, 1.0f, value_ + wheel.deltaY * 0.5f) * 100.0f);
+}
+
+// ---------------------------------------------------------------- wham module
+WhamModule::WhamModule(DjontProcessor& processor)
+    : processor_(processor),
+      power_(processor.params, "whamOn", "Wham", "A virtual whammy pedal: pitch sweeps between Heel and Toe. Adds about 16 ms of latency while on."),
+      mode_(processor.params, "whamMode", juce::StringArray{"PEDAL", "AUTO"},
+            "Wham · Mode: Pedal, you move the pedal (drag, automation, MIDI). Auto, it moves itself at Rate in Shape.",
+            128),
+      retrig_(processor.params, "whamRetrig", "RETRIG",
+              "Wham · Retrig: Auto's sweep restarts at the heel on every pick, so it follows your playing. "
+              "Rise + Retrig = one scoop per pick.",
+              76),
+      heel_(processor.params, "whamHeel", "Heel", 44, "Wham · Heel: the pitch with the pedal all the way up, ±24 semitones."),
+      toe_(processor.params, "whamToe", "Toe", 44, "Wham · Toe: the pitch with the pedal all the way down, ±24 semitones."),
+      rate_(processor.params, "whamRate", "Rate", 44, "Wham · Rate: how fast Auto sweeps, 0.1-10 Hz."),
+      shape_(processor.params, "whamShape", "Shape", 44,
+             "Wham · Shape: Auto's sweep. Sine (smooth), Triangle, Rise (heel to toe, then snaps back), Square (jumps)."),
+      pedal_(processor),
+      save_("SAVE", "Save: name the current Heel / Toe / Rate / Shape / Retrig / Mode as a preset. Same name replaces it.", 46),
+      del_("DEL", "Delete: remove the selected preset (yours only; click twice).", 40) {
+  addAndMakeVisible(power_);
+  addAndMakeVisible(body_);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&mode_, &retrig_, &heel_, &toe_, &rate_, &shape_,
+                                                                     &pedal_, &presets_, &save_, &del_})
+    body_.addAndMakeVisible(*c);
+  body_.addChildComponent(name_);
+  heel_.setBipolar();
+  toe_.setBipolar();
+  power_.onPower = [this](bool on) { setPowered(on); };
+  setPowered(power_.getToggleState());
+
+  presets_.setTextWhenNothingSelected("Presets");
+  presets_.setTitle("Wham presets");
+  presets_.setHelpText("Wham · Presets: pick one to load its Heel / Toe / Rate / Shape / Retrig / Mode.");
+  presets_.onChange = [this] {
+    if (const auto* p = store_.find(presets_.getText())) {
+      WhamPresets::apply(*p, processor_.params);
+      shownPreset_ = p->name;
+    }
+  };
+  save_.onClick = [this] {
+    if (name_.isVisible()) finishNaming(true);
+    else startNaming();
+  };
+  del_.onClick = [this] {
+    const auto* p = store_.find(presets_.getText());
+    if (p == nullptr || p->factory) return;
+    if (delArmedTicks_ == 0) {
+      delArmedTicks_ = 90;  // ~3 s to confirm
+      del_.setButtonText("SURE?");
+      return;
+    }
+    store_.remove(p->name);
+    delArmedTicks_ = 0;
+    del_.setButtonText("DEL");
+    refreshPresets();
+  };
+  name_.setTitle("Preset name");
+  name_.setHelpText("Name this preset, then Enter (or SAVE). Esc cancels.");
+  name_.setFont(juce::Font(juce::FontOptions(13.0f)));
+  name_.onReturnKey = [this] { finishNaming(true); };
+  name_.onEscapeKey = [this] { finishNaming(false); };
+  name_.onFocusLost = [this] { finishNaming(false); };
+  refreshPresets();
+  setSize(kWidth, 260);
+}
+
+void WhamModule::setPowered(bool on) { body_.setAlpha(on ? 1.0f : 0.38f); }
+
+void WhamModule::refreshPresets() {
+  presets_.clear(juce::dontSendNotification);
+  int id = 1;
+  bool userHeader = false;
+  presets_.addSectionHeading("Factory");
+  for (const auto& p : store_.all()) {
+    if (!p.factory && !userHeader) {
+      presets_.addSeparator();
+      presets_.addSectionHeading("Yours");
+      userHeader = true;
+    }
+    presets_.addItem(p.name, id++);
+  }
+  shownPreset_ = {};
+  ticks_ = 0;
+}
+
+void WhamModule::startNaming() {
+  const auto current = presets_.getText();
+  const auto* p = store_.find(current);
+  name_.setText(p != nullptr && !p->factory ? current : juce::String(), juce::dontSendNotification);
+  name_.setTextToShowWhenEmpty("Preset name", DjontLookAndFeel::lookOf(*this).ink.withAlpha(0.45f));
+  presets_.setVisible(false);
+  name_.setVisible(true);
+  name_.grabKeyboardFocus();
+  save_.setButtonText("OK");
+}
+
+void WhamModule::finishNaming(bool save) {
+  if (!name_.isVisible()) return;
+  const auto name = name_.getText().trim();
+  name_.setVisible(false);
+  presets_.setVisible(true);
+  save_.setButtonText("SAVE");
+  if (!save || name.isEmpty()) return;
+  if (const auto* existing = store_.find(name); existing != nullptr && existing->factory) {
+    save_.setDescription("That's a factory preset's name: pick another to save yours.");
+    return;
+  }
+  store_.save(name, processor_.params);
+  refreshPresets();
+  presets_.setText(name, juce::dontSendNotification);
+  shownPreset_ = name;
+}
+
+void WhamModule::tick() {
+  pedal_.tick();
+  const bool autoMode = processor_.params.getRawParameterValue("whamMode")->load() > 0.5f;
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&rate_, &shape_, &retrig_})
+    c->setAlpha(autoMode ? 1.0f : 0.38f);
+  if (delArmedTicks_ > 0 && --delArmedTicks_ == 0) del_.setButtonText("DEL");
+  // Every half second: show which preset (if any) the knobs match now.
+  if (++ticks_ % 15 == 0 && !name_.isVisible() && !presets_.isPopupActive()) {
+    const auto match = store_.matching(processor_.params);
+    if (match != shownPreset_) {
+      shownPreset_ = match;
+      if (match.isEmpty()) presets_.setSelectedId(0, juce::dontSendNotification);
+      else presets_.setText(match, juce::dontSendNotification);
+    }
+  }
+}
+
+void WhamModule::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(0.5f);
+  g.setColour(L.plate);
+  g.fillRoundedRectangle(box, 6.0f);
+  g.setColour(L.plateBorder);
+  g.drawRoundedRectangle(box, 6.0f, 1.0f);
+  g.setColour(L.ink);
+  g.setFont(DjontLookAndFeel::display(*this, 34.0f));
+  g.drawText("WHAM", 14, 8, getWidth() - 60, 40, juce::Justification::centredLeft, false);
+}
+
+void WhamModule::resized() {
+  power_.setTopRightPosition(getWidth() - 12, 15);
+  body_.setBounds(0, 52, getWidth(), getHeight() - 52);
+  const int w = body_.getWidth(), h = body_.getHeight();
+  mode_.setTopLeftPosition(12, 0);
+  retrig_.setTopLeftPosition(mode_.getRight() + 8, 0);
+  const int pedalW = 48;
+  const int presetY = h - 34;
+  pedal_.setBounds(w - 12 - pedalW, 0, pedalW, presetY - 8);
+  // Heel / Toe over Rate / Shape, centred in the space left of the pedal.
+  const int gridW = heel_.getWidth() * 2 + 4;
+  const int x0 = 12 + (pedal_.getX() - 12 - gridW) / 2;
+  const int rowH = heel_.getHeight() + 4;
+  const int y0 = 32 + juce::jmax(0, (presetY - 32 - 2 * rowH) / 2);
+  heel_.setTopLeftPosition(x0, y0);
+  toe_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0);
+  rate_.setTopLeftPosition(x0, y0 + rowH);
+  shape_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0 + rowH);
+  del_.setTopRightPosition(w - 12, presetY);
+  save_.setTopRightPosition(del_.getX() - 6, presetY);
+  presets_.setBounds(12, presetY, save_.getX() - 18, 24);
+  name_.setBounds(presets_.getBounds());
+}
+
 // ---------------------------------------------------------------- gear
 GearButton::GearButton() : juce::Button("Settings") {
   setTitle("Settings");
@@ -389,6 +704,15 @@ void GearButton::paintButton(juce::Graphics& g, bool highlighted, bool down) {
 }
 
 // ---------------------------------------------------------------- settings
+namespace {
+juce::String whamLatencyLine(const DjontProcessor& p) {
+  const int samples = p.getLatencySamples();
+  const double rate = p.getSampleRate() > 0 ? p.getSampleRate() : 48000.0;
+  if (samples <= 0) return "dJONt itself adds 0 ms (Wham off).";
+  return "Wham adds " + juce::String(1000.0 * samples / rate, 1) + " ms while it's on.";
+}
+}  // namespace
+
 SettingsPanel::SettingsPanel(DjontProcessor& processor, std::function<void(const juce::String&)> onLook)
     : processor_(processor),
       look_({"CHROME", "RED FOIL"}, "Look: the photo and accent color. Saved with the plugin's state.", 200) {
@@ -444,9 +768,9 @@ void SettingsPanel::timerCallback() {
 void SettingsPanel::updateLatency() {
   juce::String text;
   if (devices_ == nullptr) {
-    text = "Running in a DAW: set the audio device, inputs, outputs and buffer in the DAW.\n\n"
-           "dJONt adds 0 ms of latency. Sub's Clean octave trails your note by about 20 ms by design "
-           "(the dry note doesn't); Synth mode has no delay.";
+    text = "Running in a DAW: set the audio device, inputs, outputs and buffer in the DAW.\n\n" +
+           whamLatencyLine(processor_) +
+           "\nSub's Clean octave trails your note by about 20 ms by design (the dry note doesn't).";
   } else if (auto* device = devices_->getCurrentAudioDevice()) {
     const double rate = device->getCurrentSampleRate();
     const auto ms = [rate](int samples) { return rate > 0 ? 1000.0 * samples / rate : 0.0; };
@@ -457,7 +781,7 @@ void SettingsPanel::updateLatency() {
          << " ms)\n"
          << "In " << juce::String(ms(in), 1) << " + out " << juce::String(ms(out), 1) << " ms · round trip ~"
          << juce::String(ms(in + out + buffer), 1) << " ms\n"
-         << "dJONt itself adds 0 ms.";
+         << whamLatencyLine(processor_);
   } else {
     text = "No audio device is open. Pick a driver type and device on the right.";
   }
@@ -520,6 +844,7 @@ DjontEditor::DjontEditor(DjontProcessor& processor)
       processor_(processor),
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
       output_(processor.params, "output", "Output", 44, "Output: level out of dJONt."),
+      wham_(processor),
       settings_(processor, [this](const juce::String& id) { setLook(id); }) {
   setLookAndFeel(&lnf_);
   input_.setBipolar();
@@ -555,6 +880,7 @@ DjontEditor::DjontEditor(DjontProcessor& processor)
   lofi->addKnob(std::make_unique<Knob>(s, "lofiTone", "Tone", 58, "Lo-Fi · Tone: center of the radio band."));
   lofi->addKnob(std::make_unique<Knob>(s, "lofiBlend", "Blend", 58, "Lo-Fi · Blend: dry to fully filtered."));
 
+  addAndMakeVisible(wham_);
   for (auto* m : {tight.get(), grit.get(), sub.get(), lofi.get()}) addAndMakeVisible(*m);
   modules_.push_back(std::move(tight));
   modules_.push_back(std::move(grit));
@@ -587,6 +913,7 @@ void DjontEditor::showSettings(bool show) {
   settings_.setVisible(show);
   gear_.setToggleState(show, juce::dontSendNotification);
   for (auto& m : modules_) m->setVisible(!show);
+  wham_.setVisible(!show);
   if (show) settings_.toFront(false);
   repaint();
 }
@@ -597,6 +924,7 @@ void DjontEditor::timerCallback() {
     meterDb_ = db;
     repaint(meterBox_);
   }
+  wham_.tick();
   updateHint();
 }
 
@@ -700,9 +1028,11 @@ void DjontEditor::resized() {
   const int top = kBodyTop + 10;
   const int bottom = hintBox_.getY() - 10;
   const int left = 18, gap = 10;
+  wham_.setBounds(left, top, WhamModule::kWidth, bottom - top);
+  const int x0 = wham_.getRight() + gap;
   const int n = static_cast<int>(modules_.size());
-  const int w = (getWidth() - 2 * left - gap * (n - 1)) / n;
-  for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(left + i * (w + gap), top, w, bottom - top);
+  const int w = (getWidth() - left - x0 - gap * (n - 1)) / n;
+  for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(x0 + i * (w + gap), top, w, bottom - top);
   settings_.setBounds(left, top, getWidth() - 2 * left, bottom - top);
   photoScaled_ = {};
 }

@@ -1,5 +1,5 @@
-# dJONt: a low-end toolkit plugin (Tight / Grit / Sub / Lo-Fi) for the TK3J
-# fork. Its own project, built separately from the TONE3000/TK3J plugin:
+# dJONt: a low-end toolkit plugin (Tight / Grit / Sub / Lo-Fi) for the T3KJ
+# fork. Its own project, built separately from the TONE3000/T3KJ plugin:
 #
 #   cmake -B build -S djont -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build --config Release
@@ -39,6 +39,7 @@ set_target_properties(DjontAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set(DJONT_SOURCES
     src/DjontProcessor.cpp
     src/DjontEditor.cpp
+    src/WhamPresets.cpp
     ${REPO_DIR}/plugin/src/PitchShift.cpp
 )
 

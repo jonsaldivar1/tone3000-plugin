@@ -3,8 +3,9 @@
 // with dark glass plates over it so the controls stay readable.
 //   Header: the wordmark (d JON t, the name in the accent), Input / Output,
 //           the output meter and the settings gear.
-//   Body:   four modules (Tight, Grit, Sub, Lo-Fi), each with a power LED;
-//           a module that's off dims its knobs.
+//   Body:   five modules (Wham, Tight, Grit, Sub, Lo-Fi), each with a power
+//           LED; a module that's off dims its knobs. Wham carries its pedal
+//           and named presets.
 //   Footer: a plain-text hint line: whatever the mouse is over, what it does
 //           and (for a knob) its current value. No popup tooltips.
 // The gear opens Settings over the body: the look, and in the standalone app
@@ -21,6 +22,7 @@
 #include <vector>
 
 #include "DjontProcessor.h"
+#include "WhamPresets.h"
 
 namespace djont {
 
@@ -140,6 +142,88 @@ private:
   std::unique_ptr<juce::Component> extra_;
 };
 
+// A small text toggle bound to a bool parameter (Wham's RETRIG).
+class ParamToggle : public juce::Button, public HintSource {
+public:
+  ParamToggle(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& label,
+              juce::String description, int width);
+  void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
+  juce::String hint() const override { return description_; }
+
+private:
+  juce::String description_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment_;
+};
+
+// A small text button (SAVE / DEL).
+class Chip : public juce::Button, public HintSource {
+public:
+  Chip(const juce::String& label, juce::String description, int width);
+  void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
+  juce::String hint() const override { return description_; }
+  void setDescription(juce::String d) { description_ = std::move(d); }
+
+private:
+  juce::String description_;
+};
+
+// Wham's virtual expression pedal: a ridged treadle with a bar at the
+// position (bottom = heel, top = toe). PEDAL: drag it (or scroll); it is the
+// whamPedal parameter, so automation and MIDI move it too; double-click
+// sends it back to the heel. AUTO: it follows the LFO.
+class WhamPedal : public juce::Component, public HintSource {
+public:
+  explicit WhamPedal(DjontProcessor& processor);
+  void tick();  // editor timer: follow the live position
+  void paint(juce::Graphics& g) override;
+  void mouseDown(const juce::MouseEvent& e) override;
+  void mouseDrag(const juce::MouseEvent& e) override;
+  void mouseUp(const juce::MouseEvent& e) override;
+  void mouseDoubleClick(const juce::MouseEvent& e) override;
+  void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+  juce::String hint() const override;
+
+private:
+  bool pedalMode() const;
+  float shown() const;
+  DjontProcessor& processor_;
+  juce::RangedAudioParameter* pedal_;
+  std::unique_ptr<juce::ParameterAttachment> attachment_;
+  float value_ = 0.0f, dragStart_ = 0.0f, lastShown_ = -2.0f;
+};
+
+// The Wham module: power, PEDAL | AUTO, RETRIG, Heel / Toe / Rate / Shape,
+// the pedal, and the preset row (pick one to load it; SAVE names and saves
+// the current settings; DEL deletes your own).
+class WhamModule : public juce::Component {
+public:
+  WhamModule(DjontProcessor& processor);
+  void tick();
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  static constexpr int kWidth = 280;
+
+private:
+  void setPowered(bool on);
+  void refreshPresets();
+  void startNaming();
+  void finishNaming(bool save);
+
+  DjontProcessor& processor_;
+  PowerLed power_;
+  juce::Component body_;
+  ParamSegmented mode_;
+  ParamToggle retrig_;
+  Knob heel_, toe_, rate_, shape_;
+  WhamPedal pedal_;
+  juce::ComboBox presets_;
+  juce::TextEditor name_;
+  Chip save_, del_;
+  WhamPresets store_;
+  juce::String shownPreset_;
+  int ticks_ = 0, delArmedTicks_ = 0;
+};
+
 // The gear in the header.
 class GearButton : public juce::Button, public HintSource {
 public:
@@ -175,7 +259,7 @@ private:
 
 class DjontEditor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-  static constexpr int kWidth = 860, kHeight = 412;
+  static constexpr int kWidth = 1120, kHeight = 432;
 
   explicit DjontEditor(DjontProcessor& processor);
   ~DjontEditor() override;
@@ -194,6 +278,7 @@ private:
   DjontLookAndFeel lnf_;
   Knob input_, output_;
   GearButton gear_;
+  WhamModule wham_;
   std::vector<std::unique_ptr<Module>> modules_;
   SettingsPanel settings_;
   juce::Image photo_, photoScaled_;

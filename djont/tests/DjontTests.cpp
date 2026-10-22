@@ -11,6 +11,7 @@
 
 #include "DjontEditor.h"
 #include "DjontProcessor.h"
+#include "WhamPresets.h"
 
 using djont::DjontProcessor;
 
@@ -167,6 +168,42 @@ int main(int argc, char** argv) {
   }
 
   {
+    // Wham: the pedal at the toe plays the Toe pitch (+12: 110 -> 220 Hz), at
+    // the heel the Heel pitch (0: 110 Hz), and Wham reports its latency.
+    const auto in = sine(110.0, 1.5, 0.3f);
+    auto toe = make({{"whamOn", 1}, {"whamMode", 0}, {"whamPedal", 100}, {"whamHeel", 0}, {"whamToe", 12}});
+    const auto up = run(*toe, in);
+    check(tone(up, 220.0) > 10.0 * tone(up, 110.0), "Wham pedal at the toe shifts up by Toe (+12 st)");
+    check(toe->getLatencySamples() > 0, "Wham on reports its latency");
+    auto heel = make({{"whamOn", 1}, {"whamMode", 0}, {"whamPedal", 0}, {"whamHeel", 0}, {"whamToe", 12}});
+    const auto down = run(*heel, in);
+    check(tone(down, 110.0) > 10.0 * tone(down, 220.0), "Wham pedal at the heel plays Heel (0 st)");
+    check(make({})->getLatencySamples() == 0, "Wham off adds no latency");
+  }
+  {
+    // Wham presets: save, reload from disk, apply, delete; factory names are
+    // protected.
+    const auto file = juce::File::createTempFile(".json");
+    auto p = make({{"whamHeel", -3}, {"whamToe", 7}, {"whamRate", 2.5f}, {"whamShape", 3}, {"whamRetrig", 1}});
+    {
+      djont::WhamPresets store(file);
+      check(store.save("My Trill", p->params), "a preset saves");
+      check(!store.save("Octave Scoop", p->params), "a factory preset can't be overwritten");
+    }
+    djont::WhamPresets reloaded(file);
+    const auto* mine = reloaded.find("my trill");
+    check(mine != nullptr && !mine->factory, "a saved preset is there after a reload");
+    auto q = make({});
+    if (mine != nullptr) djont::WhamPresets::apply(*mine, q->params);
+    const auto v = [&](const char* id) { return q->params.getRawParameterValue(id)->load(); };
+    check(std::abs(v("whamHeel") + 3) < 0.01f && std::abs(v("whamToe") - 7) < 0.01f &&
+              std::abs(v("whamRate") - 2.5f) < 0.02f && std::abs(v("whamShape") - 3) < 0.01f && v("whamRetrig") > 0.5f,
+          "loading a preset sets Heel, Toe, Rate, Shape and Retrig");
+    check(reloaded.matching(q->params) == "My Trill", "the loaded preset is recognised as current");
+    check(reloaded.remove("My Trill") && djont::WhamPresets(file).find("My Trill") == nullptr, "a preset deletes");
+    file.deleteFile();
+  }
+  {
     // The editor: the look round-trips through the state, and the hint bar
     // starts on its default line.
     DjontProcessor p;
@@ -196,7 +233,7 @@ int main(int argc, char** argv) {
   if (snapshotPath.isNotEmpty()) {
     DjontProcessor p;
     p.prepareToPlay(kFs, kBlock);
-    for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}})
+    for (const auto& [id, v] : Params{{"gritOn", 1}, {"subOn", 1}, {"whamOn", 1}})
       p.params.getParameter(id)->setValueNotifyingHost(v);
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (auto* e = dynamic_cast<djont::DjontEditor*>(editor.get())) {
