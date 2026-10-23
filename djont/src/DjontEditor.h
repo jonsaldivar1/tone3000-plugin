@@ -224,13 +224,16 @@ private:
   float value_ = 0.0f, dragStart_ = 0.0f, lastShown_ = -2.0f;
 };
 
-// The Wham module: power, PEDAL | AUTO, RETRIG, Heel / Toe / Rate / Shape,
-// the pedal, and the preset row (pick one to load it; SAVE names and saves
-// the current settings; DEL deletes your own).
+// The Wham module. Front: PEDAL | AUTO, RETRIG, CLASSIC | CHORDS, INTERVAL,
+// Heel / Toe (Custom) or Mix, Rate / Shape (Auto) or Glide (Pedal), the
+// pedal. Back (ADV): the voicing, Grain / Buffer / Tone / Mix. Both: the
+// preset row (pick one to load it; SAVE names and saves the current
+// settings; DEL deletes your own).
 class WhamModule : public juce::Component {
 public:
   WhamModule(DjontProcessor& processor);
   void tick();
+  void setBack(bool back);  // the ADV side
   void paint(juce::Graphics& g) override;
   void resized() override;
   static constexpr int kWidth = 280;
@@ -240,13 +243,21 @@ private:
   void refreshPresets();
   void startNaming();
   void finishNaming(bool save);
+  void syncVisibility(bool force = false);
 
   DjontProcessor& processor_;
   PowerLed power_;
+  Chip adv_;
   juce::Component body_;
   ParamSegmented mode_;
   ParamToggle retrig_;
-  Knob heel_, toe_, rate_, shape_, glide_;
+  ParamSegmented algo_;
+  juce::ComboBox interval_;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> intervalAttachment_;
+  Knob heel_, toe_, rate_, shape_, glide_, mix_;
+  Knob grain_, buffer_, tone_, mixBack_;
+  bool back_ = false;
+  int shownState_ = -1;
   WhamPedal pedal_;
   juce::ComboBox presets_;
   juce::TextEditor name_;
@@ -280,14 +291,17 @@ class SustainModule : public juce::Component {
 public:
   explicit SustainModule(DjontProcessor& processor);
   void tick();
+  void setBack(bool back);  // the ADV side
   void paint(juce::Graphics& g) override;
   void resized() override;
   static constexpr int kWidth = 250;
 
 private:
   void setPowered(bool on);
+  void syncVisibility(bool force = false);
   DjontProcessor& processor_;
   PowerLed power_;
+  Chip adv_;
   juce::Component body_;
   ParamSegmented page_;
   HoldButton hold_;
@@ -296,7 +310,13 @@ private:
   Knob fade_, level_;
   ParamSegmented sustainerType_;
   Knob amount_, bloom_;
-  int shownPage_ = -1;
+  // ADV: Hold's Shimmer / Low Cut / Tone; the Sustainer's Interval / Floor /
+  // Response / Tone.
+  Knob shimmer_, lowCut_, holdTone_;
+  ParamSegmented sustainerInterval_;
+  Knob floor_, response_, sustainerTone_;
+  bool back_ = false;
+  int shownState_ = -1;
 };
 
 // The gear in the header.
@@ -334,7 +354,7 @@ private:
 
 class DjontEditor : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-  static constexpr int kWidth = 1290, kHeight = 432;
+  static constexpr int kWidth = 1290, kHeight = 490;
 
   explicit DjontEditor(DjontProcessor& processor);
   ~DjontEditor() override;
@@ -343,6 +363,7 @@ public:
 
   void setLook(const juce::String& lookId);
   void showSettings(bool show);
+  void showAdvanced(bool show);  // flips Wham and Sustain to their ADV side
   juce::String currentHint() const { return hint_; }
 
   // MIDI learn: right-click any control.

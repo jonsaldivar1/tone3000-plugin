@@ -12,6 +12,8 @@
 #include "Dsp.h"
 #include "PitchShift.h"
 #include "Sustain.h"
+#include "ClassicShift.h"
+#include "WhamModes.h"
 #include "Wham.h"
 
 namespace djont {
@@ -92,7 +94,14 @@ private:
   Hold hold_;
   Sustainer sustainer_;
   bool sustainHoldMode_ = true;
-  PitchShift whamShift_;
+  PitchShift whamShift_;  // CHORDS engine
+  ClassicShift classic_;   // CLASSIC engine
+  juce::SmoothedValue<float> whamFade_;
+  juce::AudioBuffer<float> whamDry_, whamScratch_;
+  Biquad whamTone_;
+  bool whamToneOn_ = false, whamClassic_ = true;
+  int whamInterval_ = 0;
+  float whamMix_ = 1.0f;
   Wham wham_;
   Wham::Settings whamSettings_;
   float whamHeel_ = 0.0f, whamToe_ = 12.0f;

@@ -77,6 +77,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       juce::ParameterID{"whamShape", 1}, "Wham Shape", juce::StringArray{"Sine", "Triangle", "Rise", "Square"}, 0));
   layout.add(power("whamRetrig", "Wham Retrig", false));
+  // The whammy-style controls: engine, the INTERVAL list (WhamModes.h), and
+  // the ADV page's voicing.
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"whamAlgo", 1}, "Wham Engine",
+                                                          juce::StringArray{"Classic", "Chords"}, 0));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"whamInterval", 1}, "Wham Interval",
+                                                          whamIntervalNames(), 0));
+  layout.add(percent("whamMix", "Wham Mix", 100.0f));
+  layout.add(hertz("whamTone", "Wham Tone", 1000.0f, 20000.0f, 20000.0f));
+  {
+    juce::NormalisableRange<float> grain(10.0f, ClassicShift::kMaxGrainMs);
+    grain.setSkewForCentre(30.0f);
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"whamGrain", 1}, "Wham Grain", grain, 30.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms").withStringFromValueFunction(
+            [](float v, int) { return juce::String(juce::roundToInt(v)); })));
+  }
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"whamBuffer", 1}, "Wham Buffer",
+                                                          juce::StringArray{"20 ms", "30 ms", "40 ms", "60 ms"}, 1));
   {
     juce::NormalisableRange<float> glide(0.0f, 2000.0f);
     glide.setSkewForCentre(250.0f);
@@ -95,10 +113,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout
   layout.add(power("holdLatch", "Hold Latch", true));
   layout.add(seconds("holdFade", "Hold Fade", 0.02f, 4.0f, 0.5f, 0.3f));
   layout.add(percent("holdLevel", "Hold Level", 80.0f));
+  layout.add(percent("holdShimmer", "Hold Shimmer", 0.0f));
+  layout.add(hertz("holdLowCut", "Hold Low Cut", 20.0f, 500.0f, 20.0f));
+  layout.add(hertz("holdTone", "Hold Tone", 1000.0f, 20000.0f, 20000.0f));
   layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"sustainerType", 1}, "Sustainer Type",
                                                           juce::StringArray{"Fundamental", "Harmonic", "Mix"}, 0));
   layout.add(percent("sustainerAmount", "Sustainer Amount", 60.0f));
   layout.add(seconds("sustainerBloom", "Sustainer Bloom", 0.2f, 6.0f, 1.5f, 1.5f));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"sustainerInterval", 1},
+                                                          "Sustainer Interval",
+                                                          juce::StringArray{"Octave", "5th", "12th", "2 Octaves"}, 0));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"sustainerFloor", 1}, "Sustainer Floor", juce::NormalisableRange<float>(-80.0f, -40.0f, 1.0f),
+      -64.0f, juce::AudioParameterFloatAttributes().withLabel("dB")));
+  {
+    juce::NormalisableRange<float> response(2.0f, 100.0f);
+    response.setSkewForCentre(15.0f);
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"sustainerResponse", 1}, "Sustainer Response", response, 15.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms").withStringFromValueFunction(
+            [](float v, int) { return juce::String(juce::roundToInt(v)); })));
+  }
+  layout.add(hertz("sustainerTone", "Sustainer Tone", 1000.0f, 20000.0f, 20000.0f));
   layout.add(power("tightOn", "Tight", true));
   layout.add(percent("tightAmount", "Tight Amount", 50.0f));
   layout.add(hertz("tightFreq", "Tight Freq", 60.0f, 1000.0f, 180.0f));
@@ -122,7 +158,8 @@ DjontProcessor::DjontProcessor()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       params(*this, nullptr, "dJONt", createLayout()) {
-  params.addParameterListener("whamOn", this);
+  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer"})
+    params.addParameterListener(id, this);
   for (auto* p : getParameters())
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
   for (auto& cc : ccMap_) cc.store(-1);
@@ -133,15 +170,26 @@ DjontProcessor::DjontProcessor()
 }
 
 DjontProcessor::~DjontProcessor() {
-  params.removeParameterListener("whamOn", this);
+  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer"})
+    params.removeParameterListener(id, this);
   cancelPendingUpdate();
 }
 
 void DjontProcessor::parameterChanged(const juce::String&, float) { triggerAsyncUpdate(); }
 void DjontProcessor::handleAsyncUpdate() { updateLatency(); }
 
+// Wham's delay while it replaces the dry (Custom / Whammy). Harmony and
+// Detune keep the dry on time and add a voice, so they report none.
 void DjontProcessor::updateLatency() {
-  setLatencySamples(value("whamOn") > 0.5f ? PitchShift::latencySamples(kWhamWindow, sampleRate_) : 0);
+  const int index = juce::jlimit(0, kNumWhamIntervals - 1, juce::roundToInt(value("whamInterval")));
+  const auto kind = kWhamIntervals[index].kind;
+  int samples = 0;
+  if (value("whamOn") > 0.5f && (kind == WhamInterval::Kind::custom || kind == WhamInterval::Kind::whammy))
+    samples = value("whamAlgo") < 0.5f
+                  ? ClassicShift::latencySamples(value("whamGrain"), sampleRate_)
+                  : PitchShift::latencySamples(PitchShift::windowFromIndex(juce::roundToInt(value("whamBuffer"))),
+                                               sampleRate_);
+  setLatencySamples(samples);
 }
 
 bool DjontProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
@@ -163,6 +211,11 @@ void DjontProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   sampleRate_ = sampleRate;
   whamShift_.prepare(sampleRate, juce::jmax(1, samplesPerBlock));
   wham_.prepare(sampleRate);
+  classic_.prepare(sampleRate);
+  whamDry_.setSize(1, juce::jmax(1, samplesPerBlock));
+  whamScratch_.setSize(1, juce::jmax(1, samplesPerBlock));
+  whamFade_.reset(sampleRate, 0.02);
+  whamFade_.setCurrentAndTargetValue(value("whamOn") > 0.5f ? 1.0f : 0.0f);
   updateLatency();
   dry_.setSize(1, juce::jmax(1, samplesPerBlock));
   const char* powers[kNumModules] = {"sustainOn", "tightOn", "gritOn", "subOn", "lofiOn"};
@@ -206,7 +259,22 @@ void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
   }
   whamHeel_ = value("whamHeel");
   whamToe_ = value("whamToe");
-  whamShift_.setEnabled(value("whamOn") > 0.5f);
+  {
+    const bool on = value("whamOn") > 0.5f;
+    whamClassic_ = value("whamAlgo") < 0.5f;
+    whamInterval_ = juce::jlimit(0, kNumWhamIntervals - 1, juce::roundToInt(value("whamInterval")));
+    whamMix_ = value("whamMix") / 100.0f;
+    const float tone = value("whamTone");
+    whamToneOn_ = tone < 19000.0f;
+    whamTone_.set(Biquad::Type::lowPass, sampleRate_, juce::jmin(tone, 19000.0f), 0.7071);
+    classic_.setGrainMs(value("whamGrain"));
+    whamShift_.setEnabled(on && !whamClassic_);
+    whamFade_.setTargetValue(on ? 1.0f : 0.0f);
+    hold_.setVoicing(value("holdShimmer") / 100.0f, value("holdLowCut"), value("holdTone"));
+    const float intervals[] = {12.0f, 7.0f, 19.0f, 24.0f};
+    sustainer_.setVoicing(intervals[juce::jlimit(0, 3, juce::roundToInt(value("sustainerInterval")))],
+                          value("sustainerFloor"), value("sustainerResponse"), value("sustainerTone"));
+  }
   inGain_.setTargetValue(dbToGain(value("input")));
   outGain_.setTargetValue(dbToGain(value("output")));
   const char* powers[kNumModules] = {"sustainOn", "tightOn", "gritOn", "subOn", "lofiOn"};
@@ -227,27 +295,56 @@ void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
   for (int ch = 1; ch < buffer.getNumChannels(); ++ch) buffer.copyFrom(ch, 0, buffer, 0, 0, n);
 }
 
-// The shifter runs while powered and through its power blend; once that
-// lands it is skipped entirely (a bit-exact, zero-delay passthrough).
+// Wham: the pedal position (Wham.h) picks the shift between heel and toe
+// (or the INTERVAL's), per slice, through the CLASSIC or CHORDS engine; then
+// the mix by the interval's kind (WhamModes.h). Power fades over 20 ms; off
+// and settled, it's skipped (a bit-exact, zero-delay passthrough).
 void DjontProcessor::processWham(float* x, int n) {
-  if (!whamShift_.isRunning()) {
+  // CHORDS still fading out after a switch to CLASSIC: let it finish on a
+  // scratch copy so it can stop.
+  if (whamClassic_ && whamShift_.isRunning()) {
+    float* scratch = whamScratch_.getWritePointer(0);
+    std::copy(x, x + n, scratch);
+    float* channels[1] = {scratch};
+    juce::AudioBuffer<float> view(channels, 1, n);
+    whamShift_.process(view);
+  }
+  if (!whamFade_.isSmoothing() && whamFade_.getCurrentValue() <= 0.0f) {
     whamPosition.store(-1.0f);
     wham_.reset();
+    classic_.reset();
     return;
   }
+  const auto& mode = kWhamIntervals[static_cast<size_t>(whamInterval_)];
+  const bool custom = mode.kind == WhamInterval::Kind::custom;
+  const float heel = custom ? whamHeel_ : mode.heel, toe = custom ? whamToe_ : mode.toe;
+  float* dry = whamDry_.getWritePointer(0);
+  std::copy(x, x + n, dry);
   auto p = PitchShift::Params{};
-  p.window = kWhamWindow;
+  p.window = PitchShift::windowFromIndex(juce::roundToInt(value("whamBuffer")));
   float position = 0.0f;
   for (int start = 0; start < n; start += Wham::kSliceSamples) {
     const int len = juce::jmin(Wham::kSliceSamples, n - start);
-    position = wham_.advance(whamSettings_, x + start, len);
-    p.semitones = whamHeel_ + (whamToe_ - whamHeel_) * position;
-    whamShift_.setParams(p);
-    float* channels[1] = {x + start};
-    juce::AudioBuffer<float> view(channels, 1, len);
-    whamShift_.process(view);
+    position = wham_.advance(whamSettings_, dry + start, len);
+    const float semitones = mode.kind == WhamInterval::Kind::detune ? mode.heel : heel + (toe - heel) * position;
+    if (whamClassic_) {
+      classic_.process(x + start, len, semitones);
+    } else {
+      p.semitones = semitones;
+      whamShift_.setParams(p);
+      float* channels[1] = {x + start};
+      juce::AudioBuffer<float> view(channels, 1, len);
+      whamShift_.process(view);
+    }
   }
-  whamPosition.store(position);
+  const bool replaces = custom || mode.kind == WhamInterval::Kind::whammy;
+  for (int i = 0; i < n; ++i) {
+    float wet = x[i];
+    if (whamToneOn_) wet = whamTone_.process(wet);
+    const float out = replaces ? dry[i] + whamMix_ * (wet - dry[i]) : dry[i] + whamMix_ * wet;
+    x[i] = dry[i] + whamFade_.getNextValue() * (out - dry[i]);
+  }
+  whamPosition.store(mode.kind == WhamInterval::Kind::detune ? 0.0f : position);
 }
 
 void DjontProcessor::processSustain(float* x, int n) {

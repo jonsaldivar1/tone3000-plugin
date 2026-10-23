@@ -511,7 +511,10 @@ void WhamPedal::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheel
 // ---------------------------------------------------------------- wham module
 WhamModule::WhamModule(DjontProcessor& processor)
     : processor_(processor),
-      power_(processor.params, "whamOn", "Wham", "A virtual whammy pedal: pitch sweeps between Heel and Toe. Adds about 16 ms of latency while on."),
+      power_(processor.params, "whamOn", "Wham",
+             "A virtual whammy pedal: pitch sweeps between Heel and Toe (or the Interval's). Adds about 16 ms of "
+             "latency while on in Custom / Whammy settings."),
+      adv_("ADV", "Advanced: flip Wham over for its voicing (Grain, Buffer, Tone, Mix). BACK flips it back.", 44),
       mode_(processor.params, "whamMode", juce::StringArray{"PEDAL", "AUTO"},
             "Wham · Mode: Pedal, you move the pedal (drag, automation, MIDI). Auto, it moves itself at Rate in Shape.",
             120),
@@ -519,6 +522,10 @@ WhamModule::WhamModule(DjontProcessor& processor)
               "Wham · Retrig: Auto's sweep restarts at the heel on every pick, so it follows your playing. "
               "Rise + Retrig = one scoop per pick.",
               70),
+      algo_(processor.params, "whamAlgo", juce::StringArray{"CLASSIC", "CHORDS"},
+            "Wham · Engine: Classic is the old-school shifter, clean on single notes with the glitchy warble on "
+            "chords. Chords is the clean, chord-friendly engine.",
+            150),
       heel_(processor.params, "whamHeel", "Heel", 44, "Wham · Heel: the pitch with the pedal all the way up, ±24 semitones."),
       toe_(processor.params, "whamToe", "Toe", 44, "Wham · Toe: the pitch with the pedal all the way down, ±24 semitones."),
       rate_(processor.params, "whamRate", "Rate", 44, "Wham · Rate: how fast Auto sweeps, 0.1-10 Hz."),
@@ -527,14 +534,53 @@ WhamModule::WhamModule(DjontProcessor& processor)
       glide_(processor.params, "whamGlide", "Glide", 44,
              "Wham · Glide: how long the pedal takes to sweep heel to toe. Turn it up for a footswitch: press = "
              "sweep up, release = sweep back. 0: follows instantly."),
+      mix_(processor.params, "whamMix", "Mix", 44,
+           "Wham · Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."),
+      grain_(processor.params, "whamGrain", "Grain", 44,
+             "Wham · Grain (Classic): the shifter's sweep length. Short = tighter, more metallic warble on chords; "
+             "long = smoother, wobblier. Longer adds a little latency."),
+      buffer_(processor.params, "whamBuffer", "Buffer", 44,
+              "Wham · Buffer (Chords): the clean engine's buffer. 20 ms tightest, 60 ms smoothest on low notes."),
+      tone_(processor.params, "whamTone", "Tone", 44, "Wham · Tone: darkens the shifted signal. All the way up = off."),
+      mixBack_(processor.params, "whamMix", "Mix", 44,
+               "Wham · Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."),
       pedal_(processor),
       save_("SAVE", "Save: name the current Heel / Toe / Rate / Shape / Retrig / Mode as a preset. Same name replaces it.", 46),
       del_("DEL", "Delete: remove the selected preset (yours only; click twice).", 40) {
   addAndMakeVisible(power_);
   addAndMakeVisible(body_);
-  for (juce::Component* c : std::initializer_list<juce::Component*>{&mode_, &retrig_, &heel_, &toe_, &rate_, &shape_,
-                                                                     &glide_, &pedal_, &presets_, &save_, &del_})
+  addAndMakeVisible(adv_);
+  adv_.onClick = [this] { setBack(!back_); };
+  for (juce::Component* c : std::initializer_list<juce::Component*>{
+           &mode_, &retrig_, &algo_, &interval_, &heel_, &toe_, &rate_, &shape_, &glide_, &mix_, &grain_, &buffer_,
+           &tone_, &mixBack_, &pedal_, &presets_, &save_, &del_})
     body_.addAndMakeVisible(*c);
+  // INTERVAL: the list under Whammy / Harmony / Detune headings; items in
+  // parameter order, so the attachment's indices line up.
+  {
+    int id = 1;
+    juce::String section;
+    for (const auto& i : kWhamIntervals) {
+      const juce::String name(i.name);
+      const auto head = name.upToFirstOccurrenceOf(": ", false, false);
+      if (name.contains(": ") && head != section) {
+        if (section.isNotEmpty() || id > 1) interval_.addSeparator();
+        interval_.addSectionHeading(head);
+        section = head;
+      }
+      interval_.addItem(name.fromFirstOccurrenceOf(": ", false, false).isNotEmpty()
+                            ? name.fromFirstOccurrenceOf(": ", false, false)
+                            : name,
+                        id++);
+    }
+    interval_.setTitle("Wham interval");
+    interval_.setHelpText("Wham · Interval: Custom uses your Heel / Toe. Whammy: the classic pedal's settings (no "
+                          "shift at the heel, the interval at the toe). Harmony: your note plus a voice moving "
+                          "between two intervals. Detune: a thickening double.");
+    interval_.getProperties().set(kParamIdProp, "whamInterval");
+    intervalAttachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        processor.params, "whamInterval", interval_);
+  }
   body_.addChildComponent(name_);
   heel_.setBipolar();
   toe_.setBipolar();
@@ -574,11 +620,40 @@ WhamModule::WhamModule(DjontProcessor& processor)
   name_.onEscapeKey = [this] { finishNaming(false); };
   name_.onFocusLost = [this] { finishNaming(false); };
   refreshPresets();
-  tick();
-  setSize(kWidth, 260);
+  syncVisibility(true);
+  setSize(kWidth, 300);
 }
 
 void WhamModule::setPowered(bool on) { body_.setAlpha(on ? 1.0f : 0.38f); }
+
+void WhamModule::setBack(bool back) {
+  back_ = back;
+  adv_.setButtonText(back_ ? "BACK" : "ADV");
+  syncVisibility(true);
+}
+
+// Which controls show: the front or the back (ADV), and on the front, Auto's
+// LFO (Rate, Shape, Retrig) or Pedal's Glide, and Custom's Heel / Toe or Mix.
+void WhamModule::syncVisibility(bool force) {
+  const bool autoMode = processor_.params.getRawParameterValue("whamMode")->load() > 0.5f;
+  const bool custom = juce::roundToInt(processor_.params.getRawParameterValue("whamInterval")->load()) == 0;
+  const int state = (back_ ? 4 : 0) + (autoMode ? 2 : 0) + (custom ? 1 : 0);
+  if (state == shownState_ && !force) return;
+  shownState_ = state;
+  const bool front = !back_;
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&mode_, &algo_, &interval_, &pedal_})
+    c->setVisible(front);
+  retrig_.setVisible(front && autoMode);
+  rate_.setVisible(front && autoMode);
+  shape_.setVisible(front && autoMode);
+  glide_.setVisible(front && !autoMode);
+  heel_.setVisible(front && custom);
+  toe_.setVisible(front && custom);
+  mix_.setVisible(front && !custom);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&grain_, &buffer_, &tone_, &mixBack_})
+    c->setVisible(back_);
+  repaint();
+}
 
 void WhamModule::refreshPresets() {
   presets_.clear(juce::dontSendNotification);
@@ -628,10 +703,8 @@ void WhamModule::finishNaming(bool save) {
 void WhamModule::tick() {
   pedal_.tick();
   const bool autoMode = processor_.params.getRawParameterValue("whamMode")->load() > 0.5f;
-  // AUTO shows its LFO (Rate, Shape, Retrig); PEDAL shows Glide.
-  for (juce::Component* c : std::initializer_list<juce::Component*>{&rate_, &shape_, &retrig_})
-    c->setVisible(autoMode);
-  glide_.setVisible(!autoMode);
+  juce::ignoreUnused(autoMode);
+  syncVisibility();
   if (delArmedTicks_ > 0 && --delArmedTicks_ == 0) del_.setButtonText("DEL");
   // Every half second: show which preset (if any) the knobs match now.
   if (++ticks_ % 15 == 0 && !name_.isVisible() && !presets_.isPopupActive()) {
@@ -654,27 +727,44 @@ void WhamModule::paint(juce::Graphics& g) {
   g.setColour(L.ink);
   g.setFont(DjontLookAndFeel::display(*this, 34.0f));
   g.drawText("WHAM", 14, 8, getWidth() - 60, 40, juce::Justification::centredLeft, false);
+  if (back_) {
+    g.setFont(DjontLookAndFeel::label(10.0f));
+    g.setColour(L.ink.withAlpha(0.7f));
+    g.drawText("VOICING", 14, 52, 200, 16, juce::Justification::centredLeft, false);
+  }
 }
 
 void WhamModule::resized() {
   power_.setTopRightPosition(getWidth() - 12, 15);
+  adv_.setTopRightPosition(power_.getX() - 10, 16);
   body_.setBounds(0, 52, getWidth(), getHeight() - 52);
   const int w = body_.getWidth(), h = body_.getHeight();
-  mode_.setTopLeftPosition(12, 0);
-  retrig_.setTopLeftPosition(mode_.getRight() + 6, 0);
-  const int pedalW = 48;
   const int presetY = h - 34;
+  const int pedalW = 48;
   pedal_.setBounds(w - 12 - pedalW, 0, pedalW, presetY - 8);
-  // Heel / Toe over Rate / Shape, centred in the space left of the pedal.
-  const int gridW = heel_.getWidth() * 2 + 4;
-  const int x0 = 12 + (pedal_.getX() - 12 - gridW) / 2;
+  const int left = 12, right = pedal_.getX() - 8;
+  mode_.setTopLeftPosition(left, 0);
+  retrig_.setTopLeftPosition(mode_.getRight() + 6, 0);
+  algo_.setTopLeftPosition(left, 32);
+  interval_.setBounds(left, 64, right - left, 24);
+  // Two rows of knobs, centred left of the pedal.
+  const int knobW = heel_.getWidth(), gap = 6;
+  const int x0 = left + (right - left - (2 * knobW + gap)) / 2, x1 = x0 + knobW + gap;
   const int rowH = heel_.getHeight() + 4;
-  const int y0 = 32 + juce::jmax(0, (presetY - 32 - 2 * rowH) / 2);
+  const int y0 = 96 + juce::jmax(0, (presetY - 96 - 2 * rowH) / 2);
   heel_.setTopLeftPosition(x0, y0);
-  toe_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0);
+  toe_.setTopLeftPosition(x1, y0);
+  mix_.setTopLeftPosition(x0 + (knobW + gap) / 2, y0);
   rate_.setTopLeftPosition(x0, y0 + rowH);
-  shape_.setTopLeftPosition(x0 + heel_.getWidth() + 4, y0 + rowH);
-  glide_.setTopLeftPosition(x0, y0 + rowH);
+  shape_.setTopLeftPosition(x1, y0 + rowH);
+  glide_.setTopLeftPosition(x0 + (knobW + gap) / 2, y0 + rowH);
+  // Back: Grain / Buffer over Tone / Mix, centred across the module.
+  const int bx0 = (w - (2 * knobW + 24)) / 2, bx1 = bx0 + knobW + 24;
+  const int by0 = 30 + juce::jmax(0, (presetY - 30 - 2 * rowH) / 2);
+  grain_.setTopLeftPosition(bx0, by0);
+  buffer_.setTopLeftPosition(bx1, by0);
+  tone_.setTopLeftPosition(bx0, by0 + rowH);
+  mixBack_.setTopLeftPosition(bx1, by0 + rowH);
   del_.setTopRightPosition(w - 12, presetY);
   save_.setTopRightPosition(del_.getX() - 6, presetY);
   presets_.setBounds(12, presetY, save_.getX() - 18, 24);
@@ -737,6 +827,7 @@ SustainModule::SustainModule(DjontProcessor& processor)
     : processor_(processor),
       power_(processor.params, "sustainOn", "Sustain",
              "Hold (a freeze, like a piano's sustain pedal) or Sustainer (like a sustainer pickup)."),
+      adv_("ADV", "Advanced: flip Sustain over for its voicing. BACK flips it back.", 44),
       page_(processor.params, "sustainMode", juce::StringArray{"HOLD", "SUSTAINER"},
             "Sustain · Mode: Hold freezes what's ringing so you can play over it. Sustainer keeps each note from "
             "dying, like a Sustainiac.",
@@ -754,34 +845,69 @@ SustainModule::SustainModule(DjontProcessor& processor)
             "Hold · Fade: how fast the held sound swells in and dies away when you let go."),
       level_(processor.params, "holdLevel", "Level", 44, "Hold · Level: the held sound against your live playing."),
       sustainerType_(processor.params, "sustainerType", juce::StringArray{"FUND", "HARM", "MIX"},
-                     "Sustainer · Type: Fund keeps the note you played. Harm blooms into the octave, like a "
+                     "Sustainer · Type: Fund keeps the note you played. Harm blooms into the Interval (ADV), like a "
                      "sustainer's harmonic mode. Mix blooms halfway.",
                      190),
       amount_(processor.params, "sustainerAmount", "Sustain", 58,
               "Sustainer · Sustain: how much it holds the note up as the string dies (up to 40 dB of make-up)."),
       bloom_(processor.params, "sustainerBloom", "Bloom", 58,
-             "Sustainer · Bloom: how long Harm / Mix takes to bloom into the octave after each pick.") {
+             "Sustainer · Bloom: how long Harm / Mix takes to bloom after each pick."),
+      shimmer_(processor.params, "holdShimmer", "Shimmer", 44,
+               "Hold · Shimmer: adds movement to the held sound so it's less of a static pad. 0 = steady."),
+      lowCut_(processor.params, "holdLowCut", "Low Cut", 44,
+              "Hold · Low Cut: thins the held sound's lows so it doesn't muddy what you play over it. Bottom = off."),
+      holdTone_(processor.params, "holdTone", "Tone", 44, "Hold · Tone: darkens the held sound. Top = off."),
+      sustainerInterval_(processor.params, "sustainerInterval", juce::StringArray{"OCT", "5TH", "12TH", "2 OCT"},
+                         "Sustainer · Interval: what Harm / Mix bloom into. Octave is the classic; the 12th (an "
+                         "octave and a 5th) is the other harmonic a sustainer pickup likes to jump to.",
+                         210),
+      floor_(processor.params, "sustainerFloor", "Floor", 44,
+             "Sustainer · Floor: how quiet a note gets before it lets go. Lower = longer tails, more noise."),
+      response_(processor.params, "sustainerResponse", "Response", 44,
+                "Sustainer · Response: how fast it rides the level. Fast = tight, can pump; slow = smooth, swells."),
+      sustainerTone_(processor.params, "sustainerTone", "Tone", 44,
+                     "Sustainer · Tone: darkens the sustained sound (tames the noise it brings up). Top = off.") {
   addAndMakeVisible(power_);
+  addAndMakeVisible(adv_);
+  adv_.onClick = [this] { setBack(!back_); };
   addAndMakeVisible(body_);
-  for (juce::Component* c : std::initializer_list<juce::Component*>{&page_, &hold_, &latch_, &holdType_, &fade_,
-                                                                     &level_, &sustainerType_, &amount_, &bloom_})
+  for (juce::Component* c : std::initializer_list<juce::Component*>{
+           &page_, &hold_, &latch_, &holdType_, &fade_, &level_, &sustainerType_, &amount_, &bloom_, &shimmer_,
+           &lowCut_, &holdTone_, &sustainerInterval_, &floor_, &response_, &sustainerTone_})
     body_.addAndMakeVisible(*c);
   power_.onPower = [this](bool on) { setPowered(on); };
   setPowered(power_.getToggleState());
-  tick();
+  syncVisibility(true);
 }
 
 void SustainModule::setPowered(bool on) { body_.setAlpha(on ? 1.0f : 0.38f); }
 
-void SustainModule::tick() {
-  const int page = processor_.params.getRawParameterValue("sustainMode")->load() > 0.5f ? 1 : 0;
-  if (page == shownPage_) return;
-  shownPage_ = page;
-  for (juce::Component* c : std::initializer_list<juce::Component*>{&hold_, &latch_, &holdType_, &fade_, &level_})
-    c->setVisible(page == 0);
-  for (juce::Component* c : std::initializer_list<juce::Component*>{&sustainerType_, &amount_, &bloom_})
-    c->setVisible(page == 1);
+void SustainModule::setBack(bool back) {
+  back_ = back;
+  adv_.setButtonText(back_ ? "BACK" : "ADV");
+  syncVisibility(true);
 }
+
+void SustainModule::syncVisibility(bool force) {
+  const int page = processor_.params.getRawParameterValue("sustainMode")->load() > 0.5f ? 1 : 0;
+  const int state = page + (back_ ? 2 : 0);
+  if (state == shownState_ && !force) return;
+  shownState_ = state;
+  const bool holdFront = page == 0 && !back_, susFront = page == 1 && !back_;
+  const bool holdBack = page == 0 && back_, susBack = page == 1 && back_;
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&hold_, &latch_, &holdType_, &fade_, &level_})
+    c->setVisible(holdFront);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&sustainerType_, &amount_, &bloom_})
+    c->setVisible(susFront);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&shimmer_, &lowCut_, &holdTone_})
+    c->setVisible(holdBack);
+  for (juce::Component* c : std::initializer_list<juce::Component*>{&sustainerInterval_, &floor_, &response_,
+                                                                     &sustainerTone_})
+    c->setVisible(susBack);
+  repaint();
+}
+
+void SustainModule::tick() { syncVisibility(); }
 
 void SustainModule::paint(juce::Graphics& g) {
   const auto& L = DjontLookAndFeel::lookOf(*this);
@@ -793,27 +919,45 @@ void SustainModule::paint(juce::Graphics& g) {
   g.setColour(L.ink);
   g.setFont(DjontLookAndFeel::display(*this, 34.0f));
   g.drawText("SUSTAIN", 14, 8, getWidth() - 60, 40, juce::Justification::centredLeft, false);
+  if (back_) {
+    g.setFont(DjontLookAndFeel::label(10.0f));
+    g.setColour(L.ink.withAlpha(0.7f));
+    g.drawText(shownState_ % 2 == 0 ? "HOLD VOICING" : "SUSTAINER VOICING", 0, 52 + 30, getWidth(), 16,
+               juce::Justification::centred, false);
+  }
 }
 
 void SustainModule::resized() {
   power_.setTopRightPosition(getWidth() - 12, 15);
+  adv_.setTopRightPosition(power_.getX() - 10, 16);
   body_.setBounds(0, 52, getWidth(), getHeight() - 52);
   const int w = body_.getWidth();
   const int cx = w / 2;
   page_.setTopLeftPosition(cx - page_.getWidth() / 2, 0);
   // Hold page.
-  holdType_.setTopLeftPosition(cx - holdType_.getWidth() / 2, 34);
+  holdType_.setTopLeftPosition(cx - holdType_.getWidth() / 2, 40);
   const int rowW = hold_.getWidth() + 10 + latch_.getWidth();
-  hold_.setTopLeftPosition(cx - rowW / 2, 68);
-  latch_.setTopLeftPosition(hold_.getRight() + 10, 68 + (hold_.getHeight() - latch_.getHeight()) / 2);
+  hold_.setTopLeftPosition(cx - rowW / 2, 82);
+  latch_.setTopLeftPosition(hold_.getRight() + 10, 82 + (hold_.getHeight() - latch_.getHeight()) / 2);
   const int knobsW = fade_.getWidth() * 2 + 10;
-  fade_.setTopLeftPosition(cx - knobsW / 2, 122);
-  level_.setTopLeftPosition(fade_.getRight() + 10, 122);
+  fade_.setTopLeftPosition(cx - knobsW / 2, 148);
+  level_.setTopLeftPosition(fade_.getRight() + 10, 148);
   // Sustainer page.
-  sustainerType_.setTopLeftPosition(cx - sustainerType_.getWidth() / 2, 34);
+  sustainerType_.setTopLeftPosition(cx - sustainerType_.getWidth() / 2, 40);
   const int bigW = amount_.getWidth() * 2 + 10;
-  amount_.setTopLeftPosition(cx - bigW / 2, 84);
-  bloom_.setTopLeftPosition(amount_.getRight() + 10, 84);
+  amount_.setTopLeftPosition(cx - bigW / 2, 100);
+  bloom_.setTopLeftPosition(amount_.getRight() + 10, 100);
+  // Hold voicing: three knobs in a row.
+  const int k = shimmer_.getWidth();
+  const int threeW = 3 * k + 2 * 4;
+  shimmer_.setTopLeftPosition(cx - threeW / 2, 60);
+  lowCut_.setTopLeftPosition(shimmer_.getRight() + 4, 60);
+  holdTone_.setTopLeftPosition(lowCut_.getRight() + 4, 60);
+  // Sustainer voicing: the interval, then Floor / Response / Tone.
+  sustainerInterval_.setTopLeftPosition(cx - sustainerInterval_.getWidth() / 2, 56);
+  floor_.setTopLeftPosition(cx - threeW / 2, 100);
+  response_.setTopLeftPosition(floor_.getRight() + 4, 100);
+  sustainerTone_.setTopLeftPosition(response_.getRight() + 4, 100);
 }
 
 // ---------------------------------------------------------------- gear
@@ -1059,6 +1203,11 @@ void DjontEditor::setLook(const juce::String& lookId) {
   photoScaled_ = {};
   sendLookAndFeelChange();
   repaint();
+}
+
+void DjontEditor::showAdvanced(bool show) {
+  wham_.setBack(show);
+  sustain_.setBack(show);
 }
 
 void DjontEditor::showSettings(bool show) {

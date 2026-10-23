@@ -4,30 +4,39 @@ namespace djont {
 
 namespace {
 
-// mode 0 = Pedal, 1 = Auto; shape 0..3 = Sine, Triangle, Rise, Square.
+// mode 0 = Pedal, 1 = Auto; interval = index into kWhamIntervals (0 =
+// Custom, which uses heel / toe); algo 0 = Classic, 1 = Chords; shape 0..3 =
+// Sine, Triangle, Rise, Square; glide in ms.
 struct Factory {
   const char* name;
-  float mode, heel, toe, rate, shape, retrig;
+  float mode, interval, algo, heel, toe, rate, shape, retrig, glide;
 };
 constexpr Factory kFactory[] = {
-    {"Octave Scoop", 1, 0, 12, 4.0f, 2, 1},   // pick, then scoop up an octave
-    {"Dive Bomb", 1, 0, -12, 1.5f, 2, 1},     // pick, then drop an octave
-    {"Siren", 1, 0, 12, 0.5f, 0, 0},          // slow up and down
-    {"Octave Stabs", 1, 0, 12, 6.0f, 3, 0},   // jump to the octave and back
-    {"Whole-Step Trill", 1, 0, 2, 8.0f, 3, 0},
-    {"Seasick", 1, -1, 1, 0.8f, 0, 0},        // a slow detune wobble
-    {"Pedal: Octave Up", 0, 0, 12, 1.0f, 0, 0},
-    {"Pedal: Drop Tune", 0, 0, -5, 1.0f, 0, 0},
+    {"Octave Scoop", 1, 0, 0, 0, 12, 4.0f, 2, 1, 0},          // pick, then scoop up an octave
+    {"Dive Bomb", 1, 10, 0, 0, 0, 1.5f, 2, 1, 0},             // pick, then drop three octaves
+    {"Siren", 1, 0, 0, 0, 12, 0.5f, 0, 0, 0},                 // slow up and down
+    {"Octave Stabs", 1, 0, 0, 0, 12, 6.0f, 3, 0, 0},          // jump to the octave and back
+    {"Whole-Step Trill", 1, 0, 0, 0, 2, 8.0f, 3, 0, 0},
+    {"Seasick", 1, 0, 1, -1, 1, 0.8f, 0, 0, 0},               // a slow detune wobble
+    {"Pedal: Classic Octave Up", 0, 2, 0, 0, 12, 1.0f, 0, 0, 0},
+    {"Pedal: 2 Octaves Up", 0, 1, 0, 0, 24, 1.0f, 0, 0, 0},
+    {"Pedal: Drop Tune", 0, 0, 1, 0, -5, 1.0f, 0, 0, 0},
+    {"Footswitch: Octave Sweep", 0, 2, 0, 0, 12, 1.0f, 0, 0, 300},
+    {"Harmony: Blues 3rds", 0, 12, 1, 3, 4, 1.0f, 0, 0, 0},
+    {"Detune: Thick", 0, 21, 1, 0, 0, 1.0f, 0, 0, 0},
 };
 
 juce::NamedValueSet valuesOf(const Factory& f) {
   juce::NamedValueSet v;
   v.set("whamMode", f.mode);
+  v.set("whamInterval", f.interval);
+  v.set("whamAlgo", f.algo);
   v.set("whamHeel", f.heel);
   v.set("whamToe", f.toe);
   v.set("whamRate", f.rate);
   v.set("whamShape", f.shape);
   v.set("whamRetrig", f.retrig);
+  v.set("whamGlide", f.glide);
   return v;
 }
 
@@ -38,7 +47,9 @@ float realValue(juce::AudioProcessorValueTreeState& state, const juce::String& i
 }  // namespace
 
 const juce::StringArray& WhamPresets::paramIds() {
-  static const juce::StringArray ids{"whamMode", "whamHeel", "whamToe", "whamRate", "whamShape", "whamRetrig", "whamGlide"};
+  static const juce::StringArray ids{"whamMode",  "whamHeel",  "whamToe",  "whamRate",  "whamShape",
+                                     "whamRetrig", "whamGlide", "whamInterval", "whamAlgo", "whamMix",
+                                     "whamTone",  "whamGrain", "whamBuffer"};
   return ids;
 }
 
@@ -100,7 +111,12 @@ bool WhamPresets::remove(const juce::String& name) {
 
 void WhamPresets::apply(const Preset& preset, juce::AudioProcessorValueTreeState& state) {
   for (const auto& id : paramIds()) {
-    if (!preset.values.contains(id)) continue;
+    if (!preset.values.contains(id)) {
+      // Presets saved before INTERVAL existed are Heel / Toe ones.
+      if (id == "whamInterval")
+        if (auto* param = state.getParameter(id)) param->setValueNotifyingHost(0.0f);
+      continue;
+    }
     if (auto* param = state.getParameter(id)) {
       param->beginChangeGesture();
       param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(preset.values[id])));

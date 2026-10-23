@@ -74,6 +74,17 @@ public:
     frames_ = 0;
   }
 
+  // Voicing (the ADV page): SHIMMER jitters the held phases a little each
+  // frame (movement, less of a static pad); LOW CUT / TONE filter the held
+  // layer only.
+  void setVoicing(float shimmer01, float lowCutHz, float toneHz) {
+    shimmer_ = shimmer01;
+    lowCut_.set(Biquad::Type::highPass, fs_, juce::jmax(20.0f, lowCutHz), 0.7071);
+    tone_.set(Biquad::Type::lowPass, fs_, juce::jmin(toneHz, 19000.0f), 0.7071);
+    lowCutOn_ = lowCutHz > 25.0f;
+    toneOn_ = toneHz < 19000.0f;
+  }
+
   void set(bool held, Type type, float fadeSeconds, float level01) {
     type_ = type;
     level_ = level01;
@@ -92,7 +103,10 @@ public:
       out_[static_cast<size_t>(pos_)] = 0.0f;
       pos_ = (pos_ + 1) % kSize;
       gain_ = held_ ? juce::jmin(1.0f, gain_ + fadeStep_) : juce::jmax(0.0f, gain_ - fadeStep_);
-      x[i] += layer * gain_ * level_;
+      float l = layer;
+      if (lowCutOn_) l = lowCut_.process(l);
+      if (toneOn_) l = tone_.process(l);
+      x[i] += l * gain_ * level_;
       if (++sinceHop_ == kHop) {
         sinceHop_ = 0;
         analyse();
@@ -145,7 +159,8 @@ private:
     std::fill(work_.begin(), work_.end(), 0.0f);
     for (int k = 0; k < kBins; ++k) {
       const auto kk = static_cast<size_t>(k);
-      synthPhase_[kk] = wrap(synthPhase_[kk] + heldDelta_[kk]);
+      synthPhase_[kk] = wrap(synthPhase_[kk] + heldDelta_[kk] +
+                             (shimmer_ > 0.0f ? shimmer_ * 1.2f * (random_.nextFloat() - 0.5f) : 0.0f));
       work_[static_cast<size_t>(2 * k)] = heldMag_[kk] * std::cos(synthPhase_[kk]);
       work_[static_cast<size_t>(2 * k + 1)] = heldMag_[kk] * std::sin(synthPhase_[kk]);
     }
@@ -167,7 +182,10 @@ private:
   int pos_ = 0, sinceHop_ = 0, frames_ = 0;
   Type type_ = Type::chord;
   bool held_ = false;
-  float gain_ = 0.0f, fadeStep_ = 0.001f, level_ = 0.8f;
+  float gain_ = 0.0f, fadeStep_ = 0.001f, level_ = 0.8f, shimmer_ = 0.0f;
+  Biquad lowCut_, tone_;
+  bool lowCutOn_ = false, toneOn_ = false;
+  juce::Random random_{20260922};
 };
 
 // ---------------------------------------------------------------- Sustainer
@@ -181,7 +199,7 @@ public:
     fs_ = fs;
     shifter_.prepare(fs, maxBlock);
     PitchShift::Params p;
-    p.semitones = 12.0f;
+    p.semitones = interval_;
     p.window = PitchShift::Window::ms20;
     shifter_.setParams(p);
     scratch_.assign(static_cast<size_t>(juce::jmax(1, maxBlock)), 0.0f);
@@ -189,7 +207,7 @@ public:
     envRelease_ = onePole(fs, 60.0);
     slowAttack_ = onePole(fs, 40.0);
     slowRelease_ = onePole(fs, 250.0);
-    gainSmooth_ = onePole(fs, 15.0);
+    gainSmooth_ = onePole(fs, static_cast<double>(responseMs_));
     reset();
   }
 
@@ -199,6 +217,26 @@ public:
     target_ = 0.0f;
     sinceOnset_ = 1 << 30;
     bloom_ = 0.0f;
+  }
+
+  // Voicing (the ADV page): the interval Harmonic blooms into, the FLOOR
+  // below which it lets go, how fast it rides the level (RESPONSE), and a
+  // TONE low-pass on its output.
+  void setVoicing(float intervalSemitones, float floorDb, float responseMs, float toneHz) {
+    if (!juce::exactlyEqual(intervalSemitones, interval_)) {
+      interval_ = intervalSemitones;
+      PitchShift::Params p;
+      p.semitones = interval_;
+      p.window = PitchShift::Window::ms20;
+      shifter_.setParams(p);
+    }
+    floor_ = dbToGain(floorDb);
+    if (!juce::exactlyEqual(responseMs, responseMs_)) {
+      responseMs_ = responseMs;
+      gainSmooth_ = onePole(fs_, juce::jmax(1.0f, responseMs));
+    }
+    tone_.set(Biquad::Type::lowPass, fs_, juce::jmin(toneHz, 19000.0f), 0.7071);
+    toneOn_ = toneHz < 19000.0f;
   }
 
   void set(float amount01, float bloomSeconds, Type type, bool active) {
@@ -224,9 +262,10 @@ public:
       if (sinceOnset_ < (1 << 30)) ++sinceOnset_;
       // Hold the note at its picked level as the string decays; let go at
       // the floor so silence (and muting) stays quiet.
-      const float want = env_ > kFloor && target_ > 0.0f ? juce::jlimit(1.0f, maxGain_, target_ / juce::jmax(env_, 1e-6f)) : 1.0f;
+      const float want = env_ > floor_ && target_ > 0.0f ? juce::jlimit(1.0f, maxGain_, target_ / juce::jmax(env_, 1e-6f)) : 1.0f;
       gain_ = gainSmooth_ * gain_ + (1 - gainSmooth_) * want;
       x[i] *= gain_;
+      if (toneOn_) x[i] = tone_.process(x[i]);
     }
     if (!shifter_.isRunning()) return;
 
@@ -257,6 +296,9 @@ private:
   float env_ = 0, slow_ = 0, gain_ = 1, target_ = 0, maxGain_ = 10, bloom_ = 0, bloomSeconds_ = 1.5f;
   float envAttack_ = 0, envRelease_ = 0, slowAttack_ = 0, slowRelease_ = 0, gainSmooth_ = 0;
   int sinceOnset_ = 1 << 30;
+  float interval_ = 12.0f, floor_ = kFloor, responseMs_ = 15.0f;
+  Biquad tone_;
+  bool toneOn_ = false;
 };
 
 }  // namespace djont

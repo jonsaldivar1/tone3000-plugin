@@ -181,6 +181,53 @@ int main(int argc, char** argv) {
     check(make({})->getLatencySamples() == 0, "Wham off adds no latency");
   }
   {
+    // Whammy modes. Both engines shift; the Whammy list replaces the dry,
+    // Harmony keeps it and adds the voice (and reports no latency).
+    const auto in = sine(110.0, 1.5, 0.3f);
+    for (float algo : {0.0f, 1.0f}) {
+      auto w = make({{"whamOn", 1}, {"whamMode", 0}, {"whamPedal", 100}, {"whamInterval", 2}, {"whamAlgo", algo}});
+      const auto out = run(*w, in);
+      check(tone(out, 220.0) > 10.0 * tone(out, 110.0),
+            algo < 0.5f ? "Classic engine: Whammy Oct Up at the toe plays the octave"
+                        : "Chords engine: Whammy Oct Up at the toe plays the octave");
+    }
+    auto h = make({{"whamOn", 1}, {"whamMode", 0}, {"whamPedal", 0}, {"whamInterval", 19}});  // Oct Dn > Oct Up
+    const auto harm = run(*h, in);
+    check(tone(harm, 110.0) > 1e-4 && tone(harm, 55.0) > 1e-4, "Harmony keeps your note and adds the voice (heel: octave down)");
+    check(h->getLatencySamples() == 0, "Harmony reports no latency (the dry stays on time)");
+    auto c = make({{"whamOn", 1}, {"whamAlgo", 0}, {"whamGrain", 60}});
+    check(c->getLatencySamples() == djont::ClassicShift::latencySamples(60.0f, kFs), "Classic reports its grain delay");
+    auto d = make({{"whamOn", 1}, {"whamInterval", 21}});
+    check(finite(run(*d, in), 2.0f), "Detune stays bounded");
+  }
+  {
+    // Voicing: Hold's Low Cut thins the held lows; the Sustainer's Interval.
+    const auto set = [](DjontProcessor& proc, const char* id, float v) {
+      auto* param = proc.params.getParameter(id);
+      param->setValueNotifyingHost(param->convertTo0to1(v));
+    };
+    auto hp = make({{"sustainOn", 1}, {"sustainMode", 0}, {"holdFade", 0.05f}, {"holdLevel", 100}, {"holdLowCut", 500}});
+    run(*hp, sine(80.0, 0.5, 0.3f));
+    set(*hp, "holdOn", 1);
+    const auto thin = run(*hp, std::vector<float>(static_cast<size_t>(1.0 * kFs), 0.0f));
+    auto full = make({{"sustainOn", 1}, {"sustainMode", 0}, {"holdFade", 0.05f}, {"holdLevel", 100}});
+    run(*full, sine(80.0, 0.5, 0.3f));
+    set(*full, "holdOn", 1);
+    const auto thick = run(*full, std::vector<float>(static_cast<size_t>(1.0 * kFs), 0.0f));
+    check(tone(thin, 80.0, thin.size() / 2) < 0.1 * tone(thick, 80.0, thick.size() / 2), "Hold Low Cut thins the held lows");
+    std::vector<float> pluck(static_cast<size_t>(2.0 * kFs));
+    for (size_t i = 0; i < pluck.size(); ++i) {
+      const double t = static_cast<double>(i) / kFs;
+      pluck[i] = static_cast<float>(0.3 * std::exp(-t * 3.0) * std::sin(juce::MathConstants<double>::twoPi * 110.0 * t));
+    }
+    const auto fifth = run(*make({{"sustainOn", 1}, {"sustainMode", 1}, {"sustainerType", 1}, {"sustainerAmount", 100},
+                                  {"sustainerBloom", 0.3f}, {"sustainerInterval", 1}}),
+                           pluck);
+    const double f5 = 110.0 * std::pow(2.0, 7.0 / 12.0);
+    check(tone(fifth, f5, static_cast<size_t>(1.2 * kFs)) > 3.0 * tone(fifth, 110.0, static_cast<size_t>(1.2 * kFs)),
+          "Sustainer Interval 5th blooms into the fifth");
+  }
+  {
     // Wham presets: save, reload from disk, apply, delete; factory names are
     // protected.
     const auto file = juce::File::createTempFile(".json");
@@ -328,13 +375,14 @@ int main(int argc, char** argv) {
 
   // --snapshot <png> [--look chrome|redfoil] [--settings]
   juce::String snapshotPath, look = "chrome";
-  bool settings = false;
+  bool settings = false, adv = false;
   juce::StringArray sets;  // --set id=value (real units), any number
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
     if (arg == "--snapshot" && i + 1 < argc) snapshotPath = argv[++i];
     else if (arg == "--look" && i + 1 < argc) look = argv[++i];
     else if (arg == "--settings") settings = true;
+    else if (arg == "--adv") adv = true;
     else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
   }
   if (snapshotPath.isNotEmpty()) {
@@ -349,6 +397,7 @@ int main(int argc, char** argv) {
     if (auto* e = dynamic_cast<djont::DjontEditor*>(editor.get())) {
       e->setLook(look);
       e->showSettings(settings);
+      e->showAdvanced(adv);
     }
     const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);
     const juce::File file{snapshotPath};
