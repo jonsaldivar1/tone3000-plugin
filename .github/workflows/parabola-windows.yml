@@ -1,0 +1,133 @@
+# Parabola Bass Z (3-band parallel bass plugin, parabola/): Windows build.
+#
+# - push to main touching parabola/ (or the shared NAM core) -> build
+# - manual run                                                -> build
+#
+# Output: the installer as a run artifact, and on the rolling pre-release
+# "parabola-latest" (Releases page) for a one-click download.
+
+name: Parabola Windows build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "parabola/**"
+      - "plugin/NeuralAmpModelerCore"
+      - ".github/workflows/parabola-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: parabola-windows
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Build Parabola Bass Z (Windows x64)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          # NeuralAmpModelerCore (and its Eigen) + AudioDSPTools.
+          submodules: recursive
+
+      - name: Read version
+        shell: bash
+        run: echo "PARABOLA_VERSION=$(tr -d '[:space:]' < parabola/VERSION)" >> "$GITHUB_ENV"
+
+      - name: Cache JUCE
+        uses: actions/cache@v4
+        with:
+          path: libs/juce
+          key: parabola-juce-9.0.3-windows
+
+      - name: Setup MSVC dev environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      # Steinberg's ASIO SDK (headers only) for the standalone's ASIO driver.
+      - name: Download ASIO SDK
+        shell: pwsh
+        run: |
+          curl.exe -sSL -o asiosdk.zip https://www.steinberg.net/asiosdk
+          Expand-Archive asiosdk.zip -DestinationPath "$env:RUNNER_TEMP\asiosdk"
+          $sdk = (Get-ChildItem "$env:RUNNER_TEMP\asiosdk" -Directory | Select-Object -First 1).FullName
+          if (-not (Test-Path "$sdk\common\iasiodrv.h")) {
+            Write-Error "ASIO SDK layout unexpected: iasiodrv.h not found under $sdk"
+            exit 1
+          }
+          $sdk = $sdk -replace '\\', '/'
+          "ASIO_SDK_PATH=$sdk" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -B build-parabola -S parabola -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPARABOLA_TESTS=ON \
+            -DASIO_SDK_PATH="$ASIO_SDK_PATH"
+
+      - name: Build
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build-parabola --config Release --parallel 2>&1 | tee build-parabola.log
+
+      # Compiler errors as annotations, so they show on the run page (and
+      # through the checks API) without opening the raw log.
+      - name: Report build errors
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "error [A-Z]+[0-9]+|: error|fatal error|LNK[0-9]+" build-parabola.log | head -25 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
+
+      # DSP, state and manual checks. The capture tests need real .nam files,
+      # which can't live in the repo (their licenses), so they're skipped here.
+      - name: Run tests
+        shell: bash
+        run: ./build-parabola/ParabolaTests_artefacts/Release/ParabolaTests.exe
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $iscc /DVersion=$env:PARABOLA_VERSION `
+            /DArtefactsDir="$env:GITHUB_WORKSPACE\build-parabola\ParabolaBassZ_artefacts\Release" `
+            /DOutputDir="$env:GITHUB_WORKSPACE\build-parabola" `
+            parabola\installer\parabola.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Parabola-Bass-Z-v${{ env.PARABOLA_VERSION }}-windows-x64
+          path: build-parabola/Parabola-Bass-Z-v*-windows-x64.exe
+          if-no-files-found: error
+
+      - name: Publish parabola-latest release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          exe=$(ls build-parabola/Parabola-Bass-Z-v*-windows-x64.exe)
+          # The release page doubles as the install guide for anyone you send
+          # the link to; the guides ride along as downloads too.
+          sed -e "s/{{VERSION}}/${PARABOLA_VERSION}/g" -e "s/{{COMMIT}}/$(git rev-parse --short HEAD)/g" \
+            parabola/installer/release-notes.md > release-notes.md
+          gh release delete parabola-latest --cleanup-tag -y || true
+          gh release create parabola-latest "$exe" parabola/manual/Parabola-Bass-Z-Quick-Start.pdf parabola/manual/Parabola-Bass-Z-Manual.pdf \
+            --prerelease \
+            --target "$(git rev-parse HEAD)" \
+            --title "Parabola Bass Z v${PARABOLA_VERSION}" \
+            --notes-file release-notes.md

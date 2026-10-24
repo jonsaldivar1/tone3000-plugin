@@ -1,0 +1,175 @@
+{
+  "plugin": "Parabola Bass Z",
+  "sections": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "tagline": "Three amps on one bass, each on its own slice of the range.",
+      "what": "Parabola splits your bass into three bands (low, mid, high) and gives each band its own amp capture (a NAM file you load). The low band stays clean and compressed so the bottom never gets mushy; the mid band growls; the high band adds grit and fizz. Then a cab IR goes on the mid and high bands, a graphic EQ shapes the total, and it all comes back out as one signal.",
+      "how": "This is the trick behind parallel bass rigs like the Parallax X: distortion on the lows turns to mud, so the lows are kept clean and the drive happens above them. Parabola does the split with phase-aligned crossovers, so with nothing loaded and every band at 0 dB, your signal comes out unchanged.",
+      "sound": "Modern metal and djent bass: a tight, round low end that holds up the mix, with a snarling, articulate top on it, and every part adjustable on its own.",
+      "try": [
+        "Put Parabola on your bass track (DI, no amp before it). It replaces your amp and cab.",
+        "Load a clean amp capture into LOW (or leave it empty for a clean DI low end).",
+        "Load a drive capture into MID and a heavier one into HIGH, then load a cab IR.",
+        "Hover anything: the bar at the bottom says what it does. Drop .nam files right onto the bands."
+      ],
+      "controls": [
+        ["Gate", "Silences noise between notes, on your DI before everything. Fully down is off."],
+        ["Input / Output", "Level into Parabola and out of it, ±24 dB. The meter turns red when the output clips."],
+        ["?", "This manual."],
+        ["Gear", "Settings: the skin, and in the standalone app your audio interface and latency."]
+      ]
+    },
+    {
+      "id": "crossover",
+      "title": "Crossover",
+      "tagline": "Where the low band ends and the drive begins.",
+      "what": "The display shows the three bands as colored curves, including each band's level and EQ. The two white handles are the split points: Low / Mid (default 180 Hz) and Mid / High (default 1.6 kHz).",
+      "how": "Each split is a Linkwitz-Riley 24 dB/octave filter pair, the standard for speaker crossovers because the two sides add back up flat. The low band also passes through a matching all-pass, so all three bands stay in phase with each other.",
+      "sound": "A higher Low / Mid split keeps more of the bass clean (rounder, more polite). A lower one lets the drive reach further down (meaner, but watch for mud). The Mid / High split decides how much of the growl is 'mid' versus 'fizz'.",
+      "try": [
+        "Start at 180 Hz / 1.6 kHz. For 5-string or drop tunings try 150 Hz.",
+        "Mute the mid and high bands (their power lights) to hear just the low band, then sweep Low / Mid.",
+        "Double-click a handle to put it back to its default."
+      ],
+      "controls": [
+        ["Low / Mid handle", "Drag left or right: 60 to 400 Hz."],
+        ["Mid / High handle", "Drag left or right: 600 Hz to 5 kHz."],
+        ["Legend", "Each band's level, or OFF when its power light is off."]
+      ]
+    },
+    {
+      "id": "low",
+      "title": "Low band",
+      "tagline": "The clean, compressed foundation.",
+      "what": "Everything below the Low / Mid split. It can run a capture (a clean amp is the classic choice) or nothing at all for a pure DI low end, then goes through its own compressor.",
+      "how": "Drive sets the level into the capture. Comp is a one-knob compressor: turning it up lowers the threshold and raises the ratio, with a little makeup gain, so the lows sit at an even level whatever you play. By default the low band skips the cab IR, the Parallax way: a cab would only smear the fundamental.",
+      "sound": "The weight and the pitch of every note: solid, even, never fuzzy.",
+      "try": [
+        "Leave it empty, or load a clean amp (an Ampeg SVT clean, say). Comp around 40%.",
+        "More Comp for picked, aggressive parts; less for fingerstyle dynamics.",
+        "ADV: a little Bass boost here instead of in the graphic EQ keeps the drive bands tight."
+      ],
+      "controls": [
+        ["Power light", "Mutes the band."],
+        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
+        ["Drive", "Level into the capture, -12 to +24 dB."],
+        ["Comp", "Compression amount, 0 to 100%."],
+        ["Level", "The band's volume in the mix."],
+        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
+        ["ADV: CAB", "Send this band through the cab IR. Off by default for low."]
+      ]
+    },
+    {
+      "id": "mid",
+      "title": "Mid band",
+      "tagline": "The growl.",
+      "what": "Between the two splits: where a bass's character and most of its distortion live. Load a drive capture here (a Darkglass-style pedal or a driven amp).",
+      "how": "Drive pushes the band harder into its capture. Each capture's output is level-matched from its loudness data, so swapping captures doesn't jump the volume. Tone is a low-pass after the capture that rounds off the top of the distortion. Through the cab IR by default.",
+      "sound": "Growl, bark and definition: what makes a riff audible in a dense mix.",
+      "try": [
+        "Load B7K Djent or B7K Hard Rock. Drive 0 dB to start, then up to taste.",
+        "Tone around 5 kHz keeps the growl without fizz; open it up if the high band is off.",
+        "Level a couple of dB under the low band is a good starting balance."
+      ],
+      "controls": [
+        ["Power light", "Mutes the band."],
+        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
+        ["Drive", "How hard the capture is pushed, -12 to +24 dB."],
+        ["Tone", "Low-pass after the capture, 1 to 20 kHz (fully up is off)."],
+        ["Level", "The band's volume in the mix."],
+        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
+        ["ADV: CAB", "Send this band through the cab IR. On by default."]
+      ]
+    },
+    {
+      "id": "high",
+      "title": "High band",
+      "tagline": "Grit, fizz and pick attack.",
+      "what": "Everything above the Mid / High split: string noise, pick attack and the fizzy edge of a distorted bass. A heavier drive capture usually goes here.",
+      "how": "Same as the mid band: Drive into the capture, level-matched output, a Tone low-pass, Bass / Mid / Treble, then the cab IR. Because only the top of the range reaches this capture, you can drive it very hard without the low end turning to mush.",
+      "sound": "The aggressive top end metal bass is known for. A little goes a long way; it's usually the quietest band.",
+      "try": [
+        "Load B7K Heavy or B7K Distortion. Level around -6 dB.",
+        "Tone at 8 to 12 kHz takes the harsh edge off.",
+        "Mute it and unmute it: the difference is how 'modern' the tone sounds."
+      ],
+      "controls": [
+        ["Power light", "Mutes the band."],
+        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
+        ["Drive", "How hard the capture is pushed, -12 to +24 dB."],
+        ["Tone", "Low-pass after the capture, 1 to 20 kHz (fully up is off)."],
+        ["Level", "The band's volume in the mix."],
+        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
+        ["ADV: CAB", "Send this band through the cab IR. On by default."]
+      ]
+    },
+    {
+      "id": "cab",
+      "title": "Cab",
+      "tagline": "A speaker cabinet for the drive bands.",
+      "what": "Load a cab impulse response (a .wav) and it's applied to every band whose CAB switch is on: mid and high by default. The top line says which bands go through it.",
+      "how": "The IR is convolved (zero added latency) with the sum of the cab bands. A capture whose file says it already includes a cab (a 'full rig' capture, like the Alpha Omega pack) skips the IR automatically, so it isn't doubled up.",
+      "sound": "The cab takes the raw fizz off the distortion and gives it the shape of a real speaker. 8x10s are big and round, 4x10s tighter and punchier, 2x15s warm and vintage.",
+      "try": [
+        "Try an Ampeg 8x10 with a D6 mic, then an Eden 4x10, and compare.",
+        "CAB ON off for a DI-style tone (with a guitar-style cab sim later in the chain, say).",
+        "Drag a .wav straight onto the cab panel."
+      ],
+      "controls": [
+        ["LOAD / ×", "Load an IR (.wav, .aiff, .flac) or remove it."],
+        ["CAB ON", "Runs the cab bands through the IR. Off bypasses it for every band."]
+      ]
+    },
+    {
+      "id": "geq",
+      "title": "Graphic EQ",
+      "tagline": "Final shaping, after the bands are back together.",
+      "what": "Six faders, ±12 dB, at 80 Hz, 250 Hz, 500 Hz, 1 kHz, 2.5 kHz and 6 kHz, on the mixed signal.",
+      "how": "Six bell filters in a row. A fader at 0 dB is switched out completely.",
+      "sound": "80 Hz is the thump, 250 Hz the boom (cut it for clarity), 500 Hz the wood, 1 kHz the honk and clank, 2.5 kHz the growl and attack, 6 kHz the sizzle.",
+      "try": [
+        "Cut 250 Hz by 2 to 4 dB to clean up mud.",
+        "Boost 1 kHz or 2.5 kHz a little to cut through guitars.",
+        "Double-click a fader to reset it."
+      ],
+      "controls": [
+        ["Faders", "Drag up to boost, down to cut. Double-click resets."]
+      ]
+    },
+    {
+      "id": "captures",
+      "title": "Captures & IRs",
+      "tagline": "Where the sounds come from.",
+      "what": "Parabola doesn't ship with any captures or IRs: you load your own .nam files (from TONE3000, say) and cab IRs. Their licenses usually don't allow passing the files around, so each person downloads their own.",
+      "how": "Parabola remembers each band's file and the IR by their location on your computer, so a project or a saved session finds them again as long as they stay put. Put them in Documents\\Parabola Bass Z\\NAMs and \\Cabs (the installer makes those folders) and the LOAD buttons open there.",
+      "sound": "Good starting points: a clean Ampeg SVT for low, a Darkglass B7K pack for mid and high, an Ampeg 8x10 or Eden 4x10 IR.",
+      "try": [
+        "Download a few captures, drop them into Documents\\Parabola Bass Z\\NAMs.",
+        "Drag a .nam from File Explorer onto a band.",
+        "Watch the slot: it shows the capture's name, its type and who made it."
+      ],
+      "controls": [
+        ["Full rig", "A capture with a cab in it. Parabola skips the IR for it."],
+        ["Level matching", "Every capture is brought to the same loudness, from its own data."]
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings & latency",
+      "tagline": "Skins, audio setup and delay.",
+      "what": "The gear opens Settings: five skins (Foil, Inferno, Hologram, Ram, Ember), and in the standalone app your audio interface, input, outputs, sample rate and buffer, with a latency readout.",
+      "how": "Captures are trained at 48 kHz, so Parabola runs everything at 48 kHz. If your project or interface runs at another rate, it converts on the way in and out, which adds under 1 ms; it tells your DAW so tracks stay lined up. At 48 kHz it adds nothing.",
+      "sound": "For the lowest latency: ASIO, 48 kHz, and the smallest buffer that doesn't crackle (64 or 128 is typical). Three captures use more CPU than one; raise the buffer if it crackles.",
+      "try": [
+        "No sound in the standalone app? Turn on Hear yourself and check your bass's input is ticked.",
+        "Drag the bottom-right corner to resize the window (60% to 200%)."
+      ],
+      "controls": [
+        ["Skin", "The photo and colors. Saved with the plugin's state."],
+        ["Hear yourself", "Plays the output while your input is live. Off by default to prevent feedback."]
+      ]
+    }
+  ]
+}
