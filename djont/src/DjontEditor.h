@@ -8,6 +8,7 @@
 //           and named presets.
 //   Footer: a plain-text hint line: whatever the mouse is over, what it does
 //           and (for a knob) its current value. No popup tooltips.
+// The "?" opens the manual over the body (topics from manual.json).
 // The gear opens Settings over the body: the look, and in the standalone app
 // the audio device (driver type such as ASIO, device, input / output
 // channels, sample rate, buffer size), the latency it adds up to, and Hear
@@ -352,6 +353,55 @@ private:
   juce::String latency_;
 };
 
+// The "?" in the header.
+class HelpButton : public juce::Button, public HintSource {
+public:
+  HelpButton();
+  void paintButton(juce::Graphics& g, bool highlighted, bool down) override;
+  juce::String hint() const override;
+};
+
+// The manual, over the body: topics on the left, the selected one on the
+// right (what it does, how it works, the sound, things to try, controls).
+// The text comes from djont/manual/manual.json, the same file the PDF
+// manual is built from, so the two never disagree.
+class ManualPanel : public juce::Component, public HintSource {
+public:
+  ManualPanel();
+  ~ManualPanel() override;
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  void lookAndFeelChanged() override;
+  juce::String hint() const override;
+  void showSection(int index);
+  int sectionCount() const { return static_cast<int>(sections_.size()); }
+  std::function<void()> onClose;
+
+  struct Section {
+    juce::String id, title, tagline, what, how, sound;
+    juce::StringArray tries;
+    std::vector<std::pair<juce::String, juce::String>> controls;
+  };
+  static std::vector<Section> load();  // parses the embedded manual.json
+
+private:
+  class Page : public juce::Component {
+  public:
+    void build(const Section& s, int width);
+    void paint(juce::Graphics& g) override;
+
+  private:
+    juce::TextLayout layout_;
+  };
+
+  std::vector<Section> sections_;
+  juce::OwnedArray<juce::TextButton> tabs_;
+  juce::TextButton done_{"DONE"};
+  juce::Viewport viewport_;
+  Page page_;
+  int current_ = 0;
+};
+
 // Everything you see, laid out at its design size (kWidth x kHeight). The
 // editor scales it to the window, so resizing keeps the layout.
 class DjontView : public juce::Component, private juce::Timer {
@@ -365,6 +415,7 @@ public:
 
   void setLook(const juce::String& lookId);
   void showSettings(bool show);
+  void showManual(bool show, int section = -1);
   void showAdvanced(bool show);  // flips Wham and Sustain to their ADV side
   juce::String currentHint() const { return hint_; }
 
@@ -374,6 +425,7 @@ public:
 private:
   void timerCallback() override;
   void updateHint();
+  void showOverlay(juce::Component* overlay);  // settings, manual, or nullptr for the controls
   void paintOverChildren(juce::Graphics& g) override;
   juce::Component* learnTarget_ = nullptr;
   juce::String learnName_, confirm_;
@@ -383,10 +435,12 @@ private:
   DjontLookAndFeel lnf_;
   Knob input_, output_;
   GearButton gear_;
+  HelpButton help_;
   WhamModule wham_;
   SustainModule sustain_;
   std::vector<std::unique_ptr<Module>> modules_;
   SettingsPanel settings_;
+  ManualPanel manual_;
   juce::Image photo_, photoScaled_;
   float photoScaledAt_ = 0.0f;
   float meterDb_ = -60.0f;
@@ -404,6 +458,7 @@ public:
 
   void setLook(const juce::String& lookId) { view_.setLook(lookId); }
   void showSettings(bool show) { view_.showSettings(show); }
+  void showManual(bool show, int section = -1) { view_.showManual(show, section); }
   void showAdvanced(bool show) { view_.showAdvanced(show); }
   juce::String currentHint() const { return view_.currentHint(); }
 

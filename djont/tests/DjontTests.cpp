@@ -373,10 +373,20 @@ int main(int argc, char** argv) {
     check(q.params.state.getProperty("look").toString() == "redfoil", "the look is saved with the plugin state");
   }
 
-  // --snapshot <png> [--look chrome|redfoil] [--settings]
+  {
+    // The manual: every topic parses, with the parts the panel shows.
+    const auto sections = djont::ManualPanel::load();
+    check(sections.size() >= 10, "the manual has all its topics");
+    bool complete = true;
+    for (const auto& s : sections)
+      complete = complete && s.title.isNotEmpty() && s.what.isNotEmpty() && s.how.isNotEmpty() && !s.tries.isEmpty();
+    check(complete, "every manual topic has a title, what it does, how it works and things to try");
+  }
+
+  // --snapshot <png> [--look chrome|redfoil] [--settings] [--manual n]
   juce::String snapshotPath, look = "chrome";
   bool settings = false, adv = false;
-  int width = 0;
+  int width = 0, manual = -1;
   juce::StringArray sets;  // --set id=value (real units), any number
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
@@ -384,6 +394,7 @@ int main(int argc, char** argv) {
     else if (arg == "--look" && i + 1 < argc) look = argv[++i];
     else if (arg == "--settings") settings = true;
     else if (arg == "--adv") adv = true;
+    else if (arg == "--manual" && i + 1 < argc) manual = juce::String(argv[++i]).getIntValue();
     else if (arg == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
     else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
   }
@@ -400,6 +411,7 @@ int main(int argc, char** argv) {
       e->setLook(look);
       e->showSettings(settings);
       e->showAdvanced(adv);
+      if (manual >= 0) e->showManual(true, manual);
       if (width > 0) e->setSize(width, width * djont::DjontView::kHeight / djont::DjontView::kWidth);
     }
     const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);

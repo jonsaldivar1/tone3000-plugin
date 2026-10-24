@@ -32,7 +32,7 @@ option(DJONT_TESTS "Build the DjontTests console app" OFF)
 juce_add_binary_data(DjontAssets
     NAMESPACE DjontBinary
     HEADER_NAME DjontBinary.h
-    SOURCES assets/Anton-Regular.ttf assets/djont-chrome.jpg assets/djont-redfoil.jpg
+    SOURCES assets/Anton-Regular.ttf assets/djont-chrome.jpg assets/djont-redfoil.jpg manual/manual.json
 )
 set_target_properties(DjontAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -56,6 +56,7 @@ juce_add_plugin(dJONt
     VST3_CATEGORIES Fx Distortion
     FORMATS VST3 Standalone
     COPY_PLUGIN_AFTER_BUILD FALSE
+    ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/icon/djont.png"
 )
 
 target_sources(dJONt PRIVATE ${DJONT_SOURCES})

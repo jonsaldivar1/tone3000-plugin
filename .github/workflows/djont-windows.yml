@@ -118,9 +118,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           exe=$(ls build-djont/dJONt-v*-windows-x64.exe)
+          # The release page doubles as the install guide for anyone you send
+          # the link to; the guides ride along as downloads too.
+          sed -e "s/{{VERSION}}/${DJONT_VERSION}/g" -e "s/{{COMMIT}}/$(git rev-parse --short HEAD)/g" \
+            djont/installer/release-notes.md > release-notes.md
           gh release delete djont-latest --cleanup-tag -y || true
-          gh release create djont-latest "$exe" \
+          gh release create djont-latest "$exe" djont/manual/dJONt-Quick-Start.pdf djont/manual/dJONt-Manual.pdf \
             --prerelease \
             --target "$(git rev-parse HEAD)" \
-            --title "dJONt latest (v${DJONT_VERSION}, $(git rev-parse --short HEAD))" \
-            --notes "Built from main at $(git rev-parse --short HEAD). Unsigned personal build: Windows SmartScreen will warn on first run (More info > Run anyway)."
+            --title "dJONt v${DJONT_VERSION}" \
+            --notes-file release-notes.md

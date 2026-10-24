@@ -28,7 +28,8 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayIcon={app}\dJONt.exe
+SetupIconFile=djont.ico
+UninstallDisplayIcon={app}\djont.ico
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 UninstallDisplayName=dJONt
@@ -44,13 +45,24 @@ Name: "vst3";       Description: "VST3 plug-in";           Types: full custom
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Components: standalone
 
+[InstallDelete]
+; Up to 0.5 the Start menu had a single dJONt shortcut; it's a folder now.
+Type: files; Name: "{autoprograms}\dJONt.lnk"
+
 [Files]
+Source: "djont.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\manual\dJONt-Quick-Start.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\manual\dJONt-Manual.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "{#ArtefactsDir}\Standalone\dJONt.exe"; DestDir: "{app}"; Components: standalone; Flags: ignoreversion
 Source: "{#ArtefactsDir}\VST3\dJONt.vst3\*"; DestDir: "{commoncf64}\VST3\dJONt.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\dJONt"; Filename: "{app}\dJONt.exe"; Components: standalone
+Name: "{autoprograms}\dJONt\dJONt"; Filename: "{app}\dJONt.exe"; Components: standalone
+Name: "{autoprograms}\dJONt\dJONt Quick Start"; Filename: "{app}\docs\dJONt-Quick-Start.pdf"
+Name: "{autoprograms}\dJONt\dJONt Manual"; Filename: "{app}\docs\dJONt-Manual.pdf"
+Name: "{autoprograms}\dJONt\Uninstall dJONt"; Filename: "{uninstallexe}"; IconFilename: "{app}\djont.ico"
 Name: "{autodesktop}\dJONt"; Filename: "{app}\dJONt.exe"; Tasks: desktopicon
 
 [Run]
+Filename: "{app}\docs\dJONt-Quick-Start.pdf"; Description: "Open the Quick Start guide"; Flags: shellexec postinstall skipifsilent nowait
 Filename: "{app}\dJONt.exe"; Description: "Launch dJONt"; Components: standalone; Flags: nowait postinstall skipifsilent

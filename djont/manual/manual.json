@@ -1,0 +1,195 @@
+{
+  "plugin": "dJONt",
+  "sections": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "tagline": "A pedalboard that goes in front of your amp sim.",
+      "what": "dJONt is a set of effects for guitar that run before the amp: Wham (a virtual whammy), Sustain (Hold and Sustainer), Tight, Grit, Sub and Lo-Fi. Each module has a power light; off modules pass your signal untouched.",
+      "how": "The signal runs left to right in a fixed order: Wham, Sustain, Tight, Grit, Sub, Lo-Fi. dJONt works on your guitar's dry signal, so put it on the track before T3KJ (or any amp sim), like pedals in front of an amp.",
+      "sound": "Everything here is built for low tunings and heavy rhythm playing, plus the pitch and sustain tricks you'd normally need a pedalboard for.",
+      "try": [
+        "In Reaper: add dJONt to your guitar track, then T3KJ after it.",
+        "Turn on Tight and play palm mutes. That's the module most people leave on.",
+        "Hover over anything: the hint bar at the bottom explains it and shows its value.",
+        "Drag knobs up and down. Double-click a knob to reset it. Right-click any control for MIDI learn."
+      ],
+      "controls": [
+        ["Input / Output", "Level into and out of dJONt, ±24 dB. The meter turns red when the output clips."],
+        ["Gear", "Settings: the look (Chrome or Red Foil), and in the standalone app your audio interface, MIDI inputs and latency."],
+        ["?", "This manual."],
+        ["ADV", "Flips Wham or Sustain over to their voicing controls. BACK returns."]
+      ]
+    },
+    {
+      "id": "wham",
+      "title": "Wham",
+      "tagline": "A virtual whammy pedal, with or without a real pedal.",
+      "what": "Wham bends your pitch between the heel (pedal up) and the toe (pedal down). You move the pedal with the mouse or a MIDI pedal (PEDAL), or an LFO moves it for you (AUTO). INTERVAL picks what heel and toe mean: classic Whammy settings, two-voice Harmony, Detune, or Custom with your own Heel and Toe.",
+      "how": "Two engines. CLASSIC is the old-school two-tap shifter: it tracks the note you play and sizes its sweep to that note, which is why single notes are clean and chords warble like the original pedal. CHORDS is a smarter splicing shifter that keeps chords clean and in tune. Pitch shifting needs a short buffer, so Wham adds a little latency while it's on (Settings shows how much); dJONt reports it to your DAW so tracks stay lined up.",
+      "sound": "Octave squeals, dive bombs, rhythmic octave sweeps, bluesy harmony bends, and with Detune a chorus-like doubled thickness.",
+      "try": [
+        "Turn Wham on. It starts in AUTO, Custom, Heel 0, Toe +12: an octave sweep, once a second.",
+        "Shape RISE plus RETRIG: one scoop up per pick.",
+        "PEDAL plus INTERVAL Oct Up, then drag the rocker toward TOE for the classic Whammy squeal.",
+        "INTERVAL Detune Deep with the CHORDS engine on rhythm parts for a doubled, chorus-y sound.",
+        "Presets: load a factory one (Dive Bomb, Siren, Octave Stabs) and SAVE your own."
+      ],
+      "controls": [
+        ["PEDAL / AUTO", "Who moves the pedal: you (mouse, scroll, MIDI) or an LFO."],
+        ["INTERVAL", "Custom (your Heel / Toe), Whammy (2 Oct Up … Dive Bomb), Harmony (your note plus a moving second voice), Detune (your note plus a slightly detuned copy)."],
+        ["Heel / Toe", "Custom only: the pitch at each end of the pedal, ±24 semitones."],
+        ["Rate / Shape / Retrig", "AUTO only: LFO speed, its shape (Sine, Triangle, Rise, Square), and restarting the sweep on every pick."],
+        ["Glide", "PEDAL only: how long the pitch takes to follow the pedal. Up it for footswitch sweeps."],
+        ["Mix", "Dry vs shifted. In Harmony it's the second voice's level."],
+        ["ADV: Grain", "Classic only: short is tighter and more metallic on chords, long is smoother and wobblier."],
+        ["ADV: Buffer", "Chords only: 20 ms is tightest, 60 ms smoothest on low notes."],
+        ["ADV: Tone", "Darkens the shifted signal. Up-shifts get fizzy; roll this back."]
+      ]
+    },
+    {
+      "id": "hold",
+      "title": "Sustain: Hold",
+      "tagline": "A piano sustain pedal for guitar.",
+      "what": "Press HOLD and what's ringing keeps sounding as a smooth pad, while you keep playing normally on top. CHORD freezes the chord ringing at that moment; PILE-UP keeps adding every note you play while HOLD is down.",
+      "how": "Hold takes a snapshot of the sound's spectrum and keeps resynthesizing it (a spectral freeze), so the held part is steady instead of a stuttering loop. Your live guitar passes through untouched.",
+      "sound": "Ambient pads under a lead, held chords in breakdowns, swelling drones. Long Fade gives pads, short Fade gives stabs.",
+      "try": [
+        "Turn Sustain on and pick HOLD, then CHORD.",
+        "Strum a chord, click HOLD while it rings, then solo over it. Click HOLD again to let go.",
+        "Map HOLD to a footswitch (right-click it, MIDI Learn) and use LATCH: tap on, tap off."
+      ],
+      "controls": [
+        ["HOLD", "Holds the sound. Works with the mouse or a MIDI footswitch."],
+        ["CHORD / PILE-UP", "Freeze one moment, or keep stacking notes while held."],
+        ["LATCH", "On: one press holds, the next lets go. Off: holds only while pressed."],
+        ["Fade", "How fast the held sound swells in and dies away."],
+        ["Level", "Held sound vs your live playing. 100% = as loud as it was."],
+        ["ADV: Shimmer", "Adds movement so the pad is less static."],
+        ["ADV: Low Cut / Tone", "Thin the held lows so they don't muddy what you play over them; darken the pad."]
+      ]
+    },
+    {
+      "id": "sustainer",
+      "title": "Sustain: Sustainer",
+      "tagline": "The Sustainiac idea: notes that don't die.",
+      "what": "As your note fades, the Sustainer brings it back up to where you picked it, so single notes ring for as long as you hold them. In HARM it blooms into the octave (or the Interval you pick) the way a sustainer pickup's harmonic mode does.",
+      "how": "A level-riding gain stage follows the note's level and makes up the loss, up to +40 dB, then lets go when the note drops under the Floor, so muting the strings still means silence. HARM and MIX fade in a pitch-shifted copy over the Bloom time.",
+      "sound": "Endless lead notes, feedback-style blooms into the octave without standing in front of an amp. Best on single notes and two-note shapes.",
+      "try": [
+        "Turn Sustain on, pick SUSTAINER, type FUND, Sustain around 60%.",
+        "Switch to HARM and hold a note: it blooms into the octave over the Bloom time.",
+        "If it gets noisy: lower Sustain, turn on Tight, or put a gate after dJONt."
+      ],
+      "controls": [
+        ["FUND / HARM / MIX", "Hold the note you played, bloom into the Interval, or bloom halfway."],
+        ["Sustain", "How much it holds the note up."],
+        ["Bloom", "How long HARM / MIX take to bloom after each pick (0.2 to 6 s)."],
+        ["ADV: Interval", "What it blooms into: Octave, 5th, 12th, 2 Octaves."],
+        ["ADV: Floor", "How quiet a note gets before it lets go."],
+        ["ADV: Response", "Fast is tight, slow swells."],
+        ["ADV: Tone", "Tames the hiss it brings up."]
+      ]
+    },
+    {
+      "id": "tight",
+      "title": "Tight",
+      "tagline": "Palm mutes that hit harder and stop sooner.",
+      "what": "Tight pushes each pick attack and trims the ring-out after it, in the band where your low strings live.",
+      "how": "A detector band-passes the signal at Freq and compares a fast envelope with a slow one. On an attack the band is lifted (up to about +12 dB); as the note decays it's trimmed a little. It's like a transient shaper aimed at the chug.",
+      "sound": "Tighter, punchier rhythm parts into a high-gain amp, without changing your tone between hits.",
+      "try": [
+        "Leave it on for any heavy rhythm part. Amount 50% is a good start.",
+        "Set Freq near your low string: around 80–120 Hz for drop tunings, higher for more pick click."
+      ],
+      "controls": [
+        ["Amount", "How hard each attack is pushed and how much the ring-out is trimmed."],
+        ["Freq", "The band Tight listens to and punches up (60 Hz to 1 kHz)."]
+      ]
+    },
+    {
+      "id": "grit",
+      "title": "Grit",
+      "tagline": "Fuzz on the low end only.",
+      "what": "Grit adds a fuzzed copy of just your lows, under your dry signal.",
+      "how": "The lows below Freq are split off, driven into an asymmetric clipper, low-passed again so the fizz stays out, and blended back in.",
+      "sound": "A thicker, growlier bottom end, especially into a clean or lightly driven amp, without making the top end harsher.",
+      "try": [
+        "Blend around 40%, Drive to taste.",
+        "Use a low Freq (around 100 Hz) so only the very bottom gets fuzzed."
+      ],
+      "controls": [
+        ["Drive", "How hard the low-end fuzz is pushed."],
+        ["Blend", "How much fuzz sits under your dry signal."],
+        ["Freq", "Only the lows below this get fuzzed (60 to 400 Hz)."]
+      ]
+    },
+    {
+      "id": "sub",
+      "title": "Sub",
+      "tagline": "An octave below, under your dry signal.",
+      "what": "Sub adds the octave down, through a low-pass so it stays a round, heavy bottom.",
+      "how": "CLEAN uses a pitch shifter that handles chords (the octave trails your note by about 20 ms; your dry note doesn't). SYNTH is a flip-flop divider like an analog octave pedal: instant, buzzy, single notes only.",
+      "sound": "Bass-guitar weight under riffs, or a synthy octave growl with SYNTH.",
+      "try": [
+        "CLEAN, Blend 40%, Tone low, for chugs that sound like there's a bass player.",
+        "SYNTH on single-note riffs for an analog-octaver buzz."
+      ],
+      "controls": [
+        ["CLEAN / SYNTH", "Chord-friendly shifter, or an instant analog-style divider."],
+        ["Blend", "How loud the octave below is."],
+        ["Tone", "Low-pass on the octave; lower is rounder."]
+      ]
+    },
+    {
+      "id": "lofi",
+      "title": "Lo-Fi",
+      "tagline": "A radio / telephone filter.",
+      "what": "Lo-Fi squeezes your sound into a narrow band, like an old radio or a phone speaker.",
+      "how": "A band-pass filter around Tone with a touch of drive.",
+      "sound": "Intros, breakdowns and 'before the drop' moments that open up when you switch it off.",
+      "try": [
+        "Map its power light to a footswitch and kick it off for the drop.",
+        "Tone around 1 kHz is classic telephone; lower is muffled AM radio."
+      ],
+      "controls": [
+        ["Tone", "Center of the band (300 Hz to 3 kHz)."],
+        ["Blend", "Dry to fully filtered."]
+      ]
+    },
+    {
+      "id": "midi",
+      "title": "MIDI & footswitches",
+      "tagline": "Put any control on a footswitch or expression pedal.",
+      "what": "Every knob, power light, the HOLD button and the Wham rocker can be driven by MIDI CC from a controller, like a Quad Cortex footswitch or an expression pedal.",
+      "how": "Right-click a control and choose MIDI Learn, then move or press the controller; dJONt maps that CC to it. Mappings save with the plugin's state (in the standalone app between sessions, and in your DAW project). In a DAW you can also use the DAW's own parameter learn.",
+      "sound": "Hands-free HOLD, footswitch Wham sweeps (map Wham Pedal and turn up Glide), or a real expression pedal on the rocker.",
+      "try": [
+        "Standalone: gear, then tick your controller under MIDI inputs.",
+        "Right-click HOLD, MIDI Learn, press the footswitch. The hint bar confirms the CC.",
+        "Right-click again to Forget it."
+      ],
+      "controls": [
+        ["Right-click", "MIDI Learn / Forget MIDI / Cancel."],
+        ["Hint bar", "Shows a control's CC when it's mapped."]
+      ]
+    },
+    {
+      "id": "settings",
+      "title": "Settings & latency",
+      "tagline": "Audio setup for the standalone app.",
+      "what": "The gear opens Settings: the look, and in the standalone app your audio interface, inputs, outputs, sample rate, buffer, MIDI inputs and a live latency readout.",
+      "how": "In a DAW, the DAW owns the audio device, so those controls only appear in the standalone app. dJONt itself adds no latency, except Wham while it's on.",
+      "sound": "The lowest latency comes from ASIO and the smallest buffer that doesn't crackle (64 or 128 is typical).",
+      "try": [
+        "No sound in the standalone app? Turn on Hear yourself, and check your guitar's input is ticked.",
+        "Pick ASIO and your interface, 48 kHz, buffer 64 or 128."
+      ],
+      "controls": [
+        ["Look", "Chrome or Red Foil. Saved with the plugin's state."],
+        ["Hear yourself", "Plays dJONt's output while your input is live. Off by default to prevent feedback."],
+        ["Window size", "Drag the bottom-right corner: 60% to 200%. dJONt remembers it."]
+      ]
+    }
+  ]
+}

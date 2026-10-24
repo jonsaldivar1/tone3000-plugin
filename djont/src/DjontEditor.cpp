@@ -1130,6 +1130,157 @@ void SettingsPanel::resized() {
   }
 }
 
+// ---------------------------------------------------------------- help (?)
+HelpButton::HelpButton() : juce::Button("Manual") {
+  setTitle("Manual");
+  setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  setSize(30, 30);
+}
+
+juce::String HelpButton::hint() const {
+  return "Manual: what each module does, how it works, the sound it's for, and settings to try.";
+}
+
+void HelpButton::paintButton(juce::Graphics& g, bool highlighted, bool down) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto colour = getToggleState() || down ? L.accent : highlighted ? L.ink : L.ink.withAlpha(0.8f);
+  const auto r = getLocalBounds().toFloat().reduced(3.0f);
+  g.setColour(colour);
+  g.drawEllipse(r, 2.0f);
+  g.setFont(juce::Font(juce::FontOptions(17.0f, juce::Font::bold)));
+  g.drawText("?", getLocalBounds().translated(0, 1), juce::Justification::centred, false);
+}
+
+// ---------------------------------------------------------------- manual
+std::vector<ManualPanel::Section> ManualPanel::load() {
+  std::vector<Section> out;
+  const auto json = juce::JSON::parse(
+      juce::String::fromUTF8(DjontBinary::manual_json, DjontBinary::manual_jsonSize));
+  if (auto* sections = json["sections"].getArray()) {
+    for (const auto& v : *sections) {
+      Section s;
+      s.id = v["id"].toString();
+      s.title = v["title"].toString();
+      s.tagline = v["tagline"].toString();
+      s.what = v["what"].toString();
+      s.how = v["how"].toString();
+      s.sound = v["sound"].toString();
+      if (auto* tries = v["try"].getArray())
+        for (const auto& t : *tries) s.tries.add(t.toString());
+      if (auto* controls = v["controls"].getArray())
+        for (const auto& c : *controls)
+          if (auto* pair = c.getArray(); pair != nullptr && pair->size() == 2)
+            s.controls.emplace_back((*pair)[0].toString(), (*pair)[1].toString());
+      out.push_back(std::move(s));
+    }
+  }
+  return out;
+}
+
+ManualPanel::ManualPanel() : sections_(load()) {
+  for (int i = 0; i < sectionCount(); ++i) {
+    auto* tab = tabs_.add(new juce::TextButton(sections_[static_cast<size_t>(i)].title));
+    tab->setClickingTogglesState(false);
+    tab->setRadioGroupId(4711);
+    tab->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    tab->setHelpText("Manual · " + sections_[static_cast<size_t>(i)].title + ": " +
+                     sections_[static_cast<size_t>(i)].tagline);
+    tab->onClick = [this, i] { showSection(i); };
+    addAndMakeVisible(tab);
+  }
+  addAndMakeVisible(done_);
+  done_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  done_.onClick = [this] {
+    if (onClose) onClose();
+  };
+  viewport_.setViewedComponent(&page_, false);
+  viewport_.setScrollBarsShown(true, false);
+  addAndMakeVisible(viewport_);
+  showSection(0);
+}
+
+ManualPanel::~ManualPanel() { viewport_.setViewedComponent(nullptr, false); }
+
+juce::String ManualPanel::hint() const {
+  return "Manual: pick a topic on the left; scroll for more. DONE (or ?) goes back to the controls.";
+}
+
+void ManualPanel::showSection(int index) {
+  if (sections_.empty()) return;
+  current_ = juce::jlimit(0, sectionCount() - 1, index);
+  for (int i = 0; i < tabs_.size(); ++i) tabs_[i]->setToggleState(i == current_, juce::dontSendNotification);
+  const int width = juce::jmax(200, viewport_.getWidth() - viewport_.getScrollBarThickness() - 6);
+  page_.build(sections_[static_cast<size_t>(current_)], width);
+  viewport_.setViewPosition(0, 0);
+}
+
+void ManualPanel::lookAndFeelChanged() { showSection(current_); }
+
+void ManualPanel::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(0.5f);
+  g.setColour(L.bg.withAlpha(0.95f));
+  g.fillRoundedRectangle(box, 6.0f);
+  g.setColour(L.plateBorder.withAlpha(0.5f));
+  g.drawRoundedRectangle(box, 6.0f, 1.0f);
+  g.setColour(L.ink);
+  g.setFont(DjontLookAndFeel::display(*this, 30.0f));
+  g.drawText("MANUAL", 18, 10, 140, 36, juce::Justification::centredLeft, false);
+  g.setColour(L.plateBorder);
+  g.drawVerticalLine(206, 16.0f, static_cast<float>(getHeight() - 16));
+}
+
+void ManualPanel::resized() {
+  done_.setBounds(122, 16, 72, 26);
+  const int step = juce::jmax(20, (getHeight() - 58) / juce::jmax(1, tabs_.size()));
+  for (int i = 0; i < tabs_.size(); ++i) tabs_[i]->setBounds(14, 54 + i * step, 180, step - 3);
+  viewport_.setBounds(220, 10, getWidth() - 228, getHeight() - 20);
+  showSection(current_);
+}
+
+void ManualPanel::Page::build(const Section& s, int width) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  const auto body = juce::Font(juce::FontOptions(14.0f));
+  const auto bold = juce::Font(juce::FontOptions(14.0f, juce::Font::bold));
+  const auto head = DjontLookAndFeel::label(10.5f);
+  const auto bodyInk = L.ink.withAlpha(0.88f);
+
+  juce::AttributedString a;
+  a.setWordWrap(juce::AttributedString::byWord);
+  a.setLineSpacing(2.0f);
+  a.append(s.title.toUpperCase() + "\n", DjontLookAndFeel::display(*this, 30.0f), L.ink);
+  a.append(s.tagline + "\n", juce::Font(juce::FontOptions(15.0f)).italicised(), L.accent);
+  const auto section = [&](const juce::String& heading, const juce::String& text) {
+    if (text.isEmpty()) return;
+    a.append("\n" + heading + "\n", head, L.ink.withAlpha(0.6f));
+    a.append(text + "\n", body, bodyInk);
+  };
+  section("WHAT IT DOES", s.what);
+  section("HOW IT WORKS", s.how);
+  section("THE SOUND", s.sound);
+  if (!s.tries.isEmpty()) {
+    a.append("\nTRY THIS\n", head, L.ink.withAlpha(0.6f));
+    for (int i = 0; i < s.tries.size(); ++i) {
+      a.append(juce::String(i + 1) + ".  ", bold, L.accent);
+      a.append(s.tries[i] + "\n", body, bodyInk);
+    }
+  }
+  if (!s.controls.empty()) {
+    a.append("\nCONTROLS\n", head, L.ink.withAlpha(0.6f));
+    for (const auto& [name, text] : s.controls) {
+      a.append(name + "   ", bold, L.ink);
+      a.append(text + "\n", body, bodyInk);
+    }
+  }
+  layout_.createLayout(a, static_cast<float>(width - 8));
+  setSize(width, static_cast<int>(std::ceil(layout_.getHeight())) + 24);
+  repaint();
+}
+
+void ManualPanel::Page::paint(juce::Graphics& g) {
+  layout_.draw(g, getLocalBounds().toFloat().reduced(4.0f, 8.0f).withHeight(layout_.getHeight()));
+}
+
 // ---------------------------------------------------------------- editor
 DjontView::DjontView(DjontProcessor& processor)
     : processor_(processor),
@@ -1145,6 +1296,8 @@ DjontView::DjontView(DjontProcessor& processor)
   addAndMakeVisible(output_);
   addAndMakeVisible(gear_);
   gear_.onClick = [this] { showSettings(!settings_.isVisible()); };
+  addAndMakeVisible(help_);
+  help_.onClick = [this] { showManual(!manual_.isVisible()); };
 
   auto& s = processor.params;
   auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes.");
@@ -1184,6 +1337,8 @@ DjontView::DjontView(DjontProcessor& processor)
 
   addChildComponent(settings_);
   settings_.onClose = [this] { showSettings(false); };
+  addChildComponent(manual_);
+  manual_.onClose = [this] { showManual(false); };
 
   hint_ = kDefaultHint;
   setLook(processor.params.state.getProperty(kLookProp, "chrome").toString());
@@ -1209,13 +1364,23 @@ void DjontView::showAdvanced(bool show) {
   sustain_.setBack(show);
 }
 
-void DjontView::showSettings(bool show) {
-  settings_.setVisible(show);
-  gear_.setToggleState(show, juce::dontSendNotification);
-  for (auto& m : modules_) m->setVisible(!show);
-  wham_.setVisible(!show);
-  sustain_.setVisible(!show);
-  if (show) settings_.toFront(false);
+void DjontView::showSettings(bool show) { showOverlay(show ? &settings_ : nullptr); }
+
+void DjontView::showManual(bool show, int section) {
+  if (show && section >= 0) manual_.showSection(section);
+  showOverlay(show ? &manual_ : nullptr);
+}
+
+void DjontView::showOverlay(juce::Component* overlay) {
+  settings_.setVisible(overlay == &settings_);
+  manual_.setVisible(overlay == &manual_);
+  gear_.setToggleState(overlay == &settings_, juce::dontSendNotification);
+  help_.setToggleState(overlay == &manual_, juce::dontSendNotification);
+  const bool controls = overlay == nullptr;
+  for (auto& m : modules_) m->setVisible(controls);
+  wham_.setVisible(controls);
+  sustain_.setVisible(controls);
+  if (overlay != nullptr) overlay->toFront(false);
   repaint();
 }
 
@@ -1397,7 +1562,8 @@ void DjontView::resized() {
   const int right = getWidth() - kPad;
   // Header, right to left: gear, meter, Output, Input, on one plate.
   gear_.setTopRightPosition(right - 8, (kHeaderH - gear_.getHeight()) / 2);
-  meterBox_ = {gear_.getX() - 18, (kHeaderH - 60) / 2, 9, 60};
+  help_.setTopRightPosition(gear_.getX() - 6, gear_.getY());
+  meterBox_ = {help_.getX() - 18, (kHeaderH - 60) / 2, 9, 60};
   output_.setTopRightPosition(meterBox_.getX() - 10, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
   ioPlate_ = juce::Rectangle<int>(input_.getX() - 6, 14, right - input_.getX() + 6, kHeaderH - 28);
@@ -1412,6 +1578,7 @@ void DjontView::resized() {
   const int w = (getWidth() - left - x0 - gap * (n - 1)) / n;
   for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(x0 + i * (w + gap), top, w, bottom - top);
   settings_.setBounds(left, top, getWidth() - 2 * left, bottom - top);
+  manual_.setBounds(settings_.getBounds());
   photoScaled_ = {};
 }
 

@@ -29,6 +29,15 @@ driver type (ASIO), interface, which input your guitar is on, outputs, sample
 rate and buffer size, the latency readout (input + output + buffer; dJONt
 itself adds 0 ms) and Hear Yourself. In a DAW the DAW owns those.
 
+The **?** in the header opens the manual inside the plugin: a topic per
+module (what it does, how it works, the sound it's for, things to try, every
+control). Its text lives in `manual/manual.json`; the PDF manual's module
+reference is generated from the same file. `manual/` also holds the PDFs the
+installer puts in the Start menu (`dJONt-Quick-Start.pdf`, `dJONt-Manual.pdf`)
+and the release page attaches. The release page text (install guide) is
+`installer/release-notes.md`. Icon: `icon/djont.png` (app), `installer/djont.ico`
+(installer, uninstaller, shortcuts).
+
 Original code. Font: Anton (SIL OFL 1.1, `assets/Anton-LICENSE.txt`).
 Sub's Clean mode uses T3KJ's pitch shifter (`plugin/src/PitchShift.cpp`).
 
