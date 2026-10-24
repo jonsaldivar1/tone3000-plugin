@@ -441,9 +441,9 @@ void WhamPedal::tick() {
 juce::String WhamPedal::hint() const {
   const auto pos = juce::String(juce::roundToInt(shown() * 100.0f)) + "%";
   if (pedalMode())
-    return "Wham · Pedal: drag up toward the toe, down to the heel (scroll works too; double-click: heel). Automate "
-           "it or map a MIDI CC to Wham Pedal in your DAW.  " + pos;
-  return "Wham · Pedal: Auto is moving it for you. Switch to PEDAL to play it by hand.  " + pos;
+    return juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Pedal: drag up toward the toe, down to the heel (scroll works too; double-click: heel). Automate "
+           "it or map a MIDI CC to Wham Pedal in your DAW.  ")) + pos;
+  return juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Pedal: Auto is moving it for you. Switch to PEDAL to play it by hand.  ")) + pos;
 }
 
 void WhamPedal::paint(juce::Graphics& g) {
@@ -516,34 +516,34 @@ WhamModule::WhamModule(DjontProcessor& processor)
              "latency while on in Custom / Whammy settings."),
       adv_("ADV", "Advanced: flip Wham over for its voicing (Grain, Buffer, Tone, Mix). BACK flips it back.", 44),
       mode_(processor.params, "whamMode", juce::StringArray{"PEDAL", "AUTO"},
-            "Wham · Mode: Pedal, you move the pedal (drag, automation, MIDI). Auto, it moves itself at Rate in Shape.",
+            juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Mode: Pedal, you move the pedal (drag, automation, MIDI). Auto, it moves itself at Rate in Shape.")),
             120),
       retrig_(processor.params, "whamRetrig", "RETRIG",
-              "Wham · Retrig: Auto's sweep restarts at the heel on every pick, so it follows your playing. "
-              "Rise + Retrig = one scoop per pick.",
+              juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Retrig: Auto's sweep restarts at the heel on every pick, so it follows your playing. "
+              "Rise + Retrig = one scoop per pick.")),
               70),
       algo_(processor.params, "whamAlgo", juce::StringArray{"CLASSIC", "CHORDS"},
-            "Wham · Engine: Classic is the old-school shifter, clean on single notes with the glitchy warble on "
-            "chords. Chords is the clean, chord-friendly engine.",
+            juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Engine: Classic is the old-school shifter, clean on single notes with the glitchy warble on "
+            "chords. Chords is the clean, chord-friendly engine.")),
             150),
-      heel_(processor.params, "whamHeel", "Heel", 44, "Wham · Heel: the pitch with the pedal all the way up, ±24 semitones."),
-      toe_(processor.params, "whamToe", "Toe", 44, "Wham · Toe: the pitch with the pedal all the way down, ±24 semitones."),
-      rate_(processor.params, "whamRate", "Rate", 44, "Wham · Rate: how fast Auto sweeps, 0.1-10 Hz."),
+      heel_(processor.params, "whamHeel", "Heel", 44, juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Heel: the pitch with the pedal all the way up, \xc2\xb1""24 semitones."))),
+      toe_(processor.params, "whamToe", "Toe", 44, juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Toe: the pitch with the pedal all the way down, \xc2\xb1""24 semitones."))),
+      rate_(processor.params, "whamRate", "Rate", 44, juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Rate: how fast Auto sweeps, 0.1-10 Hz."))),
       shape_(processor.params, "whamShape", "Shape", 44,
-             "Wham · Shape: Auto's sweep. Sine (smooth), Triangle, Rise (heel to toe, then snaps back), Square (jumps)."),
+             juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Shape: Auto's sweep. Sine (smooth), Triangle, Rise (heel to toe, then snaps back), Square (jumps)."))),
       glide_(processor.params, "whamGlide", "Glide", 44,
-             "Wham · Glide: how long the pedal takes to sweep heel to toe. Turn it up for a footswitch: press = "
-             "sweep up, release = sweep back. 0: follows instantly."),
+             juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Glide: how long the pedal takes to sweep heel to toe. Turn it up for a footswitch: press = "
+             "sweep up, release = sweep back. 0: follows instantly."))),
       mix_(processor.params, "whamMix", "Mix", 44,
-           "Wham · Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."),
+           juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."))),
       grain_(processor.params, "whamGrain", "Grain", 44,
-             "Wham · Grain (Classic): the shifter's sweep length. Short = tighter, more metallic warble on chords; "
-             "long = smoother, wobblier. Longer adds a little latency."),
+             juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Grain (Classic): the shifter's sweep length. Short = tighter, more metallic warble on chords; "
+             "long = smoother, wobblier. Longer adds a little latency."))),
       buffer_(processor.params, "whamBuffer", "Buffer", 44,
-              "Wham · Buffer (Chords): the clean engine's buffer. 20 ms tightest, 60 ms smoothest on low notes."),
-      tone_(processor.params, "whamTone", "Tone", 44, "Wham · Tone: darkens the shifted signal. All the way up = off."),
+              juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Buffer (Chords): the clean engine's buffer. 20 ms tightest, 60 ms smoothest on low notes."))),
+      tone_(processor.params, "whamTone", "Tone", 44, juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Tone: darkens the shifted signal. All the way up = off."))),
       mixBack_(processor.params, "whamMix", "Mix", 44,
-               "Wham · Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."),
+               juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Mix: Whammy settings, dry to fully shifted. Harmony / Detune, the level of the added voice."))),
       pedal_(processor),
       save_("SAVE", "Save: name the current Heel / Toe / Rate / Shape / Retrig / Mode as a preset. Same name replaces it.", 46),
       del_("DEL", "Delete: remove the selected preset (yours only; click twice).", 40) {
@@ -574,9 +574,9 @@ WhamModule::WhamModule(DjontProcessor& processor)
                         id++);
     }
     interval_.setTitle("Wham interval");
-    interval_.setHelpText("Wham · Interval: Custom uses your Heel / Toe. Whammy: the classic pedal's settings (no "
+    interval_.setHelpText(juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Interval: Custom uses your Heel / Toe. Whammy: the classic pedal's settings (no "
                           "shift at the heel, the interval at the toe). Harmony: your note plus a voice moving "
-                          "between two intervals. Detune: a thickening double.");
+                          "between two intervals. Detune: a thickening double.")));
     interval_.getProperties().set(kParamIdProp, "whamInterval");
     intervalAttachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         processor.params, "whamInterval", interval_);
@@ -589,7 +589,7 @@ WhamModule::WhamModule(DjontProcessor& processor)
 
   presets_.setTextWhenNothingSelected("Presets");
   presets_.setTitle("Wham presets");
-  presets_.setHelpText("Wham · Presets: pick one to load its Heel / Toe / Rate / Shape / Retrig / Mode.");
+  presets_.setHelpText(juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Presets: pick one to load its Heel / Toe / Rate / Shape / Retrig / Mode.")));
   presets_.onChange = [this] {
     if (const auto* p = store_.find(presets_.getText())) {
       WhamPresets::apply(*p, processor_.params);
@@ -829,44 +829,44 @@ SustainModule::SustainModule(DjontProcessor& processor)
              "Hold (a freeze, like a piano's sustain pedal) or Sustainer (like a sustainer pickup)."),
       adv_("ADV", "Advanced: flip Sustain over for its voicing. BACK flips it back.", 44),
       page_(processor.params, "sustainMode", juce::StringArray{"HOLD", "SUSTAINER"},
-            "Sustain · Mode: Hold freezes what's ringing so you can play over it. Sustainer keeps each note from "
-            "dying, like a Sustainiac.",
+            juce::String(juce::CharPointer_UTF8("Sustain \xc2\xb7 Mode: Hold freezes what's ringing so you can play over it. Sustainer keeps each note from "
+            "dying, like a Sustainiac.")),
             200),
       hold_(processor.params),
       latch_(processor.params, "holdLatch", "LATCH",
-             "Hold · Latch: on, one press holds and the next lets go (use with a momentary footswitch). Off, it "
-             "holds only while pressed (or use a latching footswitch).",
+             juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Latch: on, one press holds and the next lets go (use with a momentary footswitch). Off, it "
+             "holds only while pressed (or use a latching footswitch).")),
              70),
       holdType_(processor.params, "holdType", juce::StringArray{"CHORD", "PILE-UP"},
-                "Hold · Type: Chord holds what was ringing when you pressed (a piano's middle pedal). Pile-up keeps "
-                "adding everything you play while held (the right pedal).",
+                juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Type: Chord holds what was ringing when you pressed (a piano's middle pedal). Pile-up keeps "
+                "adding everything you play while held (the right pedal).")),
                 190),
       fade_(processor.params, "holdFade", "Fade", 44,
-            "Hold · Fade: how fast the held sound swells in and dies away when you let go."),
-      level_(processor.params, "holdLevel", "Level", 44, "Hold · Level: the held sound against your live playing."),
+            juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Fade: how fast the held sound swells in and dies away when you let go."))),
+      level_(processor.params, "holdLevel", "Level", 44, juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Level: the held sound against your live playing."))),
       sustainerType_(processor.params, "sustainerType", juce::StringArray{"FUND", "HARM", "MIX"},
-                     "Sustainer · Type: Fund keeps the note you played. Harm blooms into the Interval (ADV), like a "
-                     "sustainer's harmonic mode. Mix blooms halfway.",
+                     juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Type: Fund keeps the note you played. Harm blooms into the Interval (ADV), like a "
+                     "sustainer's harmonic mode. Mix blooms halfway.")),
                      190),
       amount_(processor.params, "sustainerAmount", "Sustain", 58,
-              "Sustainer · Sustain: how much it holds the note up as the string dies (up to 40 dB of make-up)."),
+              juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Sustain: how much it holds the note up as the string dies (up to 40 dB of make-up)."))),
       bloom_(processor.params, "sustainerBloom", "Bloom", 58,
-             "Sustainer · Bloom: how long Harm / Mix takes to bloom after each pick."),
+             juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Bloom: how long Harm / Mix takes to bloom after each pick."))),
       shimmer_(processor.params, "holdShimmer", "Shimmer", 44,
-               "Hold · Shimmer: adds movement to the held sound so it's less of a static pad. 0 = steady."),
+               juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Shimmer: adds movement to the held sound so it's less of a static pad. 0 = steady."))),
       lowCut_(processor.params, "holdLowCut", "Low Cut", 44,
-              "Hold · Low Cut: thins the held sound's lows so it doesn't muddy what you play over it. Bottom = off."),
-      holdTone_(processor.params, "holdTone", "Tone", 44, "Hold · Tone: darkens the held sound. Top = off."),
+              juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Low Cut: thins the held sound's lows so it doesn't muddy what you play over it. Bottom = off."))),
+      holdTone_(processor.params, "holdTone", "Tone", 44, juce::String(juce::CharPointer_UTF8("Hold \xc2\xb7 Tone: darkens the held sound. Top = off."))),
       sustainerInterval_(processor.params, "sustainerInterval", juce::StringArray{"OCT", "5TH", "12TH", "2 OCT"},
-                         "Sustainer · Interval: what Harm / Mix bloom into. Octave is the classic; the 12th (an "
-                         "octave and a 5th) is the other harmonic a sustainer pickup likes to jump to.",
+                         juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Interval: what Harm / Mix bloom into. Octave is the classic; the 12th (an "
+                         "octave and a 5th) is the other harmonic a sustainer pickup likes to jump to.")),
                          210),
       floor_(processor.params, "sustainerFloor", "Floor", 44,
-             "Sustainer · Floor: how quiet a note gets before it lets go. Lower = longer tails, more noise."),
+             juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Floor: how quiet a note gets before it lets go. Lower = longer tails, more noise."))),
       response_(processor.params, "sustainerResponse", "Response", 44,
-                "Sustainer · Response: how fast it rides the level. Fast = tight, can pump; slow = smooth, swells."),
+                juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Response: how fast it rides the level. Fast = tight, can pump; slow = smooth, swells."))),
       sustainerTone_(processor.params, "sustainerTone", "Tone", 44,
-                     "Sustainer · Tone: darkens the sustained sound (tames the noise it brings up). Top = off.") {
+                     juce::String(juce::CharPointer_UTF8("Sustainer \xc2\xb7 Tone: darkens the sustained sound (tames the noise it brings up). Top = off."))) {
   addAndMakeVisible(power_);
   addAndMakeVisible(adv_);
   adv_.onClick = [this] { setBack(!back_); };
@@ -1069,9 +1069,9 @@ void SettingsPanel::updateLatency() {
     const int buffer = device->getCurrentBufferSizeSamples();
     const int in = device->getInputLatencyInSamples(), out = device->getOutputLatencyInSamples();
     text << device->getTypeName() << ": " << device->getName() << "\n"
-         << juce::String(rate / 1000.0, 1) << " kHz · buffer " << buffer << " (" << juce::String(ms(buffer), 1)
+         << juce::String(rate / 1000.0, 1) << juce::String(juce::CharPointer_UTF8(" kHz \xc2\xb7 buffer ")) << buffer << " (" << juce::String(ms(buffer), 1)
          << " ms)\n"
-         << "In " << juce::String(ms(in), 1) << " + out " << juce::String(ms(out), 1) << " ms · round trip ~"
+         << "In " << juce::String(ms(in), 1) << " + out " << juce::String(ms(out), 1) << juce::String(juce::CharPointer_UTF8(" ms \xc2\xb7 round trip ~"))
          << juce::String(ms(in + out + buffer), 1) << " ms\n"
          << whamLatencyLine(processor_);
   } else {
@@ -1183,7 +1183,7 @@ ManualPanel::ManualPanel() : sections_(load()) {
     tab->setClickingTogglesState(false);
     tab->setRadioGroupId(4711);
     tab->setMouseCursor(juce::MouseCursor::PointingHandCursor);
-    tab->setHelpText("Manual · " + sections_[static_cast<size_t>(i)].title + ": " +
+    tab->setHelpText(juce::String(juce::CharPointer_UTF8("Manual \xc2\xb7 ")) + sections_[static_cast<size_t>(i)].title + ": " +
                      sections_[static_cast<size_t>(i)].tagline);
     tab->onClick = [this, i] { showSection(i); };
     addAndMakeVisible(tab);
@@ -1302,28 +1302,28 @@ DjontView::DjontView(DjontProcessor& processor)
   auto& s = processor.params;
   auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes.");
   tight->addKnob(std::make_unique<Knob>(s, "tightAmount", "Amount", 58,
-                                        "Tight · Amount: how hard each pick attack is pushed, and how much the "
-                                        "ring-out is trimmed."));
+                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Amount: how hard each pick attack is pushed, and how much the "
+                                        "ring-out is trimmed."))));
   tight->addKnob(std::make_unique<Knob>(s, "tightFreq", "Freq", 58,
-                                        "Tight · Freq: the band Tight listens to and punches up. Set it near your "
-                                        "low string."));
+                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Freq: the band Tight listens to and punches up. Set it near your "
+                                        "low string."))));
 
   auto grit = std::make_unique<Module>(s, "GRIT", "gritOn", "Fuzz on the low end only.");
-  grit->addKnob(std::make_unique<Knob>(s, "gritDrive", "Drive", 58, "Grit · Drive: how hard the low-end fuzz is pushed."));
-  grit->addKnob(std::make_unique<Knob>(s, "gritBlend", "Blend", 58, "Grit · Blend: how much fuzz sits under your dry signal."));
-  grit->addKnob(std::make_unique<Knob>(s, "gritFreq", "Freq", 44, "Grit · Freq: only the lows below this get fuzzed."));
+  grit->addKnob(std::make_unique<Knob>(s, "gritDrive", "Drive", 58, juce::String(juce::CharPointer_UTF8("Grit \xc2\xb7 Drive: how hard the low-end fuzz is pushed."))));
+  grit->addKnob(std::make_unique<Knob>(s, "gritBlend", "Blend", 58, juce::String(juce::CharPointer_UTF8("Grit \xc2\xb7 Blend: how much fuzz sits under your dry signal."))));
+  grit->addKnob(std::make_unique<Knob>(s, "gritFreq", "Freq", 44, juce::String(juce::CharPointer_UTF8("Grit \xc2\xb7 Freq: only the lows below this get fuzzed."))));
 
   auto sub = std::make_unique<Module>(s, "SUB", "subOn", "An octave below, under your dry signal.");
   sub->setExtra(std::make_unique<ParamSegmented>(
       s, "subMode", juce::StringArray{"CLEAN", "SYNTH"},
-      "Sub · Mode: Clean handles chords (about 20 ms behind your note); Synth is instant and buzzy, single notes only.",
+      juce::String(juce::CharPointer_UTF8("Sub \xc2\xb7 Mode: Clean handles chords (about 20 ms behind your note); Synth is instant and buzzy, single notes only.")),
       140));
-  sub->addKnob(std::make_unique<Knob>(s, "subBlend", "Blend", 58, "Sub · Blend: how loud the octave below is."));
-  sub->addKnob(std::make_unique<Knob>(s, "subTone", "Tone", 58, "Sub · Tone: low-pass on the octave; lower is rounder."));
+  sub->addKnob(std::make_unique<Knob>(s, "subBlend", "Blend", 58, juce::String(juce::CharPointer_UTF8("Sub \xc2\xb7 Blend: how loud the octave below is."))));
+  sub->addKnob(std::make_unique<Knob>(s, "subTone", "Tone", 58, juce::String(juce::CharPointer_UTF8("Sub \xc2\xb7 Tone: low-pass on the octave; lower is rounder."))));
 
   auto lofi = std::make_unique<Module>(s, "LO-FI", "lofiOn", "A radio / telephone band-pass.");
-  lofi->addKnob(std::make_unique<Knob>(s, "lofiTone", "Tone", 58, "Lo-Fi · Tone: center of the radio band."));
-  lofi->addKnob(std::make_unique<Knob>(s, "lofiBlend", "Blend", 58, "Lo-Fi · Blend: dry to fully filtered."));
+  lofi->addKnob(std::make_unique<Knob>(s, "lofiTone", "Tone", 58, juce::String(juce::CharPointer_UTF8("Lo-Fi \xc2\xb7 Tone: center of the radio band."))));
+  lofi->addKnob(std::make_unique<Knob>(s, "lofiBlend", "Blend", 58, juce::String(juce::CharPointer_UTF8("Lo-Fi \xc2\xb7 Blend: dry to fully filtered."))));
 
   addAndMakeVisible(wham_);
   addAndMakeVisible(sustain_);
@@ -1428,7 +1428,7 @@ void DjontView::updateHint() {
       }
     }
     if (paramId.isNotEmpty())
-      if (const int cc = processor_.ccFor(paramId); cc >= 0) text << "  · MIDI CC " << cc;
+      if (const int cc = processor_.ccFor(paramId); cc >= 0) text << juce::String(juce::CharPointer_UTF8("  \xc2\xb7 MIDI CC ")) << cc;
   }
   if (learnTarget_ != nullptr)
     text = "MIDI learn: press a footswitch or move a pedal on your controller to control " + learnName_ +
