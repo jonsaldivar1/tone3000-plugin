@@ -1131,9 +1131,8 @@ void SettingsPanel::resized() {
 }
 
 // ---------------------------------------------------------------- editor
-DjontEditor::DjontEditor(DjontProcessor& processor)
-    : juce::AudioProcessorEditor(processor),
-      processor_(processor),
+DjontView::DjontView(DjontProcessor& processor)
+    : processor_(processor),
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
       output_(processor.params, "output", "Output", 44, "Output: level out of dJONt."),
       wham_(processor),
@@ -1192,9 +1191,9 @@ DjontEditor::DjontEditor(DjontProcessor& processor)
   startTimerHz(30);
 }
 
-DjontEditor::~DjontEditor() { setLookAndFeel(nullptr); }
+DjontView::~DjontView() { setLookAndFeel(nullptr); }
 
-void DjontEditor::setLook(const juce::String& lookId) {
+void DjontView::setLook(const juce::String& lookId) {
   const auto& look = lookFor(lookId);
   processor_.params.state.setProperty(kLookProp, look.id, nullptr);
   lnf_.setLook(look);
@@ -1205,12 +1204,12 @@ void DjontEditor::setLook(const juce::String& lookId) {
   repaint();
 }
 
-void DjontEditor::showAdvanced(bool show) {
+void DjontView::showAdvanced(bool show) {
   wham_.setBack(show);
   sustain_.setBack(show);
 }
 
-void DjontEditor::showSettings(bool show) {
+void DjontView::showSettings(bool show) {
   settings_.setVisible(show);
   gear_.setToggleState(show, juce::dontSendNotification);
   for (auto& m : modules_) m->setVisible(!show);
@@ -1220,7 +1219,7 @@ void DjontEditor::showSettings(bool show) {
   repaint();
 }
 
-void DjontEditor::timerCallback() {
+void DjontView::timerCallback() {
   const float db = processor_.outputPeakDb.load();
   if (std::abs(db - meterDb_) > 0.2f) {
     meterDb_ = db;
@@ -1247,7 +1246,7 @@ void DjontEditor::timerCallback() {
   updateHint();
 }
 
-void DjontEditor::updateHint() {
+void DjontView::updateHint() {
   juce::String text = kDefaultHint;
   auto* c = juce::Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
   if (c != nullptr && (c == this || isParentOf(c))) {
@@ -1277,7 +1276,7 @@ void DjontEditor::updateHint() {
   }
 }
 
-void DjontEditor::mouseDown(const juce::MouseEvent& e) {
+void DjontView::mouseDown(const juce::MouseEvent& e) {
   if (!e.mods.isPopupMenu()) return;
   // The control under the click, if it's bound to a parameter.
   juce::Component* target = nullptr;
@@ -1320,14 +1319,14 @@ void DjontEditor::mouseDown(const juce::MouseEvent& e) {
                      });
 }
 
-void DjontEditor::paintOverChildren(juce::Graphics& g) {
+void DjontView::paintOverChildren(juce::Graphics& g) {
   if (learnTarget_ == nullptr) return;
   const auto r = getLocalArea(learnTarget_, learnTarget_->getLocalBounds()).toFloat().expanded(4.0f);
   g.setColour(lnf_.look().accent);
   g.drawRoundedRectangle(r, 6.0f, 2.5f);
 }
 
-void DjontEditor::paint(juce::Graphics& g) {
+void DjontView::paint(juce::Graphics& g) {
   const auto& L = lnf_.look();
   g.fillAll(L.bg);
 
@@ -1393,7 +1392,7 @@ void DjontEditor::paint(juce::Graphics& g) {
   g.drawText(hint_, hintBox_.reduced(kPad, 0), juce::Justification::centredLeft, true);
 }
 
-void DjontEditor::resized() {
+void DjontView::resized() {
   hintBox_ = {0, getHeight() - kHintH, getWidth(), kHintH};
   const int right = getWidth() - kPad;
   // Header, right to left: gear, meter, Output, Input, on one plate.
@@ -1414,6 +1413,31 @@ void DjontEditor::resized() {
   for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(x0 + i * (w + gap), top, w, bottom - top);
   settings_.setBounds(left, top, getWidth() - 2 * left, bottom - top);
   photoScaled_ = {};
+}
+
+// ---------------------------------------------------------------- window
+namespace {
+const juce::Identifier kUiWidthProp{"uiWidth"};
+}
+
+DjontEditor::DjontEditor(DjontProcessor& processor)
+    : juce::AudioProcessorEditor(processor), processor_(processor), view_(processor) {
+  addAndMakeVisible(view_);
+  constexpr double kAspect = static_cast<double>(DjontView::kWidth) / DjontView::kHeight;
+  setResizable(true, true);
+  setResizeLimits(DjontView::kWidth * 6 / 10, DjontView::kHeight * 6 / 10, DjontView::kWidth * 2,
+                  DjontView::kHeight * 2);
+  if (auto* c = getConstrainer()) c->setFixedAspectRatio(kAspect);
+  const int width = juce::jlimit(DjontView::kWidth * 6 / 10, DjontView::kWidth * 2,
+                                 static_cast<int>(processor.params.state.getProperty(kUiWidthProp, DjontView::kWidth)));
+  setSize(width, juce::roundToInt(width / kAspect));
+}
+
+void DjontEditor::resized() {
+  const float scale = static_cast<float>(getWidth()) / static_cast<float>(DjontView::kWidth);
+  view_.setBounds(0, 0, DjontView::kWidth, DjontView::kHeight);
+  view_.setTransform(juce::AffineTransform::scale(scale));
+  processor_.params.state.setProperty(kUiWidthProp, getWidth(), nullptr);
 }
 
 }  // namespace djont

@@ -12,6 +12,9 @@ A low-end toolkit plugin (VST3 + standalone) to run before your amp sim
 | **Sub** | Clean / Synth, Blend, Tone | An octave down under the dry signal. Clean = pitch shifter (handles chords, ~20 ms behind). Synth = analog-style divider (zero delay, single notes, buzzier). |
 | **Lo-Fi** | Tone, Blend | Radio / telephone band-pass around Tone with a touch of drive. |
 
+The window resizes: drag its bottom-right corner (60% to 200%, same layout,
+remembered with the plugin's state).
+
 MIDI learn: right-click any control → MIDI Learn, then press a footswitch or
 move a pedal (a QC footswitch sending a CC works). Mappings save with the
 plugin's state. HOLD with Latch on flips on each press of a momentary switch.

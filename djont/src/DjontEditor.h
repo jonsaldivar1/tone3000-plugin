@@ -352,12 +352,14 @@ private:
   juce::String latency_;
 };
 
-class DjontEditor : public juce::AudioProcessorEditor, private juce::Timer {
+// Everything you see, laid out at its design size (kWidth x kHeight). The
+// editor scales it to the window, so resizing keeps the layout.
+class DjontView : public juce::Component, private juce::Timer {
 public:
   static constexpr int kWidth = 1290, kHeight = 490;
 
-  explicit DjontEditor(DjontProcessor& processor);
-  ~DjontEditor() override;
+  explicit DjontView(DjontProcessor& processor);
+  ~DjontView() override;
   void paint(juce::Graphics& g) override;
   void resized() override;
 
@@ -390,6 +392,24 @@ private:
   float meterDb_ = -60.0f;
   juce::Rectangle<int> meterBox_, ioPlate_, hintBox_;
   juce::String hint_;
+};
+
+// The plugin window: resizable (drag the corner), fixed aspect ratio, 60% to
+// 200% of the design size; the size is remembered in the plugin's state.
+class DjontEditor : public juce::AudioProcessorEditor {
+public:
+  explicit DjontEditor(DjontProcessor& processor);
+  void resized() override;
+  void paint(juce::Graphics& g) override { g.fillAll(juce::Colours::black); }
+
+  void setLook(const juce::String& lookId) { view_.setLook(lookId); }
+  void showSettings(bool show) { view_.showSettings(show); }
+  void showAdvanced(bool show) { view_.showAdvanced(show); }
+  juce::String currentHint() const { return view_.currentHint(); }
+
+private:
+  DjontProcessor& processor_;
+  DjontView view_;
 };
 
 }  // namespace djont

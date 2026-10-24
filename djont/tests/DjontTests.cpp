@@ -376,6 +376,7 @@ int main(int argc, char** argv) {
   // --snapshot <png> [--look chrome|redfoil] [--settings]
   juce::String snapshotPath, look = "chrome";
   bool settings = false, adv = false;
+  int width = 0;
   juce::StringArray sets;  // --set id=value (real units), any number
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
@@ -383,6 +384,7 @@ int main(int argc, char** argv) {
     else if (arg == "--look" && i + 1 < argc) look = argv[++i];
     else if (arg == "--settings") settings = true;
     else if (arg == "--adv") adv = true;
+    else if (arg == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
     else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
   }
   if (snapshotPath.isNotEmpty()) {
@@ -398,6 +400,7 @@ int main(int argc, char** argv) {
       e->setLook(look);
       e->showSettings(settings);
       e->showAdvanced(adv);
+      if (width > 0) e->setSize(width, width * djont::DjontView::kHeight / djont::DjontView::kWidth);
     }
     const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);
     const juce::File file{snapshotPath};
