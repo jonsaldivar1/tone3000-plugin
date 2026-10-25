@@ -80,8 +80,11 @@ set(PARABOLA_SOURCES
     src/ParabolaProcessor.cpp
     src/ParabolaEditor.cpp
     src/NamSlot.cpp
+    src/Presets.cpp
+    ${REPO_DIR}/plugin/src/PitchShift.cpp
+    ${REPO_DIR}/plugin/src/TunerDetector.cpp
 )
-set(PARABOLA_INCLUDES src "${REPO_DIR}/plugin/AudioDSPTools")
+set(PARABOLA_INCLUDES src "${REPO_DIR}/plugin/AudioDSPTools" "${REPO_DIR}/plugin/include")
 
 juce_add_plugin(ParabolaBassZ
     COMPANY_NAME "Parabola Bass Z"
@@ -91,7 +94,7 @@ juce_add_plugin(ParabolaBassZ
     PLUGIN_MANUFACTURER_CODE Djnt
     PLUGIN_CODE Pbz1
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
     VST3_CATEGORIES Fx Distortion
     FORMATS VST3 Standalone

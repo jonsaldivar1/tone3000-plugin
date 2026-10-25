@@ -10,15 +10,105 @@
       "sound": "Modern metal and djent bass: a tight, round low end that holds up the mix, with a snarling, articulate top on it, and every part adjustable on its own.",
       "try": [
         "Put Parabola on your bass track (DI, no amp before it). It replaces your amp and cab.",
-        "Load a clean amp capture into LOW (or leave it empty for a clean DI low end).",
-        "Load a drive capture into MID and a heavier one into HIGH, then load a cab IR.",
+        "Pick a starter preset (the PRESET bar): it finds its captures by file name in your tones folders.",
+        "Or open MY GEAR and click captures to load them into bands, and an IR into the cab.",
         "Hover anything: the bar at the bottom says what it does. Drop .nam files right onto the bands."
       ],
       "controls": [
-        ["Gate", "Silences noise between notes, on your DI before everything. Fully down is off."],
-        ["Input / Output", "Level into Parabola and out of it, ±24 dB. The meter turns red when the output clips."],
-        ["?", "This manual."],
-        ["Gear", "Settings: the skin, and in the standalone app your audio interface and latency."]
+        [
+          "Presets",
+          "< and > step through them, click the name for the list, SAVE stores yours, DEL deletes yours."
+        ],
+        [
+          "My Gear",
+          "Every capture and IR in your tones folders, one click to load."
+        ],
+        [
+          "Gate",
+          "Silences noise between notes, on your DI before everything. Fully down is off."
+        ],
+        [
+          "Pitch",
+          "Transposes everything ±12 semitones before the bands."
+        ],
+        [
+          "Input / Output",
+          "Level into Parabola and out of it, ±24 dB. The meter turns red when the output clips."
+        ],
+        [
+          "Tuner",
+          "Opens the tuner and mutes the output."
+        ],
+        [
+          "?",
+          "This manual."
+        ],
+        [
+          "Gear",
+          "Settings: the skin, and in the standalone app your audio interface and latency."
+        ]
+      ]
+    },
+    {
+      "id": "presets",
+      "title": "Presets",
+      "tagline": "A whole rig, captures included, in one click.",
+      "what": "A preset stores every knob plus which capture is in each band and which IR is on the cab. The starter presets are built around free TONE3000 captures (an Ampeg SVT-CL pack, a Darkglass B7K pack, the Darkglass Alpha Omega and Microtubes 500 packs) and three cab IR packs. Your own presets save alongside them.",
+      "how": "Captures are saved by file name and last location. Loading a preset looks in the saved location first, then for a file with the same name anywhere in your tones folders (Documents\\Parabola Bass Z, Documents\\T3KJ Tones and any folder you added in My Gear, subfolders included). Anything it can't find is named in the hint bar, and that band is left empty. Your presets live in %APPDATA%\\Parabola Bass Z\\presets.json.",
+      "sound": "Starter presets: Djent Low End, Modern Growl, Fuzz Wall, Alpha Omega Split, Vintage Round, Clean DI + Grit, Microtubes Clean, and Init (empty).",
+      "try": [
+        "Click the preset name and pick Djent Low End.",
+        "Tweak it, click SAVE, type a name, press Enter.",
+        "Use < and > to flip through presets while you play."
+      ],
+      "controls": [
+        [
+          "< / >",
+          "Previous / next preset."
+        ],
+        [
+          "Name",
+          "Click for the list: STARTER and YOURS."
+        ],
+        [
+          "SAVE",
+          "Saves the current settings and captures as your preset (Enter to save, Esc to cancel). Same name = replace."
+        ],
+        [
+          "DEL",
+          "Deletes the current preset (yours only). Click twice."
+        ]
+      ]
+    },
+    {
+      "id": "mygear",
+      "title": "My Gear",
+      "tagline": "Your captures and IRs, one click away.",
+      "what": "A list of every capture (.nam) and IR (.wav, .aiff, .flac) in your tones folders, grouped by the folder they're in, with search. Keep your captures wherever you like: add that folder once with FOLDERS.",
+      "how": "It reads Documents\\Parabola Bass Z, Documents\\T3KJ Tones (T3KJ's My Gear folder) and any folder you add with FOLDERS (subfolders included), so nothing needs a second copy. Click a capture, then pick LOW, MID or HIGH. Click an IR and it goes straight onto the cab.",
+      "sound": "Quick A/B-ing: keep My Gear open and swap the mid band's capture until the growl sits right.",
+      "try": [
+        "Click MY GEAR, then FOLDERS > Add a folder, and pick the folder you unzip captures into (C:\\Users\\you\\NAM Tones (Bass), say).",
+        "Type 'b7k' in the search box, click B7K Djent, pick MID.",
+        "Added files? Click RESCAN."
+      ],
+      "controls": [
+        [
+          "Search",
+          "Filters by name and folder."
+        ],
+        [
+          "FOLDERS",
+          "Add a folder to look in, or remove one you added. Presets search them too."
+        ],
+        [
+          "RESCAN",
+          "Reads the folders again."
+        ],
+        [
+          "OPEN FOLDER",
+          "Opens Documents\\Parabola Bass Z (and makes NAMs and Cabs inside it)."
+        ]
       ]
     },
     {
@@ -34,9 +124,18 @@
         "Double-click a handle to put it back to its default."
       ],
       "controls": [
-        ["Low / Mid handle", "Drag left or right: 60 to 400 Hz."],
-        ["Mid / High handle", "Drag left or right: 600 Hz to 5 kHz."],
-        ["Legend", "Each band's level, or OFF when its power light is off."]
+        [
+          "Low / Mid handle",
+          "Drag left or right: 60 to 400 Hz."
+        ],
+        [
+          "Mid / High handle",
+          "Drag left or right: 600 Hz to 5 kHz."
+        ],
+        [
+          "Legend",
+          "Each band's level, or OFF when its power light is off."
+        ]
       ]
     },
     {
@@ -52,13 +151,34 @@
         "ADV: a little Bass boost here instead of in the graphic EQ keeps the drive bands tight."
       ],
       "controls": [
-        ["Power light", "Mutes the band."],
-        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
-        ["Drive", "Level into the capture, -12 to +24 dB."],
-        ["Comp", "Compression amount, 0 to 100%."],
-        ["Level", "The band's volume in the mix."],
-        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
-        ["ADV: CAB", "Send this band through the cab IR. Off by default for low."]
+        [
+          "Power light",
+          "Mutes the band."
+        ],
+        [
+          "LOAD / ×",
+          "Load a .nam capture (or drop one on the band), or remove it."
+        ],
+        [
+          "Drive",
+          "Level into the capture, -12 to +24 dB."
+        ],
+        [
+          "Comp",
+          "Compression amount, 0 to 100%."
+        ],
+        [
+          "Level",
+          "The band's volume in the mix."
+        ],
+        [
+          "ADV: Bass / Mid / Treble",
+          "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."
+        ],
+        [
+          "ADV: CAB",
+          "Send this band through the cab IR. Off by default for low."
+        ]
       ]
     },
     {
@@ -74,13 +194,34 @@
         "Level a couple of dB under the low band is a good starting balance."
       ],
       "controls": [
-        ["Power light", "Mutes the band."],
-        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
-        ["Drive", "How hard the capture is pushed, -12 to +24 dB."],
-        ["Tone", "Low-pass after the capture, 1 to 20 kHz (fully up is off)."],
-        ["Level", "The band's volume in the mix."],
-        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
-        ["ADV: CAB", "Send this band through the cab IR. On by default."]
+        [
+          "Power light",
+          "Mutes the band."
+        ],
+        [
+          "LOAD / ×",
+          "Load a .nam capture (or drop one on the band), or remove it."
+        ],
+        [
+          "Drive",
+          "How hard the capture is pushed, -12 to +24 dB."
+        ],
+        [
+          "Tone",
+          "Low-pass after the capture, 1 to 20 kHz (fully up is off)."
+        ],
+        [
+          "Level",
+          "The band's volume in the mix."
+        ],
+        [
+          "ADV: Bass / Mid / Treble",
+          "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."
+        ],
+        [
+          "ADV: CAB",
+          "Send this band through the cab IR. On by default."
+        ]
       ]
     },
     {
@@ -96,13 +237,34 @@
         "Mute it and unmute it: the difference is how 'modern' the tone sounds."
       ],
       "controls": [
-        ["Power light", "Mutes the band."],
-        ["LOAD / ×", "Load a .nam capture (or drop one on the band), or remove it."],
-        ["Drive", "How hard the capture is pushed, -12 to +24 dB."],
-        ["Tone", "Low-pass after the capture, 1 to 20 kHz (fully up is off)."],
-        ["Level", "The band's volume in the mix."],
-        ["ADV: Bass / Mid / Treble", "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."],
-        ["ADV: CAB", "Send this band through the cab IR. On by default."]
+        [
+          "Power light",
+          "Mutes the band."
+        ],
+        [
+          "LOAD / ×",
+          "Load a .nam capture (or drop one on the band), or remove it."
+        ],
+        [
+          "Drive",
+          "How hard the capture is pushed, -12 to +24 dB."
+        ],
+        [
+          "Tone",
+          "Low-pass after the capture, 1 to 20 kHz (fully up is off)."
+        ],
+        [
+          "Level",
+          "The band's volume in the mix."
+        ],
+        [
+          "ADV: Bass / Mid / Treble",
+          "Shelf at 100 Hz, bell at 650 Hz, shelf at 3 kHz, ±12 dB."
+        ],
+        [
+          "ADV: CAB",
+          "Send this band through the cab IR. On by default."
+        ]
       ]
     },
     {
@@ -118,8 +280,14 @@
         "Drag a .wav straight onto the cab panel."
       ],
       "controls": [
-        ["LOAD / ×", "Load an IR (.wav, .aiff, .flac) or remove it."],
-        ["CAB ON", "Runs the cab bands through the IR. Off bypasses it for every band."]
+        [
+          "LOAD / ×",
+          "Load an IR (.wav, .aiff, .flac) or remove it."
+        ],
+        [
+          "CAB ON",
+          "Runs the cab bands through the IR. Off bypasses it for every band."
+        ]
       ]
     },
     {
@@ -135,7 +303,10 @@
         "Double-click a fader to reset it."
       ],
       "controls": [
-        ["Faders", "Drag up to boost, down to cut. Double-click resets."]
+        [
+          "Faders",
+          "Drag up to boost, down to cut. Double-click resets."
+        ]
       ]
     },
     {
@@ -146,13 +317,63 @@
       "how": "Parabola remembers each band's file and the IR by their location on your computer, so a project or a saved session finds them again as long as they stay put. Put them in Documents\\Parabola Bass Z\\NAMs and \\Cabs (the installer makes those folders) and the LOAD buttons open there.",
       "sound": "Good starting points: a clean Ampeg SVT for low, a Darkglass B7K pack for mid and high, an Ampeg 8x10 or Eden 4x10 IR.",
       "try": [
-        "Download a few captures, drop them into Documents\\Parabola Bass Z\\NAMs.",
-        "Drag a .nam from File Explorer onto a band.",
-        "Watch the slot: it shows the capture's name, its type and who made it."
+        "Download captures, drop them into Documents\\Parabola Bass Z\\NAMs (or keep them in T3KJ Tones).",
+        "Open MY GEAR and click one to load it, or drag a .nam onto a band.",
+        "The starter presets look for specific packs by file name: see Presets."
       ],
       "controls": [
-        ["Full rig", "A capture with a cab in it. Parabola skips the IR for it."],
-        ["Level matching", "Every capture is brought to the same loudness, from its own data."]
+        [
+          "Full rig",
+          "A capture with a cab in it. Parabola skips the IR for it."
+        ],
+        [
+          "Level matching",
+          "Every capture is brought to the same loudness, from its own data."
+        ]
+      ]
+    },
+    {
+      "id": "pitch",
+      "title": "Pitch & Tuner",
+      "tagline": "Drop-tune without touching the pegs, and tune silently.",
+      "what": "Pitch transposes your whole signal up or down, in semitones, before the bands, so a 4-string in E can play like it's in D or B. TUNER opens a tuner and mutes the output while it's open.",
+      "how": "Pitch uses T3KJ's pitch shifter (a correlation-spliced delay line that keeps even low B clean and re-syncs on every pick attack). While Pitch isn't 0 it adds about 16 ms of delay, which Parabola reports to your DAW. The tuner listens to your DI before anything else.",
+      "sound": "-2 for drop D-style riffs on a standard-tuned bass, -5 for a B-standard feel. Bigger shifts get more artificial.",
+      "try": [
+        "Set Pitch to -2 and play an open E: you'll hear a D.",
+        "Click TUNER, play each open string, close it when they're green."
+      ],
+      "controls": [
+        [
+          "Pitch",
+          "-12 to +12 semitones. 0 is off (no delay)."
+        ],
+        [
+          "TUNER",
+          "Note, cents and Hz; green when within 3 cents. Output muted while open."
+        ]
+      ]
+    },
+    {
+      "id": "midi",
+      "title": "MIDI & footswitches",
+      "tagline": "Put any control on a footswitch or pedal.",
+      "what": "Every knob, power light, CAB switch and EQ fader can follow a MIDI CC from a controller (a Quad Cortex footswitch, an expression pedal).",
+      "how": "Right-click a control, choose MIDI Learn, then press the footswitch or move the pedal. Switches follow the CC (64 and up is on). Mappings save with the plugin's state. In a DAW you can also use its own parameter learn. The standalone app needs your controller ticked under MIDI inputs in its audio settings.",
+      "sound": "Footswitch the high band on for choruses, or put the mid band's Drive on an expression pedal.",
+      "try": [
+        "Right-click the HIGH power light, MIDI Learn, press a footswitch.",
+        "Right-click it again to forget the CC."
+      ],
+      "controls": [
+        [
+          "Right-click",
+          "MIDI Learn / Forget / Cancel."
+        ],
+        [
+          "Hint bar",
+          "Shows a control's CC once it's mapped."
+        ]
       ]
     },
     {
@@ -167,8 +388,14 @@
         "Drag the bottom-right corner to resize the window (60% to 200%)."
       ],
       "controls": [
-        ["Skin", "The photo and colors. Saved with the plugin's state."],
-        ["Hear yourself", "Plays the output while your input is live. Off by default to prevent feedback."]
+        [
+          "Skin",
+          "The photo and colors. Saved with the plugin's state."
+        ],
+        [
+          "Hear yourself",
+          "Plays the output while your input is live. Off by default to prevent feedback."
+        ]
       ]
     }
   ]

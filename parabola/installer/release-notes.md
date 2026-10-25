@@ -23,13 +23,18 @@ Parabola doesn't include any amp captures or IRs (their licenses don't allow pas
 - **Mid / high bands:** a bass drive, e.g. a Darkglass B7K pack.
 - **Cab:** a bass cab IR, e.g. an Ampeg 8x10 or Eden 4x10.
 
-Put them in `Documents\Parabola Bass Z\NAMs` and `\Cabs`, then click **LOAD** on a band (or drag a `.nam` onto it).
+Put them in `Documents\Parabola Bass Z\NAMs` and `\Cabs`, keep them in `Documents\T3KJ Tones`, or keep them anywhere and add that folder in **MY GEAR → FOLDERS**. Then:
+
+- pick a **starter preset** (the PRESET bar): it finds its captures and IR by file name in those folders, and names anything it can't find, or
+- open **MY GEAR** and click captures into bands and an IR onto the cab, or
+- click **LOAD** on a band (or drag a `.nam` onto it).
 
 ### First run
 
 - **In a DAW:** rescan your VST3 plugins (Reaper: Options → Preferences → Plug-ins → VST → Re-scan), then put Parabola on your bass DI track. It replaces your amp and cab.
 - **Standalone:** click the gear, pick **ASIO** and your audio interface, tick your bass's input, and turn on **Hear yourself** (it's off by default, the #1 reason for "no sound").
 - Click **?** in the header for the manual inside the plugin.
+- Also in the header: **PITCH** (transpose ±12 semitones), **TUNER** (mutes the output while open). Right-click any control to put it on a MIDI footswitch or pedal.
 
 ### Guides
 

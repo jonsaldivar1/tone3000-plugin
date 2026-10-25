@@ -28,6 +28,8 @@
 
 #include "Dsp.h"
 #include "NamSlot.h"
+#include "PitchShift.h"
+#include "TunerDetector.h"
 
 namespace dsp {
 template <typename T, int NCHANS, size_t A> class ResamplingContainer;
@@ -40,7 +42,7 @@ inline constexpr int kNumBands = 3;
 inline const char* const kBandIds[kNumBands] = {"low", "mid", "high"};
 inline const char* const kBandNames[kNumBands] = {"Low", "Mid", "High"};
 
-class ParabolaProcessor : public juce::AudioProcessor {
+class ParabolaProcessor : public juce::AudioProcessor, private juce::AsyncUpdater {
 public:
   static constexpr double kInternalRate = 48000.0;
 
@@ -56,7 +58,7 @@ public:
   juce::AudioProcessorEditor* createEditor() override;
   bool hasEditor() const override { return true; }
   const juce::String getName() const override { return "Parabola Bass Z"; }
-  bool acceptsMidi() const override { return false; }
+  bool acceptsMidi() const override { return true; }
   bool producesMidi() const override { return false; }
   double getTailLengthSeconds() const override { return 0.5; }
   int getNumPrograms() override { return 1; }
@@ -91,6 +93,24 @@ public:
   std::atomic<float> compReductionDb{0.0f};
   std::atomic<bool> gateOpen{true};
 
+  // Tuner: while it's on, the detector listens to the DI and the output is
+  // muted (silent tuning, like a stage tuner pedal).
+  TunerDetector tuner;
+  void setTunerActive(bool on);
+  bool tunerActive() const { return tunerOn_.load(); }
+
+  // MIDI learn (as in dJONt). startLearn: the next CC that arrives is mapped
+  // to `id`. Bool parameters follow the CC (>= 64 on). Message thread.
+  void startLearn(const juce::String& id);
+  void cancelLearn() { learnIndex_.store(-1); }
+  juce::String learning() const;
+  int ccFor(const juce::String& id) const;  // -1 when unmapped
+  void forget(const juce::String& id);
+  std::atomic<int> learnedCount{0};
+
+  // The shifter's buffer: Parabola's added latency while Pitch isn't 0.
+  static constexpr PitchShift::Window kPitchWindow = PitchShift::Window::ms30;
+
 private:
   static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
   void prepareInternal(int maxInternalBlock);
@@ -98,6 +118,22 @@ private:
   void processInternalChunk(float* in, float* out, int n);
   float param(const char* id) const { return params.getRawParameterValue(id)->load(); }
   void bumpFiles() { filesVersion_.fetch_add(1); }
+  void handleAsyncUpdate() override { updateLatency(); }
+  void updateLatency();
+  int indexOf(const juce::String& id) const;
+  void handleMidi(const juce::MidiBuffer& midi);
+  void writeMidiState();
+  void readMidiState();
+
+  PitchShift pitch_;
+  std::atomic<float>* pitchP_ = nullptr;
+  bool pitchWasOn_ = false;
+  std::atomic<bool> tunerOn_{false};
+  SmoothGain muteGain_;
+  std::vector<juce::RangedAudioParameter*> midiParams_;
+  std::array<std::atomic<int>, 128> ccMap_{};
+  std::array<int, 128> ccLast_{};
+  std::atomic<int> learnIndex_{-1};
 
   std::array<NamSlot, kNumBands> slots_;
   std::array<std::atomic<float>*, kNumBands> on_{}, drive_{}, level_{}, bass_{}, mid_{}, treble_{}, cab_{}, toneP_{};

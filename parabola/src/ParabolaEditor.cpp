@@ -113,7 +113,9 @@ juce::File startDir(const juce::ValueTree& state, const juce::Identifier& prop, 
   if (last.isDirectory()) return last;
   const auto docs = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
   const auto ours = docs.getChildFile("Parabola Bass Z").getChildFile(sub);
-  return ours.isDirectory() ? ours : docs;
+  if (ours.isDirectory()) return ours;
+  const auto roots = Library::roots();
+  return roots.empty() ? docs : roots.front();
 }
 
 void drawPlate(juce::Graphics& g, const juce::Component& c, juce::Rectangle<float> box) {
@@ -291,6 +293,7 @@ Knob::Knob(juce::AudioProcessorValueTreeState& state, const juce::String& id, co
   slider_.onDragEnd = [this] { repaint(); };
   addAndMakeVisible(slider_);
   attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, id, slider_);
+  getProperties().set(kParamIdProp, id);
   param_ = state.getParameter(id);
   if (param_ != nullptr) slider_.setDoubleClickReturnValue(true, param_->convertFrom0to1(param_->getDefaultValue()));
   setSize(juce::jmax(size + 16, 64), size + kLabelH + 6);
@@ -337,10 +340,11 @@ void Chip::paintButton(juce::Graphics& g, bool highlighted, bool down) {
 
 ParamChip::ParamChip(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& text,
                      juce::String description)
-    : juce::Button(text), description_(std::move(description)) {
+    : LeftClickOnly<juce::Button>(text), description_(std::move(description)) {
   setClickingTogglesState(true);
   setMouseCursor(juce::MouseCursor::PointingHandCursor);
   setTitle(text);
+  getProperties().set(kParamIdProp, id);
   attachment_ = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(state, id, *this);
 }
 
@@ -361,7 +365,8 @@ void ParamChip::paintButton(juce::Graphics& g, bool highlighted, bool) {
 }
 
 PowerLed::PowerLed(juce::AudioProcessorValueTreeState& state, const juce::String& id, const juce::String& name, int band)
-    : juce::Button(name), name_(name), band_(band) {
+    : LeftClickOnly<juce::Button>(name), name_(name), band_(band) {
+  getProperties().set(kParamIdProp, id);
   setClickingTogglesState(true);
   setTitle(name + " power");
   setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -855,6 +860,7 @@ GeqPanel::GeqPanel(juce::AudioProcessorValueTreeState& state) {
     f.setMouseCursor(juce::MouseCursor::PointingHandCursor);
     f.setDoubleClickReturnValue(true, 0.0);
     f.setTitle(juce::String("EQ ") + labels[i]);
+    f.getProperties().set(kParamIdProp, "geq" + juce::String(i));
     addAndMakeVisible(f);
     attachments_[static_cast<size_t>(i)] =
         std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(state, "geq" + juce::String(i), f);
@@ -1014,8 +1020,9 @@ void SettingsPanel::updateLatency() {
   const int own = processor_.getLatencySamples();
   const double rate = processor_.getSampleRate() > 0 ? processor_.getSampleRate() : 48000.0;
   const juce::String ownLine = own > 0 ? "Parabola adds " + juce::String(1000.0 * own / rate, 1) +
-                                             " ms here (resampling to 48 kHz for the captures). At 48 kHz it adds 0 ms."
-                                       : "Parabola adds 0 ms at this sample rate.";
+                                             " ms right now (Pitch while it isn't 0; resampling to 48 kHz at other "
+                                             "sample rates)."
+                                       : "Parabola adds 0 ms right now.";
   if (devices_ == nullptr) {
     text = "Running in a DAW: set the audio device, inputs, outputs and buffer in the DAW.\n\n" + ownLine;
   } else if (auto* device = devices_->getCurrentAudioDevice()) {
@@ -1205,23 +1212,436 @@ void ManualPanel::Page::paint(juce::Graphics& g) {
   layout_.draw(g, getLocalBounds().toFloat().reduced(4.0f, 8.0f).withHeight(layout_.getHeight()));
 }
 
+// ---------------------------------------------------------------- preset bar
+PresetBar::PresetBar(ParabolaProcessor& processor, PresetStore& store)
+    : processor_(processor),
+      store_(store),
+      prev_(juce::String(juce::CharPointer_UTF8("\xe2\x80\xb9")), "Previous preset."),
+      next_(juce::String(juce::CharPointer_UTF8("\xe2\x80\xba")), "Next preset."),
+      save_("SAVE", "Save: store the current settings and captures as one of your presets (type a name, Enter)."),
+      del_("DEL", "Delete the current preset (yours only; click twice). Starter presets can't be deleted."),
+      gear_("MY GEAR", "My Gear: browse every capture and IR in Documents\\Parabola Bass Z and Documents\\T3KJ Tones, "
+                       "and load them with a click.") {
+  for (auto* c : std::initializer_list<juce::Component*>{&prev_, &next_, &save_, &del_, &gear_, &name_})
+    addAndMakeVisible(c);
+  addChildComponent(editor_);
+  name_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  name_.setHelpText("Presets: click for the list. Starter presets find their captures by file name in your tones "
+                    "folders; anything missing is named in this bar.");
+  name_.onClick = [this] { showMenu(); };
+  prev_.onClick = [this] { step(-1); };
+  next_.onClick = [this] { step(1); };
+  save_.onClick = [this] { beginSave(); };
+  gear_.onClick = [this] {
+    if (onMyGear) onMyGear();
+  };
+  del_.onClick = [this] {
+    const auto current = processor_.params.state.getProperty("preset").toString();
+    const auto* p = store_.byName(current);
+    if (p == nullptr || p->factory) {
+      if (onMessage) onMessage("Starter presets can't be deleted.");
+      return;
+    }
+    if (delArmed_ == 0) {
+      delArmed_ = 1;
+      del_.setButtonText("SURE?");
+      juce::Timer::callAfterDelay(3000, [safe = juce::Component::SafePointer<PresetBar>(this)] {
+        if (safe != nullptr && safe->delArmed_ == 1) {
+          safe->delArmed_ = 0;
+          safe->del_.setButtonText("DEL");
+        }
+      });
+      return;
+    }
+    delArmed_ = 0;
+    del_.setButtonText("DEL");
+    store_.remove(current);
+    processor_.params.state.setProperty("preset", "", nullptr);
+    if (onMessage) onMessage("Deleted " + current + ".");
+    refresh();
+  };
+  editor_.onReturnKey = [this] { finishSave(true); };
+  editor_.onEscapeKey = [this] { finishSave(false); };
+  editor_.onFocusLost = [this] { finishSave(false); };
+  refresh();
+}
+
+juce::String PresetBar::hint() const { return name_.getHelpText(); }
+
+void PresetBar::refresh() {
+  const auto current = processor_.params.state.getProperty("preset").toString();
+  name_.setButtonText(current.isEmpty() ? "Presets" : current);
+}
+
+void PresetBar::load(const juce::String& name) {
+  if (const auto* p = store_.byName(name)) {
+    const auto missing = PresetStore::apply(*p, processor_);
+    if (onMessage)
+      onMessage(missing.isEmpty() ? "Loaded " + name + "."
+                                  : "Loaded " + name + ", but couldn't find " + missing +
+                                        ". Put it in Documents\\Parabola Bass Z (or T3KJ Tones) and load the preset again.");
+  }
+  refresh();
+}
+
+void PresetBar::step(int delta) {
+  const auto& all = store_.all();
+  if (all.empty()) return;
+  int i = store_.indexOf(processor_.params.state.getProperty("preset").toString());
+  i = i < 0 ? (delta > 0 ? 0 : static_cast<int>(all.size()) - 1)
+            : (i + delta + static_cast<int>(all.size())) % static_cast<int>(all.size());
+  load(all[static_cast<size_t>(i)].name);
+}
+
+void PresetBar::showMenu() {
+  juce::PopupMenu menu;
+  const auto current = processor_.params.state.getProperty("preset").toString();
+  const auto& all = store_.all();
+  menu.addSectionHeader("STARTER");
+  for (size_t i = 0; i < all.size(); ++i)
+    if (all[i].factory) menu.addItem(static_cast<int>(i) + 1, all[i].name, true, all[i].name == current);
+  bool header = false;
+  for (size_t i = 0; i < all.size(); ++i)
+    if (!all[i].factory) {
+      if (!header) menu.addSectionHeader("YOURS");
+      header = true;
+      menu.addItem(static_cast<int>(i) + 1, all[i].name, true, all[i].name == current);
+    }
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&name_),
+                     [safe = juce::Component::SafePointer<PresetBar>(this)](int result) {
+                       if (safe == nullptr || result <= 0) return;
+                       const auto& list = safe->store_.all();
+                       if (result - 1 < static_cast<int>(list.size()))
+                         safe->load(list[static_cast<size_t>(result - 1)].name);
+                     });
+}
+
+void PresetBar::beginSave() {
+  const auto current = processor_.params.state.getProperty("preset").toString();
+  const auto* p = store_.byName(current);
+  editor_.setText(p != nullptr && !p->factory ? current : juce::String(), false);
+  editor_.setTextToShowWhenEmpty("Preset name, Enter to save", PbzLookAndFeel::lookOf(*this).muted);
+  editor_.setVisible(true);
+  name_.setVisible(false);
+  editor_.grabKeyboardFocus();
+  editor_.selectAll();
+}
+
+void PresetBar::finishSave(bool keep) {
+  if (!editor_.isVisible()) return;
+  const auto name = editor_.getText().trim();
+  editor_.setVisible(false);
+  name_.setVisible(true);
+  if (!keep || name.isEmpty()) return;
+  if (const auto* p = store_.byName(name); p != nullptr && p->factory) {
+    if (onMessage) onMessage("That's a starter preset's name; pick another.");
+    return;
+  }
+  store_.save(name, processor_);
+  processor_.params.state.setProperty("preset", name, nullptr);
+  if (onMessage) onMessage("Saved " + name + ".");
+  refresh();
+}
+
+void PresetBar::paint(juce::Graphics& g) {
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  g.setColour(L.plate);
+  g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
+  g.setColour(L.border);
+  g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
+  g.setColour(L.muted);
+  g.setFont(PbzLookAndFeel::label(8.5f));
+  g.drawText("PRESET", 12, 6, 100, 12, juce::Justification::centredLeft, false);
+}
+
+void PresetBar::resized() {
+  const int y = 22, h = 28;
+  const int gearW = 84, buttons = 46 + 4 + 46 + 8 + gearW;
+  prev_.setBounds(8, y, 24, h);
+  name_.setBounds(36, y, getWidth() - 36 - 4 - 24 - 8 - buttons - 8, h);
+  editor_.setBounds(name_.getBounds());
+  next_.setBounds(name_.getRight() + 4, y, 24, h);
+  save_.setBounds(next_.getRight() + 8, y, 46, h);
+  del_.setBounds(save_.getRight() + 4, y, 46, h);
+  gear_.setBounds(del_.getRight() + 8, y, gearW, h);
+}
+
+// ---------------------------------------------------------------- my gear
+MyGearPanel::MyGearPanel(ParabolaProcessor& processor) : processor_(processor) {
+  addAndMakeVisible(search_);
+  search_.setTextToShowWhenEmpty("Search captures and IRs", juce::Colours::grey);
+  search_.onTextChange = [this] { filter(); };
+  for (auto* b : {&done_, &rescan_, &open_, &folders_}) {
+    addAndMakeVisible(b);
+    b->setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  }
+  done_.onClick = [this] {
+    if (onClose) onClose();
+  };
+  rescan_.onClick = [this] { rescan(); };
+  folders_.onClick = [this] { folderMenu(); };
+  folders_.setHelpText("Folders: add the folders where you keep captures and IRs (any folder, subfolders included), "
+                       "or remove ones you added. Presets look in them too.");
+  open_.onClick = [] {
+    const auto root = Library::parabolaRoot();
+    root.getChildFile("NAMs").createDirectory();
+    root.getChildFile("Cabs").createDirectory();
+    root.startAsProcess();
+  };
+  rescan_.setHelpText("Rescan: look through the tones folders again (after you add files).");
+  open_.setHelpText("Open Documents\\Parabola Bass Z in File Explorer.");
+  list_.setModel(this);
+  list_.setRowHeight(30);
+  list_.setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
+  addAndMakeVisible(list_);
+}
+
+juce::String MyGearPanel::hint() const {
+  return "My Gear: click a capture to load it into a band, an IR to load it into the cab. Looks in Documents\\Parabola "
+         "Bass Z and Documents\\T3KJ Tones (including subfolders).";
+}
+
+void MyGearPanel::folderMenu() {
+  juce::PopupMenu menu;
+  menu.addItem(1, "Add a folder...");
+  const auto added = Library::addedRoots();
+  if (!added.empty()) {
+    menu.addSeparator();
+    for (size_t i = 0; i < added.size(); ++i) menu.addItem(100 + static_cast<int>(i), "Remove " + added[i].getFullPathName());
+  }
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&folders_),
+                     [safe = juce::Component::SafePointer<MyGearPanel>(this), added](int result) {
+                       if (safe == nullptr || result <= 0) return;
+                       if (result >= 100) {
+                         Library::removeRoot(added[static_cast<size_t>(result - 100)]);
+                         safe->rescan();
+                         return;
+                       }
+                       safe->chooser_ = std::make_unique<juce::FileChooser>(
+                           "Add a folder with captures or IRs",
+                           juce::File::getSpecialLocation(juce::File::userHomeDirectory));
+                       safe->chooser_->launchAsync(
+                           juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                           [safe](const juce::FileChooser& fc) {
+                             if (safe == nullptr) return;
+                             const auto folder = fc.getResult();
+                             if (!folder.isDirectory()) return;
+                             Library::addRoot(folder);
+                             safe->rescan();
+                             if (safe->onMessage) safe->onMessage("My Gear now looks in " + folder.getFullPathName() + ".");
+                           });
+                     });
+}
+
+void MyGearPanel::rescan() {
+  all_ = Library::scan();
+  filter();
+}
+
+void MyGearPanel::filter() {
+  const auto words = juce::StringArray::fromTokens(search_.getText().toLowerCase(), " ", "");
+  shown_.clear();
+  for (const auto& e : all_) {
+    const auto hay = (e.name + " " + e.pack).toLowerCase();
+    bool ok = true;
+    for (const auto& w : words)
+      if (w.isNotEmpty() && !hay.contains(w)) ok = false;
+    if (ok) shown_.push_back(e);
+  }
+  list_.updateContent();
+  repaint();
+}
+
+void MyGearPanel::paintListBoxItem(int row, juce::Graphics& g, int width, int height, bool selected) {
+  if (row < 0 || row >= static_cast<int>(shown_.size())) return;
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  const auto& e = shown_[static_cast<size_t>(row)];
+  if (selected || list_.getRowContainingPosition(list_.getMouseXYRelative().x, list_.getMouseXYRelative().y) == row) {
+    g.setColour(L.ink.withAlpha(0.08f));
+    g.fillRect(0, 0, width, height);
+  }
+  const auto tag = juce::Rectangle<float>(6.0f, (height - 17) / 2.0f, 34.0f, 17.0f);
+  g.setColour(e.isNam ? L.accent : L.ink);
+  g.fillRoundedRectangle(tag, 2.0f);
+  g.setColour(juce::Colour(0xff05080d));
+  g.setFont(PbzLookAndFeel::label(9.0f));
+  g.drawText(e.isNam ? "NAM" : "IR", tag, juce::Justification::centred, false);
+  g.setColour(L.ink);
+  g.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+  g.drawText(e.name, 50, 0, width / 2 - 50, height, juce::Justification::centredLeft, true);
+  g.setColour(L.muted);
+  g.setFont(juce::Font(juce::FontOptions(12.0f)));
+  g.drawText(e.pack, width / 2, 0, width / 2 - 10, height, juce::Justification::centredLeft, true);
+}
+
+void MyGearPanel::listBoxItemClicked(int row, const juce::MouseEvent&) {
+  if (row < 0 || row >= static_cast<int>(shown_.size())) return;
+  const auto entry = shown_[static_cast<size_t>(row)];
+  if (!entry.isNam) {
+    const auto error = processor_.loadIr(entry.file);
+    if (onMessage) onMessage(error.isEmpty() ? "Cab: " + entry.name + "." : error);
+    return;
+  }
+  juce::PopupMenu menu;
+  menu.addSectionHeader(entry.name);
+  for (int b = 0; b < kNumBands; ++b)
+    menu.addItem(b + 1, "Load into " + juce::String(kBandNames[b]).toUpperCase());
+  menu.showMenuAsync(juce::PopupMenu::Options().withMousePosition(),
+                     [safe = juce::Component::SafePointer<MyGearPanel>(this), entry](int result) {
+                       if (safe == nullptr || result <= 0) return;
+                       const auto error = safe->processor_.loadNam(result - 1, entry.file);
+                       if (safe->onMessage)
+                         safe->onMessage(error.isEmpty() ? juce::String(kBandNames[result - 1]) + ": " + entry.name + "."
+                                                         : error);
+                     });
+}
+
+void MyGearPanel::paint(juce::Graphics& g) {
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(0.5f);
+  g.setColour(L.bg.withAlpha(0.95f));
+  g.fillRoundedRectangle(box, 6.0f);
+  g.setColour(L.border);
+  g.drawRoundedRectangle(box, 6.0f, 1.0f);
+  g.setColour(L.ink);
+  g.setFont(PbzLookAndFeel::display(*this, 30.0f));
+  g.drawText("MY GEAR", 18, 10, 160, 36, juce::Justification::centredLeft, false);
+  g.setColour(L.muted);
+  g.setFont(juce::Font(juce::FontOptions(12.0f)));
+  juce::StringArray roots;
+  for (const auto& r : Library::roots()) roots.add(r.getFullPathName());
+  const int nams = static_cast<int>(std::count_if(all_.begin(), all_.end(), [](const auto& e) { return e.isNam; }));
+  const auto text = roots.isEmpty()
+                        ? juce::String("No tones folder yet. Click FOLDERS to add the folder where you keep your captures, "
+                                       "or OPEN FOLDER to make Documents\\Parabola Bass Z.")
+                        : juce::String(nams) + " captures, " + juce::String(static_cast<int>(all_.size()) - nams) +
+                              " IRs in " + roots.joinIntoString(" + ");
+  g.drawFittedText(text, 18, 50, getWidth() - 36, 16, juce::Justification::centredLeft, 1, 0.8f);
+  if (shown_.empty() && !all_.empty()) {
+    g.drawText("Nothing matches that search.", list_.getBounds(), juce::Justification::centred, false);
+  }
+}
+
+void MyGearPanel::resized() {
+  done_.setBounds(getWidth() - 18 - 80, 16, 80, 26);
+  open_.setBounds(done_.getX() - 8 - 120, 16, 120, 26);
+  rescan_.setBounds(open_.getX() - 8 - 90, 16, 90, 26);
+  folders_.setBounds(rescan_.getX() - 8 - 96, 16, 96, 26);
+  search_.setBounds(190, 16, folders_.getX() - 190 - 12, 26);
+  list_.setBounds(12, 74, getWidth() - 24, getHeight() - 84);
+}
+
+// ---------------------------------------------------------------- tuner
+TunerPanel::TunerPanel(ParabolaProcessor& processor) : processor_(processor) {
+  addAndMakeVisible(done_);
+  done_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  done_.onClick = [this] {
+    if (onClose) onClose();
+  };
+}
+
+void TunerPanel::visibilityChanged() {
+  processor_.setTunerActive(isVisible());
+  if (isVisible()) startTimerHz(30);
+  else stopTimer();
+}
+
+void TunerPanel::timerCallback() {
+  const auto reading = processor_.tuner.getReading();
+  const double hz = reading["frequency"];
+  if (hz > 0.0) {
+    const double midi = 69.0 + 12.0 * std::log2(hz / 440.0);
+    const double cents = (midi - std::round(midi)) * 100.0;
+    smoothCents_ = hz_ > 0.0 ? smoothCents_ + 0.35 * (cents - smoothCents_) : cents;
+  }
+  if (hz != hz_) {
+    hz_ = hz;
+    repaint();
+  }
+}
+
+void TunerPanel::paint(juce::Graphics& g) {
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(0.5f);
+  g.setColour(L.bg.withAlpha(0.95f));
+  g.fillRoundedRectangle(box, 6.0f);
+  g.setColour(L.border);
+  g.drawRoundedRectangle(box, 6.0f, 1.0f);
+  g.setColour(L.ink);
+  g.setFont(PbzLookAndFeel::display(*this, 30.0f));
+  g.drawText("TUNER", 18, 10, 160, 36, juce::Justification::centredLeft, false);
+  g.setColour(L.muted);
+  g.setFont(PbzLookAndFeel::label(10.0f));
+  g.drawText("OUTPUT MUTED WHILE TUNING", 0, 18, getWidth() - 120, 20, juce::Justification::centredRight, false);
+
+  const auto centre = getLocalBounds().getCentre();
+  static const char* const names[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+  juce::String note = "-";
+  int octave = 0;
+  if (hz_ > 0.0) {
+    const int midi = juce::roundToInt(69.0 + 12.0 * std::log2(hz_ / 440.0));
+    note = names[((midi % 12) + 12) % 12];
+    octave = midi / 12 - 1;
+  }
+  const bool inTune = hz_ > 0.0 && std::abs(smoothCents_) < 3.0;
+  g.setColour(hz_ <= 0.0 ? L.muted : inTune ? juce::Colour(0xff3ddc84) : L.ink);
+  g.setFont(PbzLookAndFeel::display(*this, 150.0f));
+  g.drawText(note, centre.x - 200, centre.y - 150, 400, 170, juce::Justification::centred, false);
+  if (hz_ > 0.0) {
+    g.setFont(juce::Font(juce::FontOptions(15.0f)));
+    g.setColour(L.muted);
+    g.drawText(juce::String(octave) + juce::String(juce::CharPointer_UTF8("  \xc2\xb7  ")) + juce::String(hz_, 1) + juce::String(juce::CharPointer_UTF8(" Hz  \xc2\xb7  ")) +
+                   (smoothCents_ >= 0 ? "+" : "") + juce::String(juce::roundToInt(smoothCents_)) + " cents",
+               centre.x - 200, centre.y + 22, 400, 22, juce::Justification::centred, false);
+  } else {
+    g.setColour(L.muted);
+    g.setFont(juce::Font(juce::FontOptions(15.0f)));
+    g.drawText("Play an open string", centre.x - 200, centre.y + 22, 400, 22, juce::Justification::centred, false);
+  }
+  // Cents scale, -50 .. +50.
+  const auto scale = juce::Rectangle<float>(static_cast<float>(centre.x - 300), static_cast<float>(centre.y + 70), 600.0f, 34.0f);
+  g.setColour(L.track);
+  g.fillRoundedRectangle(scale.withSizeKeepingCentre(scale.getWidth(), 4.0f), 2.0f);
+  for (int c = -50; c <= 50; c += 10) {
+    const float x = scale.getX() + scale.getWidth() * static_cast<float>(c + 50) / 100.0f;
+    g.setColour(c == 0 ? L.ink : L.muted);
+    g.fillRect(x - (c == 0 ? 1.5f : 0.5f), scale.getY() + (c == 0 ? 0.0f : 9.0f), c == 0 ? 3.0f : 1.0f, c == 0 ? 34.0f : 16.0f);
+  }
+  if (hz_ > 0.0) {
+    const float x = scale.getX() + scale.getWidth() * static_cast<float>(juce::jlimit(-50.0, 50.0, smoothCents_) + 50.0) / 100.0f;
+    g.setColour(inTune ? juce::Colour(0xff3ddc84) : L.accent);
+    g.fillRoundedRectangle(juce::Rectangle<float>(10.0f, 40.0f).withCentre({x, scale.getCentreY()}), 3.0f);
+  }
+}
+
+void TunerPanel::resized() { done_.setBounds(getWidth() - 18 - 84, 16, 84, 26); }
+
 // ---------------------------------------------------------------- view
 ParabolaView::ParabolaView(ParabolaProcessor& processor)
     : processor_(processor),
       gate_(processor.params, "gate", "Gate", 40,
             "Gate: silences hum and string noise between notes, on your DI before the bands. Fully down is off."),
+      pitch_(processor.params, "pitch", "Pitch", 40,
+             "Pitch: transpose everything up or down, in semitones, before the bands (drop-tune without retuning). "
+             "Off at 0; on, it adds about 16 ms of delay."),
       input_(processor.params, "input", "Input", 40, "Input: level into Parabola (and into every band's capture)."),
       output_(processor.params, "output", "Output", 40, "Output: level out of Parabola."),
       help_(IconButton::Kind::help, "Manual: what every part does, how it works, and settings to try."),
       gear_(IconButton::Kind::gear, "Settings: the skin, and in the standalone app your audio interface and latency."),
+      tuner_("TUNER", "Tuner: opens the tuner and mutes the output while it's open."),
+      presetBar_(processor, presets_),
       crossover_(processor),
       geq_(processor.params),
       cab_(processor),
-      settings_(processor, [this](const juce::String& id) { setLook(id); }) {
+      settings_(processor, [this](const juce::String& id) { setLook(id); }),
+      myGear_(processor),
+      tunerPanel_(processor) {
   setLookAndFeel(&lnf_);
+  pitch_.setBipolar();
   input_.setBipolar();
   output_.setBipolar();
-  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &input_, &output_, &help_, &gear_, &crossover_, &geq_, &cab_})
+  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_,
+                                                          &presetBar_, &crossover_, &geq_, &cab_})
     addAndMakeVisible(c);
   for (int b = 0; b < kNumBands; ++b) {
     bands_[static_cast<size_t>(b)] = std::make_unique<BandStrip>(processor, b);
@@ -1229,10 +1649,16 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
   }
   help_.onClick = [this] { showManual(!manual_.isVisible()); };
   gear_.onClick = [this] { showSettings(!settings_.isVisible()); };
-  addChildComponent(settings_);
-  addChildComponent(manual_);
+  tuner_.onClick = [this] { showTuner(!tunerPanel_.isVisible()); };
+  presetBar_.onMessage = [this](const juce::String& m) { flash(m); };
+  presetBar_.onMyGear = [this] { showMyGear(!myGear_.isVisible()); };
+  myGear_.onMessage = [this](const juce::String& m) { flash(m, 150); };
+  for (auto* c : std::initializer_list<juce::Component*>{&settings_, &manual_, &myGear_, &tunerPanel_}) addChildComponent(c);
   settings_.onClose = [this] { showSettings(false); };
   manual_.onClose = [this] { showManual(false); };
+  myGear_.onClose = [this] { showMyGear(false); };
+  tunerPanel_.onClose = [this] { showTuner(false); };
+  addMouseListener(this, true);  // right-clicks anywhere come here (MIDI learn)
   hint_ = kDefaultHint;
   setLook(processor.params.state.getProperty(kLookProp, "foil").toString());
   setSize(kWidth, kHeight);
@@ -1257,6 +1683,65 @@ void ParabolaView::showManual(bool show, int section) {
   showOverlay(show ? &manual_ : nullptr);
 }
 
+void ParabolaView::showMyGear(bool show) {
+  if (show) myGear_.rescan();
+  showOverlay(show ? &myGear_ : nullptr);
+}
+
+void ParabolaView::flash(const juce::String& message, int ticks) {
+  flash_ = message;
+  flashTicks_ = ticks;
+  updateHint();
+}
+
+void ParabolaView::mouseDown(const juce::MouseEvent& e) {
+  if (!e.mods.isPopupMenu()) return;
+  juce::Component* target = nullptr;
+  for (auto* c = e.eventComponent; c != nullptr && c != this; c = c->getParentComponent())
+    if (c->getProperties().contains(kParamIdProp)) {
+      target = c;
+      break;
+    }
+  juce::PopupMenu menu;
+  if (learnTarget_ != nullptr) {
+    menu.addItem(3, "Cancel MIDI learn");
+  } else if (target != nullptr) {
+    const auto id = target->getProperties()[kParamIdProp].toString();
+    auto* param = processor_.params.getParameter(id);
+    menu.addSectionHeader(param != nullptr ? param->getName(64) : id);
+    menu.addItem(1, "MIDI Learn");
+    if (const int cc = processor_.ccFor(id); cc >= 0) menu.addItem(2, "Forget MIDI CC " + juce::String(cc));
+  } else {
+    return;
+  }
+  juce::Component::SafePointer<juce::Component> safeTarget(target);
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea({e.getScreenX(), e.getScreenY(), 1, 1}),
+                     [this, safeTarget](int result) {
+                       if (result == 3) {
+                         processor_.cancelLearn();
+                         learnTarget_ = nullptr;
+                       } else if (safeTarget != nullptr && (result == 1 || result == 2)) {
+                         const auto id = safeTarget->getProperties()[kParamIdProp].toString();
+                         if (result == 1) {
+                           auto* param = processor_.params.getParameter(id);
+                           learnName_ = param != nullptr ? param->getName(64) : id;
+                           learnTarget_ = safeTarget.getComponent();
+                           processor_.startLearn(id);
+                         } else {
+                           processor_.forget(id);
+                         }
+                       }
+                       repaint();
+                     });
+}
+
+void ParabolaView::paintOverChildren(juce::Graphics& g) {
+  if (learnTarget_ == nullptr) return;
+  const auto r = getLocalArea(learnTarget_, learnTarget_->getLocalBounds()).toFloat().expanded(4.0f);
+  g.setColour(lnf_.look().accent);
+  g.drawRoundedRectangle(r, 6.0f, 2.5f);
+}
+
 void ParabolaView::showAdvanced(bool show) {
   for (auto& b : bands_) b->setBack(show);
 }
@@ -1264,8 +1749,11 @@ void ParabolaView::showAdvanced(bool show) {
 void ParabolaView::showOverlay(juce::Component* overlay) {
   settings_.setVisible(overlay == &settings_);
   manual_.setVisible(overlay == &manual_);
+  myGear_.setVisible(overlay == &myGear_);
+  tunerPanel_.setVisible(overlay == &tunerPanel_);
   gear_.setToggleState(overlay == &settings_, juce::dontSendNotification);
   help_.setToggleState(overlay == &manual_, juce::dontSendNotification);
+  tuner_.setToggleState(overlay == &tunerPanel_, juce::dontSendNotification);
   const bool controls = overlay == nullptr;
   crossover_.setVisible(controls);
   geq_.setVisible(controls);
@@ -1286,7 +1774,22 @@ void ParabolaView::timerCallback() {
     filesSeen_ = v;
     for (auto& b : bands_) b->refreshSlot();
     cab_.refresh();
+    presetBar_.refresh();
   }
+  if (const int learned = processor_.learnedCount.load(); learned != learnedSeen_) {
+    learnedSeen_ = learned;
+    if (learnTarget_ != nullptr) {
+      const auto id = learnTarget_->getProperties()[kParamIdProp].toString();
+      flash(learnName_ + " is on MIDI CC " + juce::String(processor_.ccFor(id)) + ". Right-click it to forget.", 120);
+    }
+    learnTarget_ = nullptr;
+    repaint();
+  }
+  if (learnTarget_ != nullptr && processor_.learning().isEmpty()) {  // cancelled
+    learnTarget_ = nullptr;
+    repaint();
+  }
+  if (flashTicks_ > 0 && --flashTicks_ == 0) flash_ = {};
   crossover_.tick();
   updateHint();
 }
@@ -1295,7 +1798,9 @@ void ParabolaView::updateHint() {
   juce::String text = kDefaultHint;
   auto* c = juce::Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
   if (c != nullptr && (c == this || isParentOf(c))) {
+    juce::String paramId;
     for (; c != nullptr && c != this; c = c->getParentComponent()) {
+      if (paramId.isEmpty()) paramId = c->getProperties()[kParamIdProp].toString();
       if (auto* src = dynamic_cast<HintSource*>(c)) {
         text = src->hint();
         break;
@@ -1305,7 +1810,14 @@ void ParabolaView::updateHint() {
         break;
       }
     }
+    if (paramId.isNotEmpty())
+      if (const int cc = processor_.ccFor(paramId); cc >= 0) text << juce::String(juce::CharPointer_UTF8("  \xc2\xb7 MIDI CC ")) << cc;
   }
+  if (learnTarget_ != nullptr)
+    text = "MIDI learn: press a footswitch or move a pedal on your controller to control " + learnName_ +
+           ". Right-click to cancel.";
+  else if (flash_.isNotEmpty())
+    text = flash_;
   if (text != hint_) {
     hint_ = text;
     repaint(hintBox_);
@@ -1382,10 +1894,13 @@ void ParabolaView::resized() {
   gear_.setTopRightPosition(right - 10, (kHeaderH - gear_.getHeight()) / 2);
   help_.setTopRightPosition(gear_.getX() - 6, gear_.getY());
   meterBox_ = {help_.getX() - 20, (kHeaderH - 56) / 2, 9, 56};
-  output_.setTopRightPosition(meterBox_.getX() - 12, (kHeaderH - output_.getHeight()) / 2 + 2);
+  tuner_.setBounds(meterBox_.getX() - 12 - 62, (kHeaderH - 26) / 2, 62, 26);
+  output_.setTopRightPosition(tuner_.getX() - 8, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
-  gate_.setTopRightPosition(input_.getX() - 2, output_.getY());
+  pitch_.setTopRightPosition(input_.getX() - 2, output_.getY());
+  gate_.setTopRightPosition(pitch_.getX() - 2, output_.getY());
   headPlate_ = {gate_.getX() - 8, 16, right - gate_.getX() + 8, kHeaderH - 32};
+  presetBar_.setBounds(286, 22, juce::jmin(470, headPlate_.getX() - 12 - 286), 60);
 
   const int w = getWidth() - 2 * kPad;
   crossover_.setBounds(kPad, kXoverY, w, kXoverH);
@@ -1396,7 +1911,7 @@ void ParabolaView::resized() {
   geq_.setBounds(kPad, kBottomY, geqW, kBottomH);
   cab_.setBounds(kPad + geqW + gap, kBottomY, w - geqW - gap, kBottomH);
   settings_.setBounds(kPad, kXoverY, w, kBottomY + kBottomH - kXoverY);
-  manual_.setBounds(settings_.getBounds());
+  for (auto* c : std::initializer_list<juce::Component*>{&manual_, &myGear_, &tunerPanel_}) c->setBounds(settings_.getBounds());
   photoScaled_ = {};
 }
 

@@ -16,6 +16,7 @@
 
 #include "ParabolaEditor.h"
 #include "ParabolaProcessor.h"
+#include "Presets.h"
 
 using parabola::ParabolaProcessor;
 
@@ -72,6 +73,7 @@ int main(int argc, char** argv) {
   bool settings = false, adv = false;
   int manual = -1, width = 0;
   juce::StringArray namArgs;
+  juce::String overlay;
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
     if (arg == "--nam-dir" && i + 1 < argc) namDir = juce::File(juce::String(argv[++i]));
@@ -81,6 +83,7 @@ int main(int argc, char** argv) {
     else if (arg == "--settings") settings = true;
     else if (arg == "--adv") adv = true;
     else if (arg == "--manual" && i + 1 < argc) manual = juce::String(argv[++i]).getIntValue();
+    else if (arg == "--overlay" && i + 1 < argc) overlay = argv[++i];
     else if (arg == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
     else if (arg == "--nam" && i + 1 < argc) namArgs.add(argv[++i]);
   }
@@ -155,6 +158,80 @@ int main(int argc, char** argv) {
       check(q.getLatencySamples() == 0, "at 48 kHz there's no added latency");
     }
     {
+      // Pitch: +12 doubles the frequency; Parabola reports the shifter's delay.
+      ParabolaProcessor p;
+      set(p, "pitch", 12.0f);
+      p.prepareToPlay(48000.0, 256);
+      flatBands(p);
+      check(p.getLatencySamples() > 0, "Pitch on reports the shifter's delay");
+      const int total = 48000;
+      juce::AudioBuffer<float> buf(2, 256);
+      juce::MidiBuffer midi;
+      int crossings = 0;
+      float last = 0.0f;
+      for (int start = 0; start < total; start += 256) {
+        for (int i = 0; i < 256; ++i) {
+          const float x = 0.3f * std::sin(juce::MathConstants<float>::twoPi * 110.0f * static_cast<float>(start + i) / 48000.0f);
+          buf.setSample(0, i, x);
+          buf.setSample(1, i, x);
+        }
+        p.processBlock(buf, midi);
+        if (start >= total / 2)
+          for (int i = 0; i < 256; ++i) {
+            const float y = buf.getSample(0, i);
+            if (last < 0.0f && y >= 0.0f) ++crossings;
+            last = y;
+          }
+      }
+      std::printf("   pitch +12 on 110 Hz: %d Hz\n", crossings * 2);
+      check(std::abs(crossings * 2 - 220) < 12, "Pitch +12 shifts 110 Hz to 220 Hz");
+      ParabolaProcessor q;
+      q.prepareToPlay(48000.0, 256);
+      check(q.getLatencySamples() == 0, "Pitch off adds no delay");
+    }
+    {
+      // MIDI learn: the next CC maps to the parameter, then moves it.
+      ParabolaProcessor p;
+      p.prepareToPlay(48000.0, 256);
+      juce::AudioBuffer<float> buf(2, 256);
+      buf.clear();
+      p.startLearn("midLevel");
+      juce::MidiBuffer midi;
+      midi.addEvent(juce::MidiMessage::controllerEvent(1, 20, 127), 0);
+      p.processBlock(buf, midi);
+      check(p.ccFor("midLevel") == 20, "MIDI learn maps CC 20 to Mid Level");
+      midi.clear();
+      midi.addEvent(juce::MidiMessage::controllerEvent(1, 20, 0), 0);
+      p.processBlock(buf, midi);
+      check(p.params.getRawParameterValue("midLevel")->load() < -35.0f, "CC 20 at 0 turns Mid Level all the way down");
+      p.startLearn("highOn");
+      midi.clear();
+      midi.addEvent(juce::MidiMessage::controllerEvent(1, 21, 127), 0);
+      p.processBlock(buf, midi);
+      midi.clear();
+      midi.addEvent(juce::MidiMessage::controllerEvent(1, 21, 0), 0);
+      p.processBlock(buf, midi);
+      check(p.params.getRawParameterValue("highOn")->load() < 0.5f, "a footswitch CC mutes the high band");
+      juce::MemoryBlock state;
+      p.getStateInformation(state);
+      ParabolaProcessor q;
+      q.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+      check(q.ccFor("midLevel") == 20 && q.ccFor("highOn") == 21, "MIDI mappings save with the state");
+    }
+    {
+      // Tuner: hears the DI and mutes the output.
+      ParabolaProcessor p;
+      p.prepareToPlay(48000.0, 256);
+      p.setTunerActive(true);
+      const double out = sineRms(p, 48000.0, 55.0, 0.3, 1.0);
+      const double hz = p.tuner.getReading()["frequency"];
+      std::printf("   tuner on a 55 Hz sine: %.2f Hz\n", hz);
+      check(out < 1e-4, "the output is muted while the tuner is open");
+      check(std::abs(hz - 55.0) < 0.5, "the tuner reads a low A (55 Hz)");
+      p.setTunerActive(false);
+      check(sineRms(p, 48000.0, 55.0, 0.3, 0.5) > 0.05, "closing the tuner unmutes");
+    }
+    {
       const auto sections = parabola::ManualPanel::load();
       check(sections.size() >= 9, "the manual has all its topics");
       bool complete = true;
@@ -205,6 +282,46 @@ int main(int argc, char** argv) {
         check(std::isfinite(withCab) && withCab > 1e-4, "the cab path produces sound");
       }
 
+      {
+        // A folder added in My Gear is searched too (like C:\Users\you\NAM Tones (Bass)).
+        const auto extra = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("NAM Tones (Bass)");
+        extra.getChildFile("Pack").createDirectory();
+        djent.copyFileTo(extra.getChildFile("Pack").getChildFile("Extra Test Capture.nam"));
+        parabola::Library::addRoot(extra);
+        check(parabola::Library::find("Extra Test Capture.nam").existsAsFile(), "an added My Gear folder is searched");
+        parabola::Library::removeRoot(extra);
+        check(!parabola::Library::find("Extra Test Capture.nam").existsAsFile(), "and removing it stops that");
+        extra.deleteRecursively();
+      }
+      // Starter presets find their captures by file name in the tones folders.
+      if (!parabola::Library::roots().empty()) {
+        const auto lib = parabola::Library::scan();
+        std::printf("   My Gear sees %d files\n", static_cast<int>(lib.size()));
+        check(!lib.empty(), "My Gear lists the tones folders' captures and IRs");
+        parabola::PresetStore store;
+        const auto* djentPreset = store.byName("Djent Low End");
+        ParabolaProcessor r;
+        r.prepareToPlay(48000.0, 256);
+        const auto missing = parabola::PresetStore::apply(*djentPreset, r);
+        std::printf("   Djent Low End missing: '%s'\n", missing.toRawUTF8());
+        check(missing.isEmpty() && r.slot(parabola::kMid).info().name == "B7K Djent" && r.irLoaded(),
+              "the Djent Low End starter preset loads its captures and IR by file name");
+        check(std::abs(r.params.getRawParameterValue("lowComp")->load() - 55.0f) < 0.5f, "and its settings");
+        set(r, "midDrive", 7.0f);
+        store.save("Test Preset", r);
+        parabola::PresetStore reloaded;
+        const auto* mine = reloaded.byName("Test Preset");
+        check(mine != nullptr && !mine->factory && mine->nam[1] == "B7K Djent.nam", "a saved preset comes back from disk");
+        ParabolaProcessor t;
+        t.prepareToPlay(48000.0, 256);
+        parabola::PresetStore::apply(*mine, t);
+        check(std::abs(t.params.getRawParameterValue("midDrive")->load() - 7.0f) < 0.1f && t.slot(parabola::kMid).isLoaded(),
+              "and applies its settings and captures");
+        check(reloaded.remove("Test Preset") && reloaded.byName("Test Preset") == nullptr, "deleting it works");
+      } else {
+        std::printf("SKIP  preset/My Gear tests (no tones folder)\n");
+      }
+
       // State: files come back.
       juce::MemoryBlock state;
       p.getStateInformation(state);
@@ -232,6 +349,8 @@ int main(int argc, char** argv) {
       e->showSettings(settings);
       e->showAdvanced(adv);
       if (manual >= 0) e->showManual(true, manual);
+      if (overlay == "mygear") e->showMyGear(true);
+      if (overlay == "tuner") e->showTuner(true);
       if (width > 0) e->setSize(width, width * parabola::ParabolaView::kHeight / parabola::ParabolaView::kWidth);
     }
     // Let the view's timer pick up the loaded files.

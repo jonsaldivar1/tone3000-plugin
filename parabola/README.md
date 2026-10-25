@@ -46,7 +46,20 @@ build-parabola/ParabolaTests_artefacts/Release/ParabolaTests [--nam-dir <dir wit
 Windows installer: `.github/workflows/parabola-windows.yml` -> the
 `parabola-latest` release. Release page text: `installer/release-notes.md`.
 
-Planned for 0.2: pitch shift, tuner, presets, MIDI learn.
+0.2 adds:
+
+- Presets (`src/Presets.*`): every parameter plus each band's capture and
+  the IR by file name and last path. Loading tries the path, then a file of
+  that name anywhere in the tones folders. Starter presets are built around
+  free TONE3000 packs (SVT-CL, B7K, Alpha Omega, Microtubes 500, three IR
+  packs) and work on any machine that has them downloaded. User presets:
+  `%APPDATA%\Parabola Bass Z\presets.json`.
+- My Gear: every capture and IR in `Documents\Parabola Bass Z` and
+  `Documents\T3KJ Tones` (T3KJ's My Gear folder), searchable, one click to a
+  band or the cab.
+- Pitch (T3KJ's `PitchShift`, ±12 st, before the crossover; adds ~16 ms
+  while not 0, reported to the host), Tuner (T3KJ's `TunerDetector`; mutes
+  the output while open), MIDI learn (right-click, as in dJONt).
 
 Original code. Font: Anton (SIL OFL 1.1, `assets/Anton-LICENSE.txt`).
 Skin photos: Jon's.

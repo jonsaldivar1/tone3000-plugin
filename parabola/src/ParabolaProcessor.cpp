@@ -87,6 +87,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParabolaProcessor::createLay
       juce::AudioParameterFloatAttributes().withLabel("dB").withStringFromValueFunction([](float v, int) {
         return v <= -89.5f ? juce::String("Off") : juce::String(v, 1);
       })));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      juce::ParameterID{"pitch", 1}, "Pitch", -12, 12, 0,
+      juce::AudioParameterIntAttributes().withLabel("st").withStringFromValueFunction([](int v, int) {
+        return v == 0 ? juce::String("Off") : (v > 0 ? "+" : "") + juce::String(v);
+      })));
   layout.add(hertz("xoverLow", "Crossover Low", 60.0f, 400.0f, 180.0f, 160.0f));
   layout.add(hertz("xoverHigh", "Crossover High", 600.0f, 5000.0f, 1600.0f, 1600.0f));
 
@@ -135,12 +140,17 @@ ParabolaProcessor::ParabolaProcessor()
   cabOn_ = params.getRawParameterValue("cabOn");
   lowComp_ = params.getRawParameterValue("lowComp");
   for (int i = 0; i < 6; ++i) geqP_[static_cast<size_t>(i)] = params.getRawParameterValue("geq" + juce::String(i));
+  pitchP_ = params.getRawParameterValue("pitch");
+  for (auto* p : getParameters())
+    if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
+  for (auto& cc : ccMap_) cc.store(-1);
+  ccLast_.fill(0);
   for (auto& p : bandPeakDb) p.store(-100.0f);
   internalFn_ = [this](float** in, float** out, int n) { processInternal(in[0], out[0], n); };
   prepareInternal(512);
 }
 
-ParabolaProcessor::~ParabolaProcessor() = default;
+ParabolaProcessor::~ParabolaProcessor() { cancelPendingUpdate(); }
 
 bool ParabolaProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   const auto out = layouts.getMainOutputChannelSet();
@@ -156,6 +166,12 @@ void ParabolaProcessor::prepareInternal(int maxInternalBlock) {
   cabBuf_.assign(n, 0.0f);
   directBuf_.assign(n, 0.0f);
   gate_.prepare(kInternalRate);
+  pitch_.prepare(kInternalRate, internalMax_);
+  {
+    PitchShift::Params pp;
+    pp.window = kPitchWindow;
+    pitch_.setParams(pp);
+  }
   crossover_.prepare(kInternalRate);
   comp_.prepare(kInternalRate);
   for (auto& t : tone_) t.reset();
@@ -175,13 +191,13 @@ void ParabolaProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   if (std::abs(hostRate_ - kInternalRate) < 0.5) {
     resampler_.reset();
     prepareInternal(hostMaxBlock_);
-    setLatencySamples(0);
   } else {
     if (resampler_ == nullptr) resampler_ = std::make_unique<Resampler>(kInternalRate);
     resampler_->Reset(hostRate_, hostMaxBlock_);
     prepareInternal(static_cast<int>(std::ceil(hostMaxBlock_ * kInternalRate / hostRate_)) + 8);
-    setLatencySamples(resampler_->GetLatency());
   }
+  tuner.prepare(hostRate_);
+  updateLatency();
 }
 
 bool ParabolaProcessor::bandUsesCab(int band) const {
@@ -189,8 +205,14 @@ bool ParabolaProcessor::bandUsesCab(int band) const {
          !slots_[static_cast<size_t>(band)].isFullRig();
 }
 
-void ParabolaProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&) {
+void ParabolaProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) {
   juce::ScopedNoDenormals noDenormals;
+  handleMidi(midi);
+  const bool pitchOn = std::abs(pitchP_->load()) > 0.5f;
+  if (pitchOn != pitchWasOn_) {
+    pitchWasOn_ = pitchOn;
+    triggerAsyncUpdate();  // the latency changes with it
+  }
   const int total = buffer.getNumSamples();
   const int outs = getTotalNumOutputChannels();
   const int ins = getTotalNumInputChannels();
@@ -198,6 +220,7 @@ void ParabolaProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     const int n = juce::jmin(hostMaxBlock_, total - start);
     if (ins > 0) juce::FloatVectorOperations::copy(monoIn_.data(), buffer.getReadPointer(0, start), n);
     else juce::FloatVectorOperations::clear(monoIn_.data(), n);
+    if (tunerOn_.load()) tuner.pushSamples(monoIn_.data(), n);
     if (resampler_ != nullptr) {
       float* in = monoIn_.data();
       float* out = monoOut_.data();
@@ -205,6 +228,7 @@ void ParabolaProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     } else {
       processInternal(monoIn_.data(), monoOut_.data(), n);
     }
+    muteGain_.process(monoOut_.data(), n, tunerOn_.load() ? 0.0f : 1.0f);
     for (int c = 0; c < outs; ++c) juce::FloatVectorOperations::copy(buffer.getWritePointer(c, start), monoOut_.data(), n);
   }
   outputPeakDb.store(peakDb(buffer.getReadPointer(0), total));
@@ -225,7 +249,19 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
   float* low = bandBuf_[kLow].data();
   float* mid = bandBuf_[kMid].data();
   float* high = bandBuf_[kHigh].data();
-  for (int i = 0; i < n; ++i) crossover_.process(gate_.process(in[i]), low[i], mid[i], high[i]);
+  for (int i = 0; i < n; ++i) in[i] = gate_.process(in[i]);
+  const float semitones = std::round(pitchP_->load());
+  pitch_.setEnabled(std::abs(semitones) > 0.5f);
+  if (pitch_.isRunning()) {
+    PitchShift::Params pp;
+    pp.semitones = semitones;
+    pp.window = kPitchWindow;
+    pitch_.setParams(pp);
+    float* chans[1] = {in};
+    juce::AudioBuffer<float> view(chans, 1, n);
+    pitch_.process(view);
+  }
+  for (int i = 0; i < n; ++i) crossover_.process(in[i], low[i], mid[i], high[i]);
   gateOpen.store(gate_.isOpen());
 
   // Bands.
@@ -276,6 +312,96 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
 }
 
 juce::AudioProcessorEditor* ParabolaProcessor::createEditor() { return new ParabolaEditor(*this); }
+
+void ParabolaProcessor::setTunerActive(bool on) {
+  tuner.setEnabled(on);
+  tunerOn_.store(on);
+}
+
+// The resampler's delay (non-48k hosts) plus the shifter's while Pitch is on,
+// in host samples. Reported from the message thread.
+void ParabolaProcessor::updateLatency() {
+  double samples = resampler_ != nullptr ? resampler_->GetLatency() : 0.0;
+  if (std::abs(pitchP_->load()) > 0.5f)
+    samples += PitchShift::latencySamples(kPitchWindow, kInternalRate) * hostRate_ / kInternalRate;
+  setLatencySamples(juce::roundToInt(samples));
+}
+
+// ---------------------------------------------------------------- MIDI
+int ParabolaProcessor::indexOf(const juce::String& id) const {
+  for (size_t i = 0; i < midiParams_.size(); ++i)
+    if (midiParams_[i]->getParameterID() == id) return static_cast<int>(i);
+  return -1;
+}
+
+void ParabolaProcessor::startLearn(const juce::String& id) { learnIndex_.store(indexOf(id)); }
+
+juce::String ParabolaProcessor::learning() const {
+  const int i = learnIndex_.load();
+  return i >= 0 && i < static_cast<int>(midiParams_.size()) ? midiParams_[static_cast<size_t>(i)]->getParameterID()
+                                                              : juce::String();
+}
+
+int ParabolaProcessor::ccFor(const juce::String& id) const {
+  const int index = indexOf(id);
+  if (index < 0) return -1;
+  for (int cc = 0; cc < 128; ++cc)
+    if (ccMap_[static_cast<size_t>(cc)].load() == index) return cc;
+  return -1;
+}
+
+void ParabolaProcessor::forget(const juce::String& id) {
+  const int index = indexOf(id);
+  for (auto& cc : ccMap_)
+    if (cc.load() == index) cc.store(-1);
+  writeMidiState();
+}
+
+void ParabolaProcessor::handleMidi(const juce::MidiBuffer& midi) {
+  for (const auto meta : midi) {
+    const auto m = meta.getMessage();
+    if (!m.isController()) continue;
+    const int cc = m.getControllerNumber(), v = m.getControllerValue();
+    const auto ucc = static_cast<size_t>(juce::jlimit(0, 127, cc));
+    ccLast_[ucc] = v;
+    if (const int learn = learnIndex_.exchange(-1); learn >= 0) {
+      for (auto& other : ccMap_)
+        if (other.load() == learn) other.store(-1);
+      ccMap_[ucc].store(learn);
+      learnedCount.fetch_add(1);
+      continue;  // the press that taught it doesn't also act
+    }
+    const int index = ccMap_[ucc].load();
+    if (index < 0) continue;
+    auto* param = midiParams_[static_cast<size_t>(index)];
+    float normalised = static_cast<float>(v) / 127.0f;
+    if (dynamic_cast<juce::AudioParameterBool*>(param) != nullptr) normalised = v >= 64 ? 1.0f : 0.0f;
+    if (!juce::approximatelyEqual(param->getValue(), normalised)) param->setValueNotifyingHost(normalised);
+  }
+}
+
+// Mappings live in the state as <MIDI><Map cc="20" param="midOn"/></MIDI>.
+void ParabolaProcessor::writeMidiState() {
+  auto tree = params.state.getOrCreateChildWithName("MIDI", nullptr);
+  tree.removeAllChildren(nullptr);
+  for (int cc = 0; cc < 128; ++cc)
+    if (const int index = ccMap_[static_cast<size_t>(cc)].load(); index >= 0) {
+      juce::ValueTree map("Map");
+      map.setProperty("cc", cc, nullptr);
+      map.setProperty("param", midiParams_[static_cast<size_t>(index)]->getParameterID(), nullptr);
+      tree.appendChild(map, nullptr);
+    }
+}
+
+void ParabolaProcessor::readMidiState() {
+  for (auto& cc : ccMap_) cc.store(-1);
+  const auto tree = params.state.getChildWithName("MIDI");
+  for (const auto& map : tree) {
+    const int cc = map.getProperty("cc", -1);
+    const int index = indexOf(map.getProperty("param").toString());
+    if (cc >= 0 && cc < 128 && index >= 0) ccMap_[static_cast<size_t>(cc)].store(index);
+  }
+}
 
 // ---------------------------------------------------------------- files
 juce::String ParabolaProcessor::loadNam(int band, const juce::File& file) {
@@ -352,6 +478,7 @@ juce::String ParabolaProcessor::lastError() const {
 
 // ---------------------------------------------------------------- state
 void ParabolaProcessor::getStateInformation(juce::MemoryBlock& destData) {
+  writeMidiState();
   auto state = params.copyState();
   state.removeChild(state.getChildWithName(kFilesNode), nullptr);
   juce::ValueTree files(kFilesNode);
@@ -368,6 +495,7 @@ void ParabolaProcessor::setStateInformation(const void* data, int sizeInBytes) {
   const auto files = state.getChildWithName(kFilesNode).createCopy();
   state.removeChild(state.getChildWithName(kFilesNode), nullptr);
   params.replaceState(state);
+  readMidiState();
 
   for (int b = 0; b < kNumBands; ++b) {
     const auto path = files.getProperty(kBandIds[b]).toString();
