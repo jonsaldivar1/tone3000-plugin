@@ -92,6 +92,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParabolaProcessor::createLay
       juce::AudioParameterIntAttributes().withLabel("st").withStringFromValueFunction([](int v, int) {
         return v == 0 ? juce::String("Off") : (v > 0 ? "+" : "") + juce::String(v);
       })));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"driveGate", 1}, "Noise Gate (drive bands)", juce::NormalisableRange<float>(-90.0f, -20.0f, 0.5f),
+      -90.0f, juce::AudioParameterFloatAttributes().withLabel("dB").withStringFromValueFunction([](float v, int) {
+        return v <= -89.5f ? juce::String("Off") : juce::String(v, 1);
+      })));
   layout.add(hertz("xoverLow", "Crossover Low", 60.0f, 400.0f, 180.0f, 160.0f));
   layout.add(hertz("xoverHigh", "Crossover High", 600.0f, 5000.0f, 1600.0f, 1600.0f));
 
@@ -106,8 +111,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParabolaProcessor::createLay
     layout.add(decibels(bandId(b, "Mid"), n + " Mid", -12.0f, 12.0f, 0.0f));
     layout.add(decibels(bandId(b, "Treble"), n + " Treble", -12.0f, 12.0f, 0.0f));
     layout.add(toggle(bandId(b, "Cab"), n + " Cab", b != kLow));
-    if (b == kLow) layout.add(percent("lowComp", "Low Comp", 40.0f));
-    else layout.add(hertz(bandId(b, "Tone"), n + " Tone", 1000.0f, 20000.0f, tones[b], 6000.0f));
+    if (b == kLow) {
+      layout.add(percent("lowComp", "Low Comp", 40.0f));
+    } else {
+      layout.add(hertz(bandId(b, "Tone"), n + " Tone", 1000.0f, 20000.0f, tones[b], 6000.0f));
+      layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{bandId(b, "Split"), 1}, n + " Split",
+                                                              juce::StringArray{"Pre", "Post"}, 0));
+    }
   }
   layout.add(toggle("cabOn", "Cab On", true));
   const char* geqNames[6] = {"80", "250", "500", "1k", "2.5k", "6k"};
@@ -131,6 +141,7 @@ ParabolaProcessor::ParabolaProcessor()
     treble_[static_cast<size_t>(b)] = get("Treble");
     cab_[static_cast<size_t>(b)] = get("Cab");
     toneP_[static_cast<size_t>(b)] = b == kLow ? nullptr : get("Tone");
+    split_[static_cast<size_t>(b)] = b == kLow ? nullptr : get("Split");
   }
   input_ = params.getRawParameterValue("input");
   output_ = params.getRawParameterValue("output");
@@ -141,6 +152,7 @@ ParabolaProcessor::ParabolaProcessor()
   lowComp_ = params.getRawParameterValue("lowComp");
   for (int i = 0; i < 6; ++i) geqP_[static_cast<size_t>(i)] = params.getRawParameterValue("geq" + juce::String(i));
   pitchP_ = params.getRawParameterValue("pitch");
+  driveGateP_ = params.getRawParameterValue("driveGate");
   for (auto* p : getParameters())
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
   for (auto& cc : ccMap_) cc.store(-1);
@@ -164,6 +176,11 @@ void ParabolaProcessor::prepareInternal(int maxInternalBlock) {
   const auto n = static_cast<size_t>(internalMax_);
   for (auto& b : bandBuf_) b.assign(n, 0.0f);
   cabBuf_.assign(n, 0.0f);
+  restBuf_.assign(n, 0.0f);
+  driveGain_buf_.assign(n, 1.0f);
+  driveGate_.prepare(kInternalRate);
+  for (auto& f : postHp_) f.reset();
+  for (auto& f : postLp_) f.reset();
   directBuf_.assign(n, 0.0f);
   gate_.prepare(kInternalRate);
   pitch_.prepare(kInternalRate, internalMax_);
@@ -261,8 +278,16 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
     juce::AudioBuffer<float> view(chans, 1, n);
     pitch_.process(view);
   }
-  for (int i = 0; i < n; ++i) crossover_.process(in[i], low[i], mid[i], high[i]);
+  float* rest = restBuf_.data();
+  for (int i = 0; i < n; ++i) crossover_.process(in[i], low[i], mid[i], high[i], rest[i]);
   gateOpen.store(gate_.isOpen());
+
+  // The drive bands' gate follows the DI (after the first gate and Pitch).
+  driveGate_.setThresholdDb(driveGateP_->load());
+  const bool driveGateOn = driveGate_.enabled();
+  if (driveGateOn)
+    for (int i = 0; i < n; ++i) driveGain_buf_[static_cast<size_t>(i)] = driveGate_.gain(in[i]);
+  const double f1 = xoverLow_->load(), f2 = std::max(static_cast<double>(xoverHigh_->load()), f1 * 1.5);
 
   // Bands.
   const bool cabReady = irLoaded_.load() && cabOn_->load() > 0.5f;
@@ -273,8 +298,32 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
     const auto bi = static_cast<size_t>(b);
     float* x = bandBuf_[bi].data();
     const bool on = on_[bi]->load() > 0.5f;
+    // POST: the capture hears everything above the low split; its own slice
+    // is cut out after it (drive first, then split).
+    const bool post = b != kLow && split_[bi]->load() > 0.5f;
+    if (post) juce::FloatVectorOperations::copy(x, rest, n);
     driveGain_[bi].process(x, n, dbToGain(drive_[bi]->load()));
     slots_[bi].process(x, n);
+    if (post) {
+      if (b == kMid) {
+        postHp_[bi].set(kInternalRate, f1);
+        postLp_[bi].set(kInternalRate, f2);
+        for (int i = 0; i < n; ++i) {
+          float lo, hi, lo2, hi2;
+          postHp_[bi].process(x[i], lo, hi);
+          postLp_[bi].process(hi, lo2, hi2);
+          x[i] = lo2;
+        }
+      } else {
+        postHp_[bi].set(kInternalRate, f2);
+        for (int i = 0; i < n; ++i) {
+          float lo, hi;
+          postHp_[bi].process(x[i], lo, hi);
+          x[i] = hi;
+        }
+      }
+    }
+    if (b != kLow && driveGateOn) juce::FloatVectorOperations::multiply(x, driveGain_buf_.data(), n);
     if (b == kLow) {
       comp_.setAmount(lowComp_->load() / 100.0f);
       for (int i = 0; i < n; ++i) x[i] = comp_.process(x[i]);

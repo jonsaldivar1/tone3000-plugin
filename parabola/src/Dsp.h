@@ -131,7 +131,13 @@ public:
     allpass2_.set(fs_, highHz);
   }
   void process(float x, float& low, float& mid, float& high) {
-    float l, rest;
+    float rest;
+    process(x, low, mid, high, rest);
+  }
+  // Also hands back `rest`: everything above the low split (what a POST
+  // band's capture is fed).
+  void process(float x, float& low, float& mid, float& high, float& rest) {
+    float l;
     split1_.process(x, l, rest);
     float apLow, apHigh;
     allpass2_.process(l, apLow, apHigh);
@@ -156,8 +162,11 @@ public:
     gain_ = 1.0f;
   }
   void setThresholdDb(float db) { thresholdDb_ = db; }
-  float process(float x) {
-    if (thresholdDb_ <= -89.5f) return x;
+  float process(float x) { return x * gain(x); }
+  bool enabled() const { return thresholdDb_ > -89.5f; }
+  // Advances the detector on `x` and returns the gate's gain (0..1).
+  float gain(float x) {
+    if (thresholdDb_ <= -89.5f) return 1.0f;
     const float a = std::abs(x);
     env_ = a > env_ ? a : a + envRelease_ * (env_ - a);
     const float envDb = gainToDb(env_);
@@ -166,7 +175,7 @@ public:
     else if (envDb < thresholdDb_ - 4.0f) open_ = false;
     const float target = open_ ? 1.0f : 0.0f;
     gain_ = target > gain_ ? target + gainAttack_ * (gain_ - target) : target + gainRelease_ * (gain_ - target);
-    return x * gain_;
+    return gain_;
   }
   bool isOpen() const { return thresholdDb_ <= -89.5f || open_; }
 

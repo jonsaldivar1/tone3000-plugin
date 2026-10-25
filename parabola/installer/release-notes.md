@@ -34,7 +34,8 @@ Put them in `Documents\Parabola Bass Z\NAMs` and `\Cabs`, keep them in `Document
 - **In a DAW:** rescan your VST3 plugins (Reaper: Options → Preferences → Plug-ins → VST → Re-scan), then put Parabola on your bass DI track. It replaces your amp and cab.
 - **Standalone:** click the gear, pick **ASIO** and your audio interface, tick your bass's input, and turn on **Hear yourself** (it's off by default, the #1 reason for "no sound").
 - Click **?** in the header for the manual inside the plugin.
-- Also in the header: **PITCH** (transpose ±12 semitones), **TUNER** (mutes the output while open). Right-click any control to put it on a MIDI footswitch or pedal.
+- Also in the header: **NOISE** (a second gate after the drive bands: kills their hiss as notes fade), **PITCH** (transpose ±12 semitones), **TUNER** (mutes the output while open). Right-click any control to put it on a MIDI footswitch or pedal.
+- Mid and high bands have **PRE / POST**: split before the capture (default) or after it (thicker).
 
 ### Guides
 

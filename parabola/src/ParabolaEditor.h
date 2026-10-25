@@ -148,6 +148,19 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> attachment_;
 };
 
+// PRE | POST for a drive band: split before the capture, or after it.
+class SplitSwitch : public juce::Component, public HintSource {
+public:
+  SplitSwitch(juce::AudioProcessorValueTreeState& state, const juce::String& id, int band);
+  void paint(juce::Graphics& g) override;
+  void mouseDown(const juce::MouseEvent& e) override;
+  juce::String hint() const override;
+
+private:
+  int band_, index_ = 0;
+  std::unique_ptr<juce::ParameterAttachment> attachment_;
+};
+
 // The crossover display: the three bands' shapes (with their level and EQ),
 // two draggable split handles.
 class CrossoverView : public juce::Component, public HintSource {
@@ -205,6 +218,7 @@ private:
   Chip adv_, load_, clear_;
   std::vector<std::unique_ptr<Knob>> front_, backKnobs_;
   ParamChip cab_;
+  std::unique_ptr<SplitSwitch> split_;
   juce::String slotName_, slotNote_;
   std::unique_ptr<juce::FileChooser> chooser_;
 };
@@ -419,7 +433,7 @@ private:
   ParabolaProcessor& processor_;
   PbzLookAndFeel lnf_;
   PresetStore presets_;
-  Knob gate_, pitch_, input_, output_;
+  Knob gate_, noise_, pitch_, input_, output_;
   IconButton help_, gear_;
   Chip tuner_;
   PresetBar presetBar_;

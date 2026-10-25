@@ -28,6 +28,10 @@
           "Silences noise between notes, on your DI before everything. Fully down is off."
         ],
         [
+          "Noise",
+          "A second gate after the mid and high bands, following your DI: shuts the drive bands' hiss as notes fade while the low band rings on. Fully down is off."
+        ],
+        [
           "Pitch",
           "Transposes everything ±12 semitones before the bands."
         ],
@@ -203,6 +207,10 @@
           "Load a .nam capture (or drop one on the band), or remove it."
         ],
         [
+          "PRE / POST",
+          "PRE (default) splits first: the capture only hears this band's slice. POST drives first: the capture hears everything above the low split, and the slice is cut out after it. POST sounds thicker and a bit quieter."
+        ],
+        [
           "Drive",
           "How hard the capture is pushed, -12 to +24 dB."
         ],
@@ -232,9 +240,9 @@
       "how": "Same as the mid band: Drive into the capture, level-matched output, a Tone low-pass, Bass / Mid / Treble, then the cab IR. Because only the top of the range reaches this capture, you can drive it very hard without the low end turning to mush.",
       "sound": "The aggressive top end metal bass is known for. A little goes a long way; it's usually the quietest band.",
       "try": [
-        "Load B7K Heavy or B7K Distortion. Level around -6 dB.",
-        "Tone at 8 to 12 kHz takes the harsh edge off.",
-        "Mute it and unmute it: the difference is how 'modern' the tone sounds."
+        "Load B7K Heavy or B7K Distortion. Level around -6 dB, Mid / High split around 1.2 to 1.6 kHz (higher than that and a bass gives the band almost nothing but string noise).",
+        "Hissy? Turn up NOISE in the header (start around -55 dB), lower this band's Drive, and bring Tone down to 8 kHz.",
+        "Try POST with Drive around -6 dB for a thicker grind; raise Level to match."
       ],
       "controls": [
         [
@@ -244,6 +252,10 @@
         [
           "LOAD / ×",
           "Load a .nam capture (or drop one on the band), or remove it."
+        ],
+        [
+          "PRE / POST",
+          "PRE (default) splits first: the capture only hears this band's slice. POST drives first: the capture hears everything above the low split, and the slice is cut out after it. POST sounds thicker and a bit quieter."
         ],
         [
           "Drive",
@@ -373,6 +385,30 @@
         [
           "Hint bar",
           "Shows a control's CC once it's mapped."
+        ]
+      ]
+    },
+    {
+      "id": "noise",
+      "title": "Hiss & noise",
+      "tagline": "Why a high-gain band hisses, and what fixes it.",
+      "what": "A drive capture has a lot of gain, and it amplifies everything you feed it, including your bass's own noise: a passive single-coil (a Jazz Bass with one pickup down, say) hums and hisses at around -60 dB, and a high-gain capture can lift that to a loud fizz. The high band hears it most, because above the split a bass has little note to cover it.",
+      "how": "Gate (header) works on your DI before everything. Noise (header) is a second gate after the mid and high bands, following your DI: it shuts their hiss as each note fades, while the low band keeps ringing clean. Both use the same threshold idea: the level under which they close.",
+      "sound": "Silent stops between riffs, no fizz tail on held low notes, and a clean low end underneath.",
+      "try": [
+        "Jazz Bass: both pickup volumes all the way up (that's when they cancel each other's hum).",
+        "Set Gate where the hiss between notes cuts out with your hands off the strings (often -55 to -45 dB).",
+        "Turn Noise up until the drive bands' fizz stops as notes fade (often -55 to -45 dB).",
+        "Still hissy while notes ring: lower the high band's Drive, bring its Tone down, or use a less extreme capture."
+      ],
+      "controls": [
+        [
+          "Gate",
+          "DI gate, -90 (off) to -20 dB."
+        ],
+        [
+          "Noise",
+          "Drive bands' gate, -90 (off) to -20 dB."
         ]
       ]
     },

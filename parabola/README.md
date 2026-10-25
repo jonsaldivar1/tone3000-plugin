@@ -63,3 +63,8 @@ Windows installer: `.github/workflows/parabola-windows.yml` -> the
 
 Original code. Font: Anton (SIL OFL 1.1, `assets/Anton-LICENSE.txt`).
 Skin photos: Jon's.
+
+0.3 adds a second gate after the mid and high bands (NOISE in the header,
+keyed from the DI: it closes the drive bands' hiss as notes fade, the low
+band rings on), and PRE / POST on the mid and high bands (POST feeds the
+capture everything above the low split and cuts the band out after it).

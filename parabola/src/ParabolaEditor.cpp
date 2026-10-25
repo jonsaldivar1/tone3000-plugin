@@ -433,6 +433,52 @@ void IconButton::paintButton(juce::Graphics& g, bool highlighted, bool down) {
   g.fillPath(gear);
 }
 
+// ---------------------------------------------------------------- split switch
+SplitSwitch::SplitSwitch(juce::AudioProcessorValueTreeState& state, const juce::String& id, int band) : band_(band) {
+  setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  setTitle(id);
+  getProperties().set(kParamIdProp, id);
+  attachment_ = std::make_unique<juce::ParameterAttachment>(*state.getParameter(id), [this](float v) {
+    index_ = juce::roundToInt(v);
+    repaint();
+  });
+  attachment_->sendInitialUpdate();
+  setSize(96, 20);
+}
+
+juce::String SplitSwitch::hint() const {
+  const juce::String band = kBandNames[band_];
+  return band + juce::String(juce::CharPointer_UTF8(" \xc2\xb7 PRE / POST: ")) +
+         "PRE splits first, so the capture only hears this band's slice (thin, fizzy). POST drives first: the capture "
+         "hears everything above the low split and the slice is cut out after it, so it grinds on your real notes. "
+         "Now: " + (index_ == 1 ? "POST" : "PRE");
+}
+
+void SplitSwitch::mouseDown(const juce::MouseEvent& e) {
+  if (e.mods.isPopupMenu()) return;
+  const int i = e.x < getWidth() / 2 ? 0 : 1;
+  attachment_->setValueAsCompleteGesture(static_cast<float>(i));
+}
+
+void SplitSwitch::paint(juce::Graphics& g) {
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  const auto box = getLocalBounds().toFloat().reduced(1.0f);
+  const float w = box.getWidth() / 2.0f;
+  const char* labels[2] = {"PRE", "POST"};
+  for (int i = 0; i < 2; ++i) {
+    const auto seg = juce::Rectangle<float>(box.getX() + static_cast<float>(i) * w, box.getY(), w, box.getHeight());
+    if (index_ == i) {
+      g.setColour(L.band[static_cast<size_t>(band_)]);
+      g.fillRect(seg);
+    }
+    g.setColour(index_ == i ? juce::Colour(0xff05080d) : L.ink);
+    g.setFont(PbzLookAndFeel::label(9.0f));
+    g.drawText(labels[i], seg, juce::Justification::centred, false);
+  }
+  g.setColour(L.ink);
+  g.drawRect(box, 1.5f);
+}
+
 // ---------------------------------------------------------------- crossover
 namespace {
 constexpr double kMinHz = 30.0, kMaxHz = 16000.0, kTopDb = 12.0, kBottomDb = -30.0;
@@ -717,6 +763,10 @@ BandStrip::BandStrip(ParabolaProcessor& processor, int band)
   backKnobs_.push_back(knob("Treble", "Treble", 50, juce::String(juce::CharPointer_UTF8("Treble: shelf at 3 kHz, \xc2\xb1""12 dB.")), true));
   for (auto& k : front_) addAndMakeVisible(*k);
   for (auto& k : backKnobs_) addChildComponent(*k);
+  if (band != kLow) {
+    split_ = std::make_unique<SplitSwitch>(s, id + "Split", band);
+    addAndMakeVisible(*split_);
+  }
   refreshSlot();
   setPowered(power_.getToggleState());
 }
@@ -732,6 +782,7 @@ void BandStrip::setBack(bool back) {
   adv_.setDescription(back ? "BACK: return to Drive / Level." : "ADV: flip this band to its Bass / Mid / Treble and its CAB switch.");
   for (auto& k : front_) k->setVisible(!back);
   for (auto& k : backKnobs_) k->setVisible(back);
+  if (split_ != nullptr) split_->setVisible(!back);
   cab_.setVisible(back);
   resized();
   repaint();
@@ -799,8 +850,10 @@ void BandStrip::paint(juce::Graphics& g) {
   g.setColour(L.muted);
   g.setFont(PbzLookAndFeel::label(9.5f));
   const float titleW = juce::GlyphArrangement::getStringWidth(font, title);
-  g.drawText(back_ ? juce::String(juce::CharPointer_UTF8("EQ \xc2\xb7 CAB")) : juce::String(juce::CharPointer_UTF8(kRoles[band_])), juce::roundToInt(14 + titleW + 10), 20, 170, 18,
-             juce::Justification::centredLeft, false);
+  if (back_ || split_ == nullptr)
+    g.drawText(back_ ? juce::String(juce::CharPointer_UTF8("EQ \xc2\xb7 CAB")) : juce::String(juce::CharPointer_UTF8(kRoles[band_])),
+               juce::roundToInt(14 + titleW + 10), 20, 170, 18, juce::Justification::centredLeft, false);
+  if (split_ != nullptr) split_->setTopLeftPosition(juce::roundToInt(14 + titleW + 12), 17);
 
   auto slot = juce::Rectangle<float>(14.0f, static_cast<float>(kSlotY), static_cast<float>(getWidth() - 28), static_cast<float>(kSlotH));
   slot.removeFromRight(static_cast<float>(load_.getWidth() + (clear_.isVisible() ? clear_.getWidth() + 6 : 0) + 8));
@@ -1621,6 +1674,9 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
     : processor_(processor),
       gate_(processor.params, "gate", "Gate", 40,
             "Gate: silences hum and string noise between notes, on your DI before the bands. Fully down is off."),
+      noise_(processor.params, "driveGate", "Noise", 40,
+             "Noise: a second gate after the mid and high bands, following your DI. It shuts the drive bands' hiss "
+             "as notes fade while the low band keeps ringing clean. Fully down is off; start around -55 dB."),
       pitch_(processor.params, "pitch", "Pitch", 40,
              "Pitch: transpose everything up or down, in semitones, before the bands (drop-tune without retuning). "
              "Off at 0; on, it adds about 16 ms of delay."),
@@ -1640,7 +1696,8 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
   pitch_.setBipolar();
   input_.setBipolar();
   output_.setBipolar();
-  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_,
+  for (auto* k : {&gate_, &noise_, &pitch_, &input_, &output_}) k->setSize(56, k->getHeight());
+  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &noise_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_,
                                                           &presetBar_, &crossover_, &geq_, &cab_})
     addAndMakeVisible(c);
   for (int b = 0; b < kNumBands; ++b) {
@@ -1898,7 +1955,8 @@ void ParabolaView::resized() {
   output_.setTopRightPosition(tuner_.getX() - 8, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
   pitch_.setTopRightPosition(input_.getX() - 2, output_.getY());
-  gate_.setTopRightPosition(pitch_.getX() - 2, output_.getY());
+  noise_.setTopRightPosition(pitch_.getX() - 2, output_.getY());
+  gate_.setTopRightPosition(noise_.getX() - 2, output_.getY());
   headPlate_ = {gate_.getX() - 8, 16, right - gate_.getX() + 8, kHeaderH - 32};
   presetBar_.setBounds(286, 22, juce::jmin(470, headPlate_.getX() - 12 - 286), 60);
 

@@ -141,7 +141,11 @@ private:
                      *xoverHigh_ = nullptr, *cabOn_ = nullptr, *lowComp_ = nullptr;
   std::array<std::atomic<float>*, 6> geqP_{};
 
-  Gate gate_;
+  Gate gate_, driveGate_;   // the DI gate, and the gate after the drive bands (keyed from the DI)
+  std::array<LR4Split, kNumBands> postHp_, postLp_;  // POST bands' filters after the capture
+  std::array<std::atomic<float>*, kNumBands> split_{};
+  std::atomic<float>* driveGateP_ = nullptr;
+  std::vector<float> restBuf_, driveGain_buf_;
   Crossover crossover_;
   Compressor comp_;
   std::array<Biquad, kNumBands> tone_;

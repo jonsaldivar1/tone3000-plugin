@@ -56,6 +56,61 @@ double sineRms(ParabolaProcessor& p, double fs, double hz, double amp, double se
   return std::sqrt(sum / juce::jmax(1, count));
 }
 
+// Share of the output's energy (1.6 - 12 kHz) that sits on the note's
+// harmonics rather than between them (hiss): 1.0 = all note.
+std::vector<float> lastOut;
+double harmonicShare(double hz) {
+  constexpr int order = 15, size = 1 << order;
+  if (static_cast<int>(lastOut.size()) < size) return 0.0;
+  std::vector<float> data(2 * size, 0.0f);
+  for (int i = 0; i < size; ++i) {
+    const float w = 0.5f - 0.5f * std::cos(juce::MathConstants<float>::twoPi * static_cast<float>(i) / size);
+    data[static_cast<size_t>(i)] = lastOut[lastOut.size() - size + static_cast<size_t>(i)] * w;
+  }
+  juce::dsp::FFT fft(order);
+  fft.performFrequencyOnlyForwardTransform(data.data());
+  const double binHz = 48000.0 / size;
+  double on = 0.0, all = 0.0;
+  for (int b = static_cast<int>(1600.0 / binHz); b < static_cast<int>(12000.0 / binHz); ++b) {
+    const double f = b * binHz, pw = static_cast<double>(data[static_cast<size_t>(b)]) * data[static_cast<size_t>(b)];
+    all += pw;
+    const double k = std::round(f / hz);
+    if (std::abs(f - k * hz) < 4.0) on += pw;
+  }
+  return all > 0.0 ? on / all : 0.0;
+}
+
+double toneSlope = 1.5;  // harmonic n at 1/n^slope
+// Like sineRms, with a bass-like tone: harmonics at 1/n^slope up to 6 kHz.
+double toneRms(ParabolaProcessor& p, double fs, double hz, double amp, double seconds = 1.0, int block = 256,
+               double noiseRms = 0.0) {
+  juce::Random rng(1234);
+  const int total = static_cast<int>(fs * seconds);
+  juce::AudioBuffer<float> buf(2, block);
+  juce::MidiBuffer midi;
+  double sum = 0.0;
+  int count = 0;
+  const int harmonics = static_cast<int>(6000.0 / hz);
+  for (int start = 0; start < total; start += block) {
+    for (int i = 0; i < block; ++i) {
+      double x = 0.0;
+      for (int k = 1; k <= harmonics; ++k)
+        x += std::sin(juce::MathConstants<double>::twoPi * hz * k * (start + i) / fs) / std::pow(k, toneSlope);
+      const double v = amp * x * 0.5 + noiseRms * 1.732 * (2.0 * rng.nextDouble() - 1.0);
+      buf.setSample(0, i, static_cast<float>(v));
+      buf.setSample(1, i, static_cast<float>(v));
+    }
+    p.processBlock(buf, midi);
+    if (start >= total / 2)
+      for (int i = 0; i < block; ++i) {
+        sum += buf.getSample(0, i) * buf.getSample(0, i);
+        lastOut.push_back(buf.getSample(0, i));
+        ++count;
+      }
+  }
+  return std::sqrt(sum / juce::jmax(1, count));
+}
+
 double db(double ratio) { return 20.0 * std::log10(std::max(ratio, 1e-12)); }
 
 void flatBands(ParabolaProcessor& p) {
@@ -156,6 +211,16 @@ int main(int argc, char** argv) {
       ParabolaProcessor q;
       q.prepareToPlay(48000.0, 512);
       check(q.getLatencySamples() == 0, "at 48 kHz there's no added latency");
+    }
+    {
+      // The drive bands' gate shuts mid / high under its threshold; the low band rings on.
+      ParabolaProcessor p;
+      p.prepareToPlay(48000.0, 256);
+      flatBands(p);
+      set(p, "driveGate", -40.0f);
+      check(sineRms(p, 48000.0, 2000.0, 0.003) < 1e-4, "Noise gate shuts a quiet 2 kHz signal in the drive bands");
+      check(sineRms(p, 48000.0, 60.0, 0.003) > 0.0015, "and leaves the low band alone");
+      check(sineRms(p, 48000.0, 2000.0, 0.3) > 0.15, "and opens for a played note");
     }
     {
       // Pitch: +12 doubles the frequency; Parabola reports the shifter's delay.
@@ -320,6 +385,32 @@ int main(int argc, char** argv) {
         check(reloaded.remove("Test Preset") && reloaded.byName("Test Preset") == nullptr, "deleting it works");
       } else {
         std::printf("SKIP  preset/My Gear tests (no tones folder)\n");
+      }
+
+      {
+        // POST: the high band's capture grinds on a low note; PRE gets nothing above the split.
+        ParabolaProcessor h;
+        h.prepareToPlay(48000.0, 256);
+        flatBands(h);
+        set(h, "lowOn", 0.0f);
+        set(h, "midOn", 0.0f);
+        h.loadNam(parabola::kHigh, find("B7K Heavy"));
+        // A played note over a passive single-coil's hiss (about -60 dBFS): how
+        // much of the high band's output is the note's harmonics vs noise.
+        const auto share = [&](float split) {
+          set(h, "highSplit", split);
+          lastOut.clear();
+          toneRms(h, 48000.0, 82.0, 0.3, 1.5, 256, 0.001);
+          const double sh = harmonicShare(82.0);
+          std::printf("   high band, %s: %.0f%% of its output is the note's harmonics\n", split > 0.5f ? "POST" : "PRE", 100.0 * sh);
+          return sh;
+        };
+        toneSlope = 2.5;  // a passive J bass is dark up there
+        set(h, "highDrive", -6.0f);
+        const double pre = share(0.0f), postShare = share(1.0f);
+        check(postShare > pre, "POST (Drive -6): more of the high band is the note and less is hiss than PRE");
+        set(h, "highDrive", 0.0f);
+        toneSlope = 1.5;
       }
 
       // State: files come back.
