@@ -56,7 +56,9 @@ jobs:
           git remote add upstream https://github.com/tone-3000/tone3000-plugin.git
           git fetch upstream main
           before=$(git rev-parse HEAD)
-          if ! git merge --no-edit upstream/main; then
+          # T3KJ lives in t3kj/ (upstream: plugin/). directoryRenames puts
+          # files upstream adds under plugin/ into t3kj/ instead of conflicting.
+          if ! git -c merge.directoryRenames=true merge --no-edit upstream/main; then
             git merge --abort
             echo "::error::Upstream TONE3000 changes conflict with T3KJ changes. Resolve the merge by hand (or ask Claude), then push to main."
             exit 1

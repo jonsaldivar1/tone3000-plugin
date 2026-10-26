@@ -294,6 +294,7 @@ void TONE3000Processor::getStateInformation(juce::MemoryBlock& destData) {
   // sizes ride the chain snapshot below, with presets and undo.)
   state.setProperty("inputMode", inputModeToString(getInputMode()), nullptr);
   state.setProperty("editorScale", editorScale.load(), nullptr);
+  state.setProperty("editorStretch", editorStretch.load(), nullptr);
   state.setProperty("editorExtraHeight", editorExtraHeight.load(), nullptr);
   state.appendChild(midiMapper.toValueTree(), nullptr);
 
@@ -364,6 +365,8 @@ void TONE3000Processor::setStateInformation(const void* data, int sizeInBytes) {
   // Older projects have no editorScale; keep the 1x default. The editor
   // clamps to its supported range when it reads this.
   editorScale.store(static_cast<double>(state.getProperty("editorScale", 1.0)));
+  // Older projects were aspect-locked: no stretch.
+  editorStretch.store(static_cast<int>(state.getProperty("editorStretch", 0)));
   // Default matches the UI's default-visible hint bar (see Processor.h).
   editorExtraHeight.store(static_cast<int>(state.getProperty("editorExtraHeight", 36)));
 

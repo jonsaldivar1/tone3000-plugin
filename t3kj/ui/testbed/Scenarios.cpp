@@ -158,6 +158,7 @@ const std::map<juce::String, Drive>& drives() {
          scrollDown(root);
          wait(200);
        }},
+      {"main-detail-stretched", [](PluginRoot&, MockBackend&) { wait(300); }},
       {"load-detail-loading", [](PluginRoot&, MockBackend&) { wait(300); }},
       {"load-detail-failed", [](PluginRoot&, MockBackend&) { wait(300); }},
       {"main-detail-info",

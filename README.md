@@ -94,10 +94,11 @@ T3K_PUBLISHABLE_KEY=t3k_pub_your_key_here
 # T3K_API_DOMAIN=https://staging.tone3000.com
 ```
 
-Sign-in opens in the system browser and returns to the plugin through a
-loopback redirect on an ephemeral port (`http://localhost:<port>/`).
-Localhost redirect URIs are auto-allowed for publishable keys, so nothing
-needs registering in TONE3000 > Settings > API Keys.
+Sign-in opens in the system browser (an in-app sheet on iOS) and returns
+to the plugin through a loopback redirect on an ephemeral port
+(`http://localhost:<port>/`). Localhost redirect URIs are auto-allowed for
+publishable keys, so nothing needs registering in TONE3000 > Settings >
+API Keys.
 
 ### 4. Build the plugin
 

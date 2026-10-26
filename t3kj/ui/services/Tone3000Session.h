@@ -12,6 +12,14 @@
 // browser, and the device flow (RFC 8628) polls for a code entered on a
 // phone. All three paths feed the same loopback / token endpoints, so the
 // first to finish signs in and the others are dropped.
+//
+// On iOS the system browser is replaced by an in-app sheet
+// (webauth::Sheet, ASWebAuthenticationSession): App Store review rejects a
+// hand-off to Safari for sign-in. The sheet follows the same redirect to the
+// loopback listener, so the rest of the flow is identical; the only new
+// outcome is the sheet closing without a redirect, which the user's Cancel
+// turns into an abandoned sign-in and a presentation failure into the
+// browser-problem copy over the fallbacks.
 #pragma once
 
 #include <juce_core/juce_core.h>
@@ -25,6 +33,7 @@
 #include "Tone3000Client.h"
 #include "ToneSession.h"
 #include "UiPrefs.h"
+#include "WebAuth.h"
 #include "backend/Backend.h"
 #include "core/AsyncScope.h"
 #include "core/DelayedCall.h"
@@ -78,8 +87,11 @@ private:
   void handleCallback(const juce::String& query);
   // Tokens landed (from either path): adopt them and close the flow.
   void finishSignIn(const Tokens& tokens);
-  // Send the system browser to `url`; "" on success, else why not.
-  static juce::String openBrowser(const juce::String& url);
+  // Show `url` to the user: the in-app sheet where there is one, else the
+  // system browser. "" on success, else why not.
+  juce::String openBrowser(const juce::String& url);
+  // The in-app sheet closed before the loopback heard the redirect.
+  void sheetEnded(webauth::End end, const juce::String& reason);
   void pollDevice();
   void failDevice(juce::String why);
   void stopDeviceFlow();
@@ -94,6 +106,7 @@ private:
   Config config_;
   Tone3000Client client_;
   LoopbackServer loopback_;
+  webauth::Sheet sheet_;
   AsyncScope scope_;
 
   AuthFlow flow_;

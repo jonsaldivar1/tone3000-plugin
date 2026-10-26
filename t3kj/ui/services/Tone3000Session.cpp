@@ -14,6 +14,8 @@ constexpr const char* kLoopbackFailed = "Could not start the local sign-in liste
 // what to do instead). A browser that starts and then dies reports nothing
 // here: that is what the always-on fallbacks are for.
 constexpr const char* kBrowserFailed = "Your browser couldn't be opened.";
+// The in-app sheet's counterpart (iOS): the system would not present it.
+constexpr const char* kSheetFailed = "The sign-in window couldn't be opened.";
 // The device flow's outcomes (AuthFlow::Device::error).
 constexpr const char* kDeviceCodeFailed = "Couldn't get a code from TONE3000.";
 constexpr const char* kDeviceExpired = "That code expired.";
@@ -218,7 +220,32 @@ void Tone3000Session::setFlow(AuthFlow::Phase phase, juce::String error) {
 void Tone3000Session::clearAuthError() { setFlow(AuthFlow::Phase::idle); }
 
 juce::String Tone3000Session::openBrowser(const juce::String& url) {
+  if constexpr (webauth::kInApp) {
+    // The sheet is a browser pointed at the same authorize URL: its
+    // redirect lands on the loopback like Safari's would, and handleCallback
+    // dismisses it. Only a sheet closing on its own comes back here.
+    const bool shown =
+        sheet_.start(url, [this](webauth::End end, const juce::String& reason) { sheetEnded(end, reason); });
+    return shown ? juce::String() : juce::String(kSheetFailed);
+  }
   return juce::URL(url).launchInDefaultBrowser() ? juce::String() : juce::String(kBrowserFailed);
+}
+
+void Tone3000Session::sheetEnded(webauth::End end, const juce::String& reason) {
+  // Only while the flow is still waiting on it: a redirect that already
+  // landed has moved the phase on (and dismissed the sheet itself).
+  if (flow_.phase != AuthFlow::Phase::leaving) return;
+  if (end == webauth::End::canceled) {
+    // Cancel on the sheet is the user backing out of the sign-in, the same
+    // as the server's canceled=true redirect: back to where they were.
+    cancelFlow();
+    return;
+  }
+  // It never came up. The page stays, now reading as the fallbacks page:
+  // the link to copy into Safari and the device flow both still work.
+  juce::Logger::writeToLog("Sign-in sheet failed: " + reason);
+  flow_.browserProblem = kSheetFailed;
+  notifyAuthFlowChanged();
 }
 
 void Tone3000Session::login(LoginIntent intent) {
@@ -250,6 +277,7 @@ void Tone3000Session::retryFlow() { login(lastIntent_); }
 
 void Tone3000Session::cancelFlow() {
   loopback_.stop();
+  sheet_.cancel();
   pkce_.reset();
   stopDeviceFlow();
   if (flow_.phase == AuthFlow::Phase::leaving || flow_.phase == AuthFlow::Phase::returning)
@@ -262,6 +290,7 @@ void Tone3000Session::handleCallback(const juce::String& query) {
   const auto pkce = *pkce_;
   pkce_.reset();  // single use
   loopback_.stop();
+  sheet_.cancel();   // the redirect has landed; the sheet has nothing more to show
   stopDeviceFlow();  // the browser won the race
 
   const auto cb = oauth::Callback::parse(query, pkce.state);
@@ -289,6 +318,7 @@ void Tone3000Session::handleCallback(const juce::String& query) {
 void Tone3000Session::finishSignIn(const Tokens& tokens) {
   const bool wantsBrowser = lastIntent_ == LoginIntent::browse;
   loopback_.stop();
+  sheet_.cancel();
   pkce_.reset();
   stopDeviceFlow();
   client_.setTokens(tokens);

@@ -158,7 +158,12 @@ from (`port of KnobControl.tsx`); that is lineage, recorded in
   view that holds its size on screen instead (the tone browser's body, so a
   bigger window shows more results) counter-scales by `Services::zoom`, the
   factor the shell publishes on every fit; a `Popover` adopts its anchor's
-  scale, so menus opened from it are 1x too.
+  scale, so menus opened from it are 1x too. The 578 is a minimum: a taller
+  window stretches the column between header and faceplate
+  (`core/WindowFit.h`, `PluginRoot::setStretch`), and a screen in that
+  column keeps its title under the header and centres the rest in the room,
+  or fills it. Lay out against `getHeight()`, not the constant; a
+  scenario's `stretch` renders the testbed that way (`main-mono-stretched`).
 - **Ownership.** `NativeEditor` → `Services` → `PluginRoot` → views. Views
   hold references to the services they use and register as listeners in
   their constructor, deregister in their destructor. No singletons, no
@@ -205,9 +210,12 @@ from (`port of KnobControl.tsx`); that is lineage, recorded in
 
 ## Sign-in
 
-OAuth (PKCE) runs in the system browser. `Tone3000Session::login` starts
-`LoopbackServer` on `127.0.0.1:<ephemeral>`, opens the authorize URL with
-`redirect_uri=http://localhost:<port>/`, and the plugin shows the
+OAuth (PKCE) runs in the system browser on desktop and in an in-app
+`ASWebAuthenticationSession` sheet on iOS (`services/WebAuth`; App Store
+review rejects a hand-off to Safari, see `docs/ios.md`).
+`Tone3000Session::login` starts `LoopbackServer` on `127.0.0.1:<ephemeral>`,
+opens the authorize URL with `redirect_uri=http://localhost:<port>/`
+(the iOS sheet follows that redirect too), and the plugin shows the
 `SignInScreen` for as long as the session's `AuthFlow` is not idle: a full
 page in the tone browser's slot (Select Tone mockups 13342:46017 and
 13342:46055) with a bare ← that abandons the sign-in, the loading dots over

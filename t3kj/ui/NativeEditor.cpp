@@ -1,5 +1,7 @@
 #include "NativeEditor.h"
 
+#include <cmath>
+
 #include "core/Fonts.h"
 
 namespace t3k::ui {
@@ -95,19 +97,22 @@ NativeEditor::NativeEditor(TONE3000Processor& owner)
 
 #if JUCE_IOS
   // iOS gets one fixed, full-screen window: no corner drags, no host resize
-  // request, no persisted scale. The kiosk window hands us its bounds and the
-  // root letterboxes into them (see fitRoot); an aspect constrainer would
-  // resolve the 4:3 screen by height and clip a third of the UI.
-  setSize(design::kWidth, designHeight());
+  // request, no persisted size. The kiosk window hands us its bounds and the
+  // root fits into them (see fitRoot): the 4:3 screen stretches the column
+  // by what it has over the design box.
+  setSize(design::kWidth, minDesignHeight());
   setResizable(false, false);
 #else
   setResizable(true, true);
-  // Read the persisted scale before touching the constraints: installing the
-  // resize limits already snaps the editor to the 1x minimum, and resized()
-  // writes that back through processor.editorScale.
-  const double savedScale = juce::jlimit(1.0, maxStartScale(), processor_.editorScale.load());
-  updateResizeConstraints();
-  applyScaledSize(savedScale);
+  // Read the persisted shape before installing the constrainer: it snaps the
+  // editor to the 1x minimum, and resized() writes that back through the
+  // processor. Limits first: setConstrainer reads them to decide whether the
+  // host may resize us at all.
+  const auto start = startFit();
+  bounds_.setMinDesignHeight(minDesignHeight());
+  bounds_.updateLimitsFor(design::kWidth);
+  setConstrainer(&bounds_);
+  applyScaledSize(start.scale, start.stretch);
 #endif
   // Separates a crash inside PluginRoot's construction (log stops at "Fonts
   // ready") from one in the host's window attach (stops here).
@@ -116,32 +121,34 @@ NativeEditor::NativeEditor(TONE3000Processor& owner)
 
 NativeEditor::~NativeEditor() { stopTimer(); }
 
-double NativeEditor::maxStartScale() const {
-  // In a DAW the host owns the plugin window, so the persisted scale is
-  // restored as-is there.
-  if (!StandaloneAudioSettings::isAvailable()) return design::kMaxScale;
-  const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay();
-  if (display == nullptr) return design::kMaxScale;
-  // Fit the standalone window into the primary display's usable area, with
+design::Fit NativeEditor::startFit() const {
+  // The persisted shape, cut down to the room the window may open into. In a
+  // DAW the host owns the plugin window, so only the design's own range
+  // applies. The standalone fits the primary display's usable area, with
   // headroom for the native title bar (GitHub issue #43; Mutter's 2x title
-  // bar is 37 logical px). Floor at 1.0: the design box is the hard minimum.
-  constexpr int titleBarAllowance = 40;
-  const double fitW = display->userBounds.getWidth() / static_cast<double>(design::kWidth);
-  const double fitH =
-      (display->userBounds.getHeight() - titleBarAllowance) / static_cast<double>(designHeight());
-  return juce::jlimit(1.0, design::kMaxScale, juce::jmin(fitW, fitH));
+  // bar is 37 logical px). The scale floors at 1x: the design box is the
+  // hard minimum.
+  const int minH = minDesignHeight();
+  int roomW = juce::roundToInt(design::kWidth * design::kMaxScale);
+  int roomH = juce::roundToInt((minH + design::kMaxStretch) * design::kMaxScale);
+  if (StandaloneAudioSettings::isAvailable()) {
+    if (const auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay()) {
+      constexpr int titleBarAllowance = 40;
+      const auto usable = display->userBounds.toNearestInt();
+      roomW = juce::jmin(roomW, usable.getWidth());
+      roomH = juce::jmin(roomH, usable.getHeight() - titleBarAllowance);
+    }
+  }
+  const double maxScale = juce::jmax(1.0, juce::jmin(roomW / static_cast<double>(design::kWidth),
+                                                     roomH / static_cast<double>(minH)));
+  const double scale = juce::jlimit(1.0, maxScale, processor_.editorScale.load());
+  const int maxStretch =
+      juce::jlimit(0, design::kMaxStretch, static_cast<int>(std::floor(roomH / scale)) - minH);
+  return {scale, juce::jlimit(0, maxStretch, processor_.editorStretch.load())};
 }
 
-void NativeEditor::applyScaledSize(double scale) {
-  setSize(juce::roundToInt(design::kWidth * scale), juce::roundToInt(designHeight() * scale));
-}
-
-void NativeEditor::updateResizeConstraints() {
-  setResizeLimits(design::kWidth, designHeight(), juce::roundToInt(design::kWidth * design::kMaxScale),
-                  juce::roundToInt(designHeight() * design::kMaxScale));
-  // The ratio tracks the chrome strips, so corner drags at any extra-height
-  // state preserve the current layout exactly.
-  getConstrainer()->setFixedAspectRatio(static_cast<double>(design::kWidth) / designHeight());
+void NativeEditor::applyScaledSize(double scale, int stretch) {
+  setSize(juce::roundToInt(design::kWidth * scale), juce::roundToInt((minDesignHeight() + stretch) * scale));
 }
 
 void NativeEditor::setExtraContentHeight(int total, int persistent) {
@@ -160,55 +167,44 @@ void NativeEditor::setExtraContentHeight(int total, int persistent) {
   // refused) host resize lands, or the grace period ends.
   shrinkAllowedAtMs_ = grew ? juce::Time::currentTimeMillis() + kShrinkGraceMs : 0;
 #if JUCE_IOS
-  // The window is the screen; it cannot grow. Shrink the box to fit.
+  // The window is the screen; it cannot grow. The column gives up the
+  // strip's height from its stretch, or the box shrinks to fit.
   fitRoot();
 #else
-  // setSize() reaches the host as a resize request through the plugin
-  // wrapper (resizeView in VST3); a host that refuses keeps the old size and
-  // fitRoot letterboxes instead. Constrainer values are set directly rather
-  // than via setResizeLimits(), which re-applies to the *current* bounds and
-  // can snap the width for a frame mid-change.
-  const double scale = currentScale();
-  if (auto* c = getConstrainer()) {
-    c->setSizeLimits(design::kWidth, designHeight(), juce::roundToInt(design::kWidth * design::kMaxScale),
-                     juce::roundToInt(designHeight() * design::kMaxScale));
-    c->setFixedAspectRatio(static_cast<double>(design::kWidth) / designHeight());
-  }
-  applyScaledSize(scale);
+  // Keep the scale and the stretch, grow by the strip. setSize() reaches the
+  // host as a resize request through the plugin wrapper (resizeView in
+  // VST3); a host that refuses keeps the old size, and fitRoot takes the
+  // strip out of the stretch, or letterboxes once that is spent. The
+  // constrainer's own limits update in resized(); its minimum follows the
+  // design box, so a drag can't shrink us under the new chrome either way.
+  bounds_.setMinDesignHeight(minDesignHeight());
+  applyScaledSize(currentScale(), root_.stretch());
   fitRoot();
 #endif
 }
 
 void NativeEditor::fitRoot() {
-  const double byWidth = getWidth() / static_cast<double>(design::kWidth);
-  const double byHeight = getHeight() / static_cast<double>(designHeight());
-  double scale = byWidth;
-  if (byHeight < byWidth - 1e-6) {
+  auto fit = design::fit(getWidth(), getHeight(), minDesignHeight());
+  if (fit.scale < currentScale() - 1e-6) {
     // The box is taller than the window allows. Hold the width-driven scale
     // while a resize may still land (bottom strip clips, black on black),
     // then fit.
     const auto now = juce::Time::currentTimeMillis();
     if (now < shrinkAllowedAtMs_) {
       startTimer(static_cast<int>(shrinkAllowedAtMs_ - now) + 1);
+      fit = {currentScale(), 0};
     } else {
       stopTimer();
-      scale = byHeight;
     }
   } else {
     stopTimer();
   }
-  scale = juce::jmax(0.05, scale);
-  root_.setTransform(juce::AffineTransform::scale(static_cast<float>(scale)));
-  services_.zoom.set(scale);
-  // Top-anchored, horizontally centred. iOS centres vertically too: its
-  // window never resizes, so nothing can jump.
-  const int x = juce::roundToInt((getWidth() - design::kWidth * scale) / 2);
-#if JUCE_IOS
-  const int y = juce::jmax(0, juce::roundToInt((getHeight() - designHeight() * scale) / 2));
-#else
-  const int y = 0;
-#endif
-  root_.setTopLeftPosition(x, y);
+  root_.setStretch(fit.stretch);
+  root_.setTransform(juce::AffineTransform::scale(static_cast<float>(fit.scale)));
+  services_.zoom.set(fit.scale);
+  // Top-anchored, horizontally centred: the stretch fills the height, and a
+  // letterboxed box leaves its black at the sides and the bottom.
+  root_.setTopLeftPosition(juce::roundToInt((getWidth() - design::kWidth * fit.scale) / 2), 0);
 }
 
 void NativeEditor::paint(juce::Graphics& g) { g.fillAll(juce::Colours::black); }
@@ -233,10 +229,15 @@ void NativeEditor::resized() {
           juce::String(extraContentHeight_) + ")");
   }
   fitRoot();
-  // Persist the user's (or host's) chosen scale; skip while correcting our
-  // own size. No chosen scale exists on iOS (the window is the screen).
 #if !JUCE_IOS
-  if (!restoringSize_) processor_.editorScale.store(currentScale());
+  // The height range hosts read follows the width we now have.
+  bounds_.updateLimitsFor(getWidth());
+  // Persist the user's (or host's) chosen shape; skip while correcting our
+  // own size. No chosen shape exists on iOS (the window is the screen).
+  if (!restoringSize_) {
+    processor_.editorScale.store(currentScale());
+    processor_.editorStretch.store(root_.stretch());
+  }
 #endif
 }
 

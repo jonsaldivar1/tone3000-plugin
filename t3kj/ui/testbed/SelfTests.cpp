@@ -24,6 +24,7 @@
 #include "core/Pitch.h"
 #include "core/RichText.h"
 #include "core/TextFlow.h"
+#include "core/WindowFit.h"
 #include "model/ChainState.h"
 #include "model/Tone.h"
 #include "model/ToneQuery.h"
@@ -34,12 +35,20 @@
 #include "services/Tone3000Client.h"
 #include "services/UiPrefs.h"
 #include "services/UpdateCheck.h"
+#include "views/Faceplate.h"
+#include "views/HintBar.h"
+#include "views/PluginHeader.h"
+#include "views/block/BlockCard.h"
+#include "views/block/BlockDetail.h"
 #include "views/browser/FilterChip.h"
 #include "views/browser/Paginator.h"
 #include "views/browser/ToneCard.h"
+#include "views/gallery/ChainView.h"
 #include "views/gallery/GalleryGeometry.h"
+#include "views/gallery/GalleryLane.h"
 #include "views/gallery/GalleryTile.h"
 #include "widgets/Avatar.h"
+#include "widgets/BackLink.h"
 #include "widgets/ChromeTextButton.h"
 #include "widgets/Clickable.h"
 #include "widgets/DbMeter.h"
@@ -2625,9 +2634,187 @@ struct FaceplateDualMonoTests : juce::UnitTest {
   }
 };
 
+// core/WindowFit: the width picks the scale, a taller box stretches the
+// column, a shorter one letterboxes; the constrainer's minimum height follows
+// the width. Then the screens' response to a stretched column, through the
+// same ScaledHost the captures use: header, faceplate and hint bar hold their
+// heights, the titles stay put and the lanes / block card centre in the room.
+struct WindowFitTests : juce::UnitTest {
+  WindowFitTests() : juce::UnitTest("Window fit", "ui") {}
+
+  static void pump(int ms) { juce::MessageManager::getInstance()->runDispatchLoopUntil(ms); }
+
+  template <typename T>
+  static T* findView(juce::Component& root) {
+    return dynamic_cast<T*>(drive::find(root, [](juce::Component& c) { return dynamic_cast<T*>(&c) != nullptr; }));
+  }
+
+  // The scenario with the column stretched by `stretch` design px.
+  static Scenario stretched(const Scenario& base, int stretch) {
+    Scenario copy{base.id, base.data.clone(), base.hasDrive};
+    copy.data.getDynamicObject()->setProperty("stretch", stretch);
+    return copy;
+  }
+
+  void runTest() override {
+    using design::fit;
+    constexpr int kMinH = design::kHeight + design::kHintHeight;  // 614: the design box with the hint bar
+
+    beginTest("the design box at any scale fits exactly");
+    expectWithinAbsoluteError(fit(1024, kMinH, kMinH).scale, 1.0, 1e-9);
+    expectEquals(fit(1024, kMinH, kMinH).stretch, 0);
+    expectWithinAbsoluteError(fit(2048, 2 * kMinH, kMinH).scale, 2.0, 1e-9);
+    expectEquals(fit(2048, 2 * kMinH, kMinH).stretch, 0);
+
+    beginTest("a taller box keeps the width's scale and stretches by the surplus");
+    const auto ipad = fit(1024, 768, kMinH);  // a 4:3 screen at 1x
+    expectWithinAbsoluteError(ipad.scale, 1.0, 1e-9);
+    expectEquals(ipad.stretch, 768 - kMinH);
+    const auto scaled = fit(1536, 1152, kMinH);  // the same shape at 1.5x
+    expectWithinAbsoluteError(scaled.scale, 1.5, 1e-9);
+    expectEquals(scaled.stretch, 768 - kMinH);
+    expectEquals(fit(1024, 614 + 7, kMinH).stretch, 7);
+
+    beginTest("the stretch is capped");
+    expectEquals(fit(1024, kMinH + design::kMaxStretch + 300, kMinH).stretch, design::kMaxStretch);
+
+    beginTest("a box too short for its width scales by height and letterboxes, with no stretch");
+    const auto squat = fit(1024, 500, kMinH);
+    expectWithinAbsoluteError(squat.scale, 500.0 / kMinH, 1e-9);
+    expectEquals(squat.stretch, 0);
+    expect(fit(0, 0, kMinH).scale > 0.0, "an unsized box still fits at a positive scale");
+
+    beginTest("the constrainer's height range follows the width");
+    design::FitConstrainer c;
+    c.setMinDesignHeight(kMinH);
+    expectEquals(c.minHeightFor(1024), kMinH);
+    expectEquals(c.minHeightFor(2048), 2 * kMinH);
+    expectEquals(c.maxHeightFor(1024), kMinH + design::kMaxStretch);
+    const juce::Rectangle<int> limits(0, 0, 10000, 10000);
+    auto check = [&](juce::Rectangle<int> b, bool top = false) {
+      const auto previous = b;
+      c.checkBounds(b, previous, limits, top, false, !top, true);
+      return b;
+    };
+    expectEquals(check({0, 0, 1024, 500}).getHeight(), kMinH);                     // under the minimum: raised
+    expectEquals(check({0, 0, 1536, 700}).getHeight(), c.minHeightFor(1536));      // wider: the minimum rises with it
+    expectEquals(check({0, 0, 1024, 700}).getHeight(), 700);                       // taller is allowed
+    expectEquals(check({0, 0, 1024, 5000}).getHeight(), c.maxHeightFor(1024));     // up to the cap
+    expectEquals(check({0, 0, 800, 400}).getWidth(), design::kWidth);              // the width floors at 1x
+    expectEquals(check({0, 0, 800, 400}).getHeight(), kMinH);
+    expectEquals(check({0, 0, 3000, 3000}).getWidth(), juce::roundToInt(design::kWidth * design::kMaxScale));
+    expectEquals(check({0, 100, 1024, 500}, /*top=*/true).getBottom(), 600);        // a top drag keeps the bottom
+    expectEquals(check({0, 100, 1024, 500}, /*top=*/true).getHeight(), kMinH);
+
+    const auto fixtures = Fixtures::load(fixturesDir().getChildFile("scenarios.json"));
+    const auto* mono = fixtures.find("main-mono");
+    const auto* detail = fixtures.find("main-detail");
+    if (mono == nullptr || detail == nullptr) {
+      expect(false, "main-mono / main-detail scenarios missing");
+      return;
+    }
+    constexpr int kStretch = 160;
+
+    beginTest("the root takes the stretch into its column; header, faceplate and hint bar hold");
+    {
+      MockBackend backend(mono->data);
+      ScaledHost host(backend, stretched(*mono, kStretch), fixtures.root);
+      pump(100);
+      auto& root = host.pluginRoot();
+      expectEquals(host.getHeight(), kMinH + kStretch);
+      expectEquals(root.stretch(), kStretch);
+      expectEquals(root.designHeight(), kMinH + kStretch);
+      expectWithinAbsoluteError(root.services().zoom.factor(), 1.0, 1e-9);
+      auto* header = findView<PluginHeader>(root);
+      auto* plate = findView<Faceplate>(root);
+      auto* hints = findView<HintBar>(root);
+      auto* chain = findView<ChainView>(root);
+      expect(header != nullptr && plate != nullptr && hints != nullptr && chain != nullptr);
+      if (header == nullptr || plate == nullptr || hints == nullptr || chain == nullptr) return;
+      expectEquals(header->getHeight(), design::kHeaderHeight);
+      expectEquals(root.getLocalArea(header, header->getLocalBounds()).getY(), 0);
+      expectEquals(plate->getHeight(), design::kPlateHeight);
+      const auto plateInRoot = root.getLocalArea(plate, plate->getLocalBounds());
+      expectEquals(plateInRoot.getBottom(), design::kHeight + kStretch);
+      const auto hintsInRoot = root.getLocalArea(hints, hints->getLocalBounds());
+      expectEquals(hintsInRoot.getY(), design::kHeight + kStretch);
+      expectEquals(hintsInRoot.getBottom(), root.getHeight());
+      expectEquals(chain->getHeight(), design::kColumnHeight + kStretch);
+
+      beginTest("the gallery keeps its title in place and centres the lanes in the room");
+      const auto scroller = chain->scroller().getBounds();
+      expectEquals(scroller.getY(), ChainView::kPadY);  // the title's row stays under the header
+      expectEquals(scroller.getHeight(), design::kColumnHeight + kStretch - 2 * ChainView::kPadY);
+      auto* lane = findView<GalleryLane>(root);
+      expect(lane != nullptr);
+      if (lane == nullptr) return;
+      const auto laneInChain = chain->getLocalArea(lane, lane->getLocalBounds());
+      // Within a pixel of centre (integer halves on both sides).
+      expectWithinAbsoluteError(laneInChain.getCentreY(), chain->getHeight() / 2, 1);
+    }
+
+    beginTest("without stretch nothing moves");
+    {
+      MockBackend backend(mono->data);
+      ScaledHost host(backend, *mono, fixtures.root);
+      pump(100);
+      auto& root = host.pluginRoot();
+      expectEquals(root.stretch(), 0);
+      expectEquals(host.getHeight(), kMinH);
+      auto* chain = findView<ChainView>(root);
+      expect(chain != nullptr);
+      if (chain == nullptr) return;
+      expectEquals(chain->getHeight(), design::kColumnHeight);
+      expectEquals(chain->scroller().getY(), ChainView::kPadY);
+    }
+
+    beginTest("the block detail keeps its back link in place and centres the card below it");
+    {
+      MockBackend backend(detail->data);
+      ScaledHost host(backend, stretched(*detail, kStretch), fixtures.root);
+      pump(400);
+      auto& root = host.pluginRoot();
+      auto* view = findView<BlockDetail>(root);
+      auto* back = findView<BackLink>(root);
+      auto* card = findView<BlockCard>(root);
+      expect(view != nullptr && back != nullptr && card != nullptr);
+      if (view == nullptr || back == nullptr || card == nullptr) return;
+      expectEquals(view->getHeight(), design::kColumnHeight + kStretch);
+      expectEquals(view->getLocalArea(back, back->getLocalBounds()).getY(), BlockDetail::kPadY);
+      const auto cardInView = view->getLocalArea(card, card->getLocalBounds());
+      expectEquals(cardInView.getY(), kStretch / 2 + BlockDetail::kPadY + BackLink::kHeight + BlockDetail::kBackGap);
+      expectEquals(view->getHeight() - cardInView.getBottom(), kStretch / 2 + BlockDetail::kPadY);
+    }
+
+    beginTest("a stretched window gives the strip its chrome from the stretch, not the scale");
+    {
+      MockBackend backend(mono->data);
+      // Hints off: the window opens at the core height plus the stretch.
+      auto scenario = stretched(*mono, kStretch);
+      scenario.data.getDynamicObject()->setProperty("hints", false);
+      ScaledHost host(backend, scenario, fixtures.root);
+      pump(100);
+      auto& root = host.pluginRoot();
+      expectEquals(root.stretch(), kStretch);
+      expectEquals(host.getHeight(), design::kHeight + kStretch);
+      // A host that refuses the grow: the column gives up the strip's height.
+      const int before = host.getHeight();
+      root.services().hints.setEnabled(true);
+      pump(50);
+      expectEquals(host.getHeight(), before + design::kHintHeight);  // the grow was asked for
+      host.setSize(host.getWidth(), before);  // the refusal
+      pump(50);
+      expectWithinAbsoluteError(root.services().zoom.factor(), 1.0, 1e-9);
+      expectEquals(root.stretch(), kStretch - design::kHintHeight);
+      expectEquals(root.designHeight(), before);
+    }
+  }
+};
+
 HtmlTests htmlTests;
 FontTests fontTests;
 RichFlowTests richFlowTests;
+WindowFitTests windowFitTests;
 AccessibilityTests accessibilityTests;
 FocusPolicyTests focusPolicyTests;
 SettingsKeyboardTests settingsKeyboardTests;

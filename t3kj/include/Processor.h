@@ -429,6 +429,12 @@ public:
   // the message thread.
   std::atomic<double> editorScale{1.0};
 
+  // Design px the user's window is taller than the design box at that scale
+  // (the content column stretches by it; see ui/core/WindowFit.h).
+  // Persisted with editorScale so the window reopens at the shape it was
+  // left in. 0 = the design's own aspect.
+  std::atomic<int> editorStretch{0};
+
   // Extra window height (design px) for persistent chrome strips, currently
   // just the hint bar. Persisted like editorScale so the next editor opens at
   // the height the UI's first paint will actually need, instead of growing a
