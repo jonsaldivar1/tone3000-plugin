@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regenerates plugin/ui/core/LucideIcons.h: one SVG string per Lucide icon
+// Regenerates t3kj/ui/core/LucideIcons.h: one SVG string per Lucide icon
 // the UI draws (Icons::draw parses each once into a Drawable). ICONS below
 // is the set; add a name here, run the script, then use Icon::<Name>.
 //
@@ -32,7 +32,7 @@ const ICONS = [
 ];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, 'plugin/ui/core/LucideIcons.h');
+const out = join(root, 't3kj/ui/core/LucideIcons.h');
 const names = [...new Set(ICONS)].sort();
 
 // Lucide's own toKebabCase: a letter→digit boundary also splits (Redo2 → redo-2).

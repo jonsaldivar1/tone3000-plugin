@@ -5,7 +5,7 @@
 #   cmake --build build --config Release
 #
 # Shares the repo's JUCE checkout (libs/juce, same version as the main
-# build) and T3KJ's pitch shifter (plugin/src/PitchShift.cpp) for the Sub
+# build) and T3KJ's pitch shifter (t3kj/src/PitchShift.cpp) for the Sub
 # module's CLEAN mode.
 cmake_minimum_required(VERSION 3.22)
 
@@ -41,7 +41,7 @@ set(DJONT_SOURCES
     src/DjontEditor.cpp
     src/WhamPresets.cpp
     ${REPO_DIR}/shared/HushPanel.cpp
-    ${REPO_DIR}/plugin/src/PitchShift.cpp
+    ${REPO_DIR}/t3kj/src/PitchShift.cpp
 )
 
 juce_add_plugin(dJONt
@@ -61,7 +61,7 @@ juce_add_plugin(dJONt
 )
 
 target_sources(dJONt PRIVATE ${DJONT_SOURCES})
-target_include_directories(dJONt PRIVATE src "${REPO_DIR}/plugin/include" "${REPO_DIR}/shared")
+target_include_directories(dJONt PRIVATE src "${REPO_DIR}/t3kj/include" "${REPO_DIR}/shared")
 target_compile_definitions(dJONt PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
@@ -87,7 +87,7 @@ endif()
 if (DJONT_TESTS)
     juce_add_console_app(DjontTests PRODUCT_NAME "DjontTests")
     target_sources(DjontTests PRIVATE tests/DjontTests.cpp ${DJONT_SOURCES})
-    target_include_directories(DjontTests PRIVATE src "${REPO_DIR}/plugin/include" "${REPO_DIR}/shared")
+    target_include_directories(DjontTests PRIVATE src "${REPO_DIR}/t3kj/include" "${REPO_DIR}/shared")
     target_compile_definitions(DjontTests PRIVATE
         DJONT_NO_PLUGIN_ENTRY=1 NOMINMAX=1 JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_STANDALONE_APPLICATION=1)
     target_link_libraries(DjontTests

@@ -57,7 +57,7 @@ case "$format" in
     ;;
 esac
 
-src="build/plugin/TONE3000_artefacts/$build_type/$format/$bundle"
+src="build/t3kj/TONE3000_artefacts/$build_type/$format/$bundle"
 if [ ! -d "$src" ]; then
   echo "Not found: $src" >&2
   echo "Build it first: cmake -B build -S . -DCMAKE_BUILD_TYPE=$build_type && cmake --build build" >&2

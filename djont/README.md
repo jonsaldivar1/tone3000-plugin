@@ -39,7 +39,7 @@ and the release page attaches. The release page text (install guide) is
 (installer, uninstaller, shortcuts).
 
 Original code. Font: Anton (SIL OFL 1.1, `assets/Anton-LICENSE.txt`).
-Sub's Clean mode uses T3KJ's pitch shifter (`plugin/src/PitchShift.cpp`).
+Sub's Clean mode uses T3KJ's pitch shifter (`t3kj/src/PitchShift.cpp`).
 
 Build: `cmake -B build-djont -S djont -DCMAKE_BUILD_TYPE=Release && cmake --build build-djont`
 (add `-DDJONT_TESTS=ON` for the `DjontTests` checks). Windows installer:

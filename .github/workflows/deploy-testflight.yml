@@ -113,7 +113,7 @@ jobs:
             libs/juce
             libs/googletest
             libs/clap-juce-extensions
-          key: cpm-deps-ios-device-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+          key: cpm-deps-ios-device-${{ hashFiles('CMakeLists.txt', 't3kj/CMakeLists.txt') }}
 
       # The key lives in ~/.appstoreconnect/private_keys because altool has no
       # key-path flag: it looks up AuthKey_<id>.p8 in a fixed list of

@@ -3,14 +3,14 @@
      renders the icns verbatim (no system masking before Tahoe; Tahoe's
      Liquid Glass treatment expects this same grid), so the artwork must
      bake the shape in - unlike Windows/Linux, which take the full-bleed
-     square plugin/icon/icon.png.
+     square t3kj/icon/icon.png.
 
-     The mark is plugin/ui/assets/t3k-mark.svg (36x12 viewBox), scaled to 640px
+     The mark is t3kj/ui/assets/t3k-mark.svg (36x12 viewBox), scaled to 640px
      wide and centered on the chip.
 
-     Regenerate the PNGs (plugin/icon/icon-macos.png at 1024,
+     Regenerate the PNGs (t3kj/icon/icon-macos.png at 1024,
      script/installer/linux/tone3000.png at 512) with @resvg/resvg-js;
-     see the note in plugin/CMakeLists.txt next to ICON_BIG. -->
+     see the note in t3kj/CMakeLists.txt next to ICON_BIG. -->
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="100" y="100" width="824" height="824" rx="185" fill="#000000"/>
   <g transform="translate(192 403.06) scale(18.156)">

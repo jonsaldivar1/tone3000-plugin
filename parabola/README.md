@@ -34,7 +34,7 @@ Resizable (60% - 200%), hint bar, **?** manual (text in `manual/manual.json`,
 also the PDF manual's reference section). Icon: `icon/parabola.png`,
 `installer/parabola.ico`.
 
-Build (needs the `plugin/NeuralAmpModelerCore` and `plugin/AudioDSPTools`
+Build (needs the `t3kj/NeuralAmpModelerCore` and `t3kj/AudioDSPTools`
 submodules, recursive):
 
 ```

@@ -1,21 +1,21 @@
 ; Inno Setup script for the TONE3000 Windows installer.
 ; Compiled in CI with ISCC (preinstalled on GitHub windows-latest runners):
 ;
-;   iscc /DVersion=x.y.z /DArtefactsDir=..\..\..\build\plugin\TONE3000_artefacts\Release script\installer\windows\tone3000.iss
+;   iscc /DVersion=x.y.z /DArtefactsDir=..\..\..\build\t3kj\TONE3000_artefacts\Release script\installer\windows\tone3000.iss
 ;
 ; Defines (override with /D on the command line):
 ;   Version       plugin version string, REQUIRED. Pass the contents of the
 ;                 repo-root VERSION file (single source of truth, no default
 ;                 here so the installer can never ship a stale version)
 ;   ArtefactsDir  path to the JUCE Release artefacts dir, absolute or relative
-;                 to this script (default ..\..\..\build\plugin\TONE3000_artefacts\Release)
+;                 to this script (default ..\..\..\build\t3kj\TONE3000_artefacts\Release)
 ;   OutputDir     where the setup exe is written (default ..\..\..\build)
 
 #ifndef Version
   #pragma error "Version not set - pass /DVersion=x.y.z (from the repo-root VERSION file)"
 #endif
 #ifndef ArtefactsDir
-  #define ArtefactsDir "..\..\..\build\plugin\TONE3000_artefacts\Release"
+  #define ArtefactsDir "..\..\..\build\t3kj\TONE3000_artefacts\Release"
 #endif
 #ifndef OutputDir
   #define OutputDir "..\..\..\build"
@@ -52,7 +52,7 @@ InfoBeforeFile=..\..\..\LICENSE
 ; Branding: dark T3K banner on the welcome/finish pages, mark chip on the
 ; inner-page header, and the T3K icon on the setup exe itself. The BMP pairs
 ; are 100% / 200% DPI variants rendered from design/tone3000-wordmark.svg and
-; plugin/ui/assets/t3k-mark.svg (BMP, not PNG: PNG needs Inno 6.5.2+).
+; t3kj/ui/assets/t3k-mark.svg (BMP, not PNG: PNG needs Inno 6.5.2+).
 WizardStyle=modern
 DisableWelcomePage=no
 WizardImageFile=wizard-image-100.bmp,wizard-image-200.bmp

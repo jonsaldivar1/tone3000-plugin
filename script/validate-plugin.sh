@@ -42,7 +42,7 @@ case "$build_type" in
 esac
 
 os="$(uname -s)"
-artefacts="build/plugin/TONE3000_artefacts/$build_type"
+artefacts="build/t3kj/TONE3000_artefacts/$build_type"
 
 find_pluginval() {
   if command -v pluginval > /dev/null; then

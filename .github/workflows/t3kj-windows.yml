@@ -108,7 +108,7 @@ jobs:
             libs/juce
             libs/googletest
             libs/clap-juce-extensions
-          key: cpm-deps-windows-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+          key: cpm-deps-windows-${{ hashFiles('CMakeLists.txt', 't3kj/CMakeLists.txt') }}
 
       - name: Setup MSVC dev environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -155,7 +155,7 @@ jobs:
             choco install innosetup -y --no-progress
           }
           & $iscc /DVersion=$env:T3K_VERSION `
-            /DArtefactsDir="$env:GITHUB_WORKSPACE\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
+            /DArtefactsDir="$env:GITHUB_WORKSPACE\build\t3kj\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
             /DOutputDir="$env:GITHUB_WORKSPACE\build" `
             script\installer\windows\t3kj.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

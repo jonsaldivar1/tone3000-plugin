@@ -28,7 +28,7 @@
 //                   load under the current ids (LegacyParamIds.h).
 //
 // Splice quality (sidebands, warble, onset timing on real DIs) is the
-// bench's job, see plugin/docs/pitch-shift.md.
+// bench's job, see t3kj/docs/pitch-shift.md.
 #include "LegacyParamIds.h"
 #include "PitchShift.h"
 #include "PresetFile.h"

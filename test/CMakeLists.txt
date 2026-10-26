@@ -49,43 +49,43 @@ target_sources(DspTests PRIVATE
     # Compiled straight from the plugin tree so the tests exercise the real
     # processor, not a copy. GUI sources are excluded; HEADLESS=1 below
     # compiles the processor exactly like the headless plugin build.
-    ../plugin/src/AutoOffset.cpp
-    ../plugin/src/BlockEq.cpp
-    ../plugin/src/BlockSpectrum.cpp
-    ../plugin/src/LegacyParamIds.cpp
-    ../plugin/src/MidiMapper.cpp
-    ../plugin/src/NamEngine.cpp
-    ../plugin/src/PresetFile.cpp
-    ../plugin/src/PresetManager.cpp
-    ../plugin/src/Processor.cpp
-    ../plugin/src/ProcessorChain.cpp
-    ../plugin/src/ProcessorHistory.cpp
-    ../plugin/src/ProcessorModelLoader.cpp
-    ../plugin/src/ProcessorPresets.cpp
-    ../plugin/src/ProcessorScenes.cpp
-    ../plugin/src/ProcessorState.cpp
-    ../plugin/src/Spread.cpp
+    ../t3kj/src/AutoOffset.cpp
+    ../t3kj/src/BlockEq.cpp
+    ../t3kj/src/BlockSpectrum.cpp
+    ../t3kj/src/LegacyParamIds.cpp
+    ../t3kj/src/MidiMapper.cpp
+    ../t3kj/src/NamEngine.cpp
+    ../t3kj/src/PresetFile.cpp
+    ../t3kj/src/PresetManager.cpp
+    ../t3kj/src/Processor.cpp
+    ../t3kj/src/ProcessorChain.cpp
+    ../t3kj/src/ProcessorHistory.cpp
+    ../t3kj/src/ProcessorModelLoader.cpp
+    ../t3kj/src/ProcessorPresets.cpp
+    ../t3kj/src/ProcessorScenes.cpp
+    ../t3kj/src/ProcessorState.cpp
+    ../t3kj/src/Spread.cpp
     # Processor.cpp's constructor calls StandaloneStateAutosave::install().
     # Always the portable no-op stub here, never the .mm: the real observer
     # is iOS-standalone-only and this suite never runs there (the stub is
     # also what the plugin itself compiles to everywhere but iOS).
-    ../plugin/src/StandaloneStateAutosave.cpp
-    ../plugin/src/PitchShift.cpp
-    ../plugin/src/StereoOffset.cpp
-    ../plugin/src/TunerDetector.cpp
+    ../t3kj/src/StandaloneStateAutosave.cpp
+    ../t3kj/src/PitchShift.cpp
+    ../t3kj/src/StereoOffset.cpp
+    ../t3kj/src/TunerDetector.cpp
 )
 
 target_include_directories(DspTests PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/include
     # ChainDomain.h pulls in the AudioDSPTools resampling boundary.
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/AudioDSPTools
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/AudioDSPTools/dsp/ResamplingContainer/Dependencies
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/AudioDSPTools
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/AudioDSPTools/dsp/ResamplingContainer/Dependencies
     # NAM core + deps. Added explicitly (not via the NAM target) because on
     # macOS/Windows NAM is linked as a whole-archive *flag*, which doesn't
     # propagate the target's include directories.
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/NeuralAmpModelerCore
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/NeuralAmpModelerCore/Dependencies/eigen
-    ${CMAKE_CURRENT_SOURCE_DIR}/../plugin/NeuralAmpModelerCore/Dependencies/nlohmann
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/NeuralAmpModelerCore
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/NeuralAmpModelerCore/Dependencies/eigen
+    ${CMAKE_CURRENT_SOURCE_DIR}/../t3kj/NeuralAmpModelerCore/Dependencies/nlohmann
 )
 
 target_compile_definitions(DspTests PRIVATE
@@ -93,7 +93,7 @@ target_compile_definitions(DspTests PRIVATE
     JUCE_USE_WEBP=0
     JUCE_USE_CURL=0
     # Prevent windows.h min/max macros from breaking std::min/std::max in
-    # AudioDSPTools and plugin code (same as plugin/CMakeLists.txt).
+    # AudioDSPTools and plugin code (same as t3kj/CMakeLists.txt).
     $<$<PLATFORM_ID:Windows>:NOMINMAX>
     # The processor compiles in its headless configuration (no editor /
     # standalone-window code); the DSP under test is identical.
@@ -105,7 +105,7 @@ target_compile_definitions(DspTests PRIVATE
     # Absolute path to the test assets, so the binary runs from anywhere.
     T3K_TEST_FILES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/files"
     # Exposes is_a2_shape, which ProcessorModelLoader.cpp uses to gate
-    # drop-loaded local NAM files (same as plugin/CMakeLists.txt).
+    # drop-loaded local NAM files (same as t3kj/CMakeLists.txt).
     NAM_ENABLE_A2_FAST
 )
 
@@ -116,7 +116,7 @@ target_link_libraries(DspTests
         juce::juce_audio_processors
         # NAM must be linked whole-archive so its self-registering config
         # parsers (WaveNet/ConvNet/LSTM static initializers) survive the
-        # linker (same recipe as plugin/CMakeLists.txt).
+        # linker (same recipe as t3kj/CMakeLists.txt).
         $<$<PLATFORM_ID:Darwin>:-Wl,-force_load,$<TARGET_FILE:NAM>>
         $<$<PLATFORM_ID:Linux>:-Wl,--whole-archive>
         $<$<PLATFORM_ID:Linux>:NAM>

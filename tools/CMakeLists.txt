@@ -6,10 +6,10 @@ set_target_properties(PresetTool PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 target_sources(PresetTool PRIVATE
     preset_tool.cpp
-    ../plugin/src/LegacyParamIds.cpp
-    ../plugin/src/PresetFile.cpp
+    ../t3kj/src/LegacyParamIds.cpp
+    ../t3kj/src/PresetFile.cpp
 )
-target_include_directories(PresetTool PRIVATE ../plugin/include)
+target_include_directories(PresetTool PRIVATE ../t3kj/include)
 target_compile_definitions(PresetTool PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0

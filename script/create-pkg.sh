@@ -29,7 +29,7 @@
 #   SIGN_ID_APP=identity   Developer ID Application identity (enables real signing)
 #   SIGN_ID_PKG=identity   Developer ID Installer identity (signs the .pkg envelope)
 #   NOTARY_PROFILE=name    `notarytool store-credentials` profile name to use
-#   ENTITLEMENTS=path      Standalone app entitlements (defaults to plugin/TONE3000-Standalone.entitlements)
+#   ENTITLEMENTS=path      Standalone app entitlements (defaults to t3kj/TONE3000-Standalone.entitlements)
 #
 # Prereqs for Developer ID mode:
 #   - Both certs in your login keychain (`security find-identity -v -p basic`).
@@ -43,13 +43,13 @@ set -euo pipefail
 # Version comes from the repo-root VERSION file (single source of truth).
 VERSION="$(tr -d '[:space:]' < "$(dirname "$0")/../VERSION")"
 PKG_NAME="TONE3000-v${VERSION}"
-RELEASE="${RELEASE:-./build/plugin/TONE3000_artefacts/Release}"
+RELEASE="${RELEASE:-./build/t3kj/TONE3000_artefacts/Release}"
 STAGE="${STAGE:-./build/pkg-stage}"
 COMPONENTS_DIR="${COMPONENTS_DIR:-./build/pkg-components}"
 OUTPUT_PKG="./build/${PKG_NAME}.pkg"
 INSTALLER_DIR="./script/installer"
 FACTORY_PRESETS_SRC="./resources/factory-presets"
-ENTITLEMENTS="${ENTITLEMENTS:-./plugin/TONE3000-Standalone.entitlements}"
+ENTITLEMENTS="${ENTITLEMENTS:-./t3kj/TONE3000-Standalone.entitlements}"
 
 SIGN_ID_APP="${SIGN_ID_APP:-}"
 SIGN_ID_PKG="${SIGN_ID_PKG:-}"
@@ -73,7 +73,7 @@ fi
 
 if [[ -n "$SIGN_ID_APP" && ! -f "$ENTITLEMENTS" ]]; then
   echo "Entitlements file not found: $ENTITLEMENTS"
-  echo "Set ENTITLEMENTS=path or ensure plugin/TONE3000-Standalone.entitlements exists."
+  echo "Set ENTITLEMENTS=path or ensure t3kj/TONE3000-Standalone.entitlements exists."
   exit 1
 fi
 

@@ -32,7 +32,7 @@ CPMAddPackage(
 option(PARABOLA_TESTS "Build the ParabolaTests console app" OFF)
 
 # ---- NAM (NeuralAmpModelerCore), same sources and flags T3KJ builds.
-set(NAM_DIR "${REPO_DIR}/plugin/NeuralAmpModelerCore")
+set(NAM_DIR "${REPO_DIR}/t3kj/NeuralAmpModelerCore")
 set(NAM_SRC "${NAM_DIR}/NAM")
 add_library(ParabolaNAM STATIC
     ${NAM_SRC}/activations.cpp
@@ -82,10 +82,10 @@ set(PARABOLA_SOURCES
     src/NamSlot.cpp
     src/Presets.cpp
     ${REPO_DIR}/shared/HushPanel.cpp
-    ${REPO_DIR}/plugin/src/PitchShift.cpp
-    ${REPO_DIR}/plugin/src/TunerDetector.cpp
+    ${REPO_DIR}/t3kj/src/PitchShift.cpp
+    ${REPO_DIR}/t3kj/src/TunerDetector.cpp
 )
-set(PARABOLA_INCLUDES src "${REPO_DIR}/plugin/AudioDSPTools" "${REPO_DIR}/plugin/include" "${REPO_DIR}/shared")
+set(PARABOLA_INCLUDES src "${REPO_DIR}/t3kj/AudioDSPTools" "${REPO_DIR}/t3kj/include" "${REPO_DIR}/shared")
 
 juce_add_plugin(ParabolaBassZ
     COMPANY_NAME "Parabola Bass Z"

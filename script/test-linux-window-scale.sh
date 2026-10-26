@@ -29,7 +29,7 @@
 # Usage:
 #   script/test-linux-window-scale.sh [path/to/TONE3000-standalone]
 #
-# Default binary: build/plugin/TONE3000_artefacts/Release/Standalone/TONE3000
+# Default binary: build/t3kj/TONE3000_artefacts/Release/Standalone/TONE3000
 # Env overrides:
 #   T3K_TEST_DISPLAY  X display to use (default :93)
 #   T3K_TEST_SCREEN   virtual screen size (default 2560x1440)
@@ -38,7 +38,7 @@
 set -u
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BIN="${1:-$REPO_ROOT/build/plugin/TONE3000_artefacts/Release/Standalone/TONE3000}"
+BIN="${1:-$REPO_ROOT/build/t3kj/TONE3000_artefacts/Release/Standalone/TONE3000}"
 DISPLAY_NUM="${T3K_TEST_DISPLAY:-:93}"
 SCREEN="${T3K_TEST_SCREEN:-2560x1440}"
 

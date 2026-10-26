@@ -27,11 +27,11 @@ elseif(NOT DEFINED CMAKE_OSX_DEPLOYMENT_TARGET OR CMAKE_OSX_DEPLOYMENT_TARGET ST
 endif()
 
 # Single source of truth for the plugin version (also read by
-# plugin/CMakeLists.txt, the packaging scripts and CI).
+# t3kj/CMakeLists.txt, the packaging scripts and CI).
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" T3K_VERSION)
 string(STRIP "${T3K_VERSION}" T3K_VERSION)
 # Reconfigure automatically when the VERSION file changes.
-# Use an absolute path so it doesn't collide with plugin/CMakeLists.txt's
+# Use an absolute path so it doesn't collide with t3kj/CMakeLists.txt's
 # ../VERSION entry if both ever end up in the same ninja graph.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
@@ -915,7 +915,7 @@ CPMAddPackage(
 
 enable_testing() # Allow running build tests
 
-add_subdirectory(plugin) # Add plugin project
+add_subdirectory(t3kj) # T3KJ (the original TONE3000 plugin, forked)
 # The DSP suite is a host-run console binary (it reads test assets off the
 # build machine's disk and is driven by script/test-dsp.sh). Cross-compiling it
 # for iOS produces something that cannot be run, so keep it out of that build.

@@ -8,9 +8,9 @@
 #
 # Usage (from repo root):
 #   ./script/lipo-macos-artefacts.sh \
-#     build-arm64/plugin/TONE3000_artefacts/Release \
-#     build-x86_64/plugin/TONE3000_artefacts/Release \
-#     build/plugin/TONE3000_artefacts/Release
+#     build-arm64/t3kj/TONE3000_artefacts/Release \
+#     build-x86_64/t3kj/TONE3000_artefacts/Release \
+#     build/t3kj/TONE3000_artefacts/Release
 
 set -euo pipefail
 

@@ -1,7 +1,7 @@
 // Spread / StereoOffset tests
 //
 // The mechanical guarantees of the post-chain stereo image engines
-// (Spread.h / StereoOffset.h; design notes in plugin/docs/stereo-image.md):
+// (Spread.h / StereoOffset.h; design notes in t3kj/docs/stereo-image.md):
 //
 //   SpreadTest        center detent is exactly dual-mono, ± the same offset
 //                     mirrors the channels exactly, the crossover tracks

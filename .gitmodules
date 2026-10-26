@@ -1,7 +1,7 @@
 [submodule "plugin/NeuralAmpModelerCore"]
-	path = plugin/NeuralAmpModelerCore
+	path = t3kj/NeuralAmpModelerCore
 	url = https://github.com/sdatkinson/NeuralAmpModelerCore.git
 	branch = main
 [submodule "plugin/AudioDSPTools"]
-	path = plugin/AudioDSPTools
+	path = t3kj/AudioDSPTools
 	url = https://github.com/sdatkinson/AudioDSPTools.git

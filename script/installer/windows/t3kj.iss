@@ -3,7 +3,7 @@
 ; plug-in file names and uninstall entry. It reads and writes the same
 ; TONE3000 presets folder, so presets are shared between the two.
 ;
-;   iscc /DVersion=x.y.z /DArtefactsDir=<repo>\build\plugin\TONE3000_artefacts\Release script\installer\windows\t3kj.iss
+;   iscc /DVersion=x.y.z /DArtefactsDir=<repo>\build\t3kj\TONE3000_artefacts\Release script\installer\windows\t3kj.iss
 ;
 ; Defines (override with /D on the command line):
 ;   Version       plugin version string, REQUIRED (repo-root VERSION file)
@@ -14,7 +14,7 @@
   #pragma error "Version not set - pass /DVersion=x.y.z (from the repo-root VERSION file)"
 #endif
 #ifndef ArtefactsDir
-  #define ArtefactsDir "..\..\..\build\plugin\TONE3000_artefacts\Release"
+  #define ArtefactsDir "..\..\..\build\t3kj\TONE3000_artefacts\Release"
 #endif
 #ifndef OutputDir
   #define OutputDir "..\..\..\build"

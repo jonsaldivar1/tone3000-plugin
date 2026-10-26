@@ -19,17 +19,17 @@ install, load tones, and use it.
 - **Or load local files.** Drag a `.nam` file (A2 architecture), an IR
   `.wav`, or a folder of them onto a **+** slot, or right-click a tile and
   pick **Load File / Load Folder**; no account needed. Design notes in
-  [`plugin/docs/local-models.md`](plugin/docs/local-models.md).
+  [`t3kj/docs/local-models.md`](t3kj/docs/local-models.md).
 - **Build a signal chain.** Multiple NAM and IR blocks, per-block EQ and
   gain/mix, drag to reorder, dual chains in stereo mode with branching,
   undo/redo, and presets. Presets are plain files named after the preset
   (Plugin Settings → Presets opens the folder), so they can be backed up or
   copied between machines.
 - **Cross-platform.** One plugin on macOS, Windows, Linux, and iOS
-  (Standalone). The UI is JUCE/C++ (`plugin/ui/`), drawn natively on every
+  (Standalone). The UI is JUCE/C++ (`t3kj/ui/`), drawn natively on every
   platform: no browser engine, no web runtime, nothing to install beside the
-  plugin (see [`plugin/ui/README.md`](plugin/ui/README.md) and the design
-  record in [`plugin/docs/native-ui.md`](plugin/docs/native-ui.md)).
+  plugin (see [`t3kj/ui/README.md`](t3kj/ui/README.md) and the design
+  record in [`t3kj/docs/native-ui.md`](t3kj/docs/native-ui.md)).
 
 NAM processing comes from **NeuralAmpModelerCore** (in-tree), resampling from
 **AudioDSPTools** (in-tree), and tone browsing/loading from the
@@ -63,7 +63,7 @@ CLAP support comes from
 fetched at configure time. `-DT3K_BUILD_UI_TESTBED=ON` adds the UI testbed
 (`UiTestbed`: scenario captures, pixel diffs, `--selftest`, `--bench`) and
 registers its self-tests with ctest; see
-[`plugin/ui/README.md`](plugin/ui/README.md).
+[`t3kj/ui/README.md`](t3kj/ui/README.md).
 
 ```sh
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release   # or Debug
@@ -110,7 +110,7 @@ cmake --build build
 **Standalone:**
 
 ```sh
-cd build/plugin/TONE3000_artefacts/Release/Standalone   # or Debug
+cd build/t3kj/TONE3000_artefacts/Release/Standalone   # or Debug
 ```
 
 - macOS: `open ./TONE3000.app`
@@ -126,7 +126,7 @@ the built plugin and the factory presets on macOS and Linux to the same
 folders the official installers use (the macOS preset copy goes to
 `/Library` and asks for sudo); pass `Debug` as the second argument for the
 Debug build, then rescan in your DAW. Artefacts land in
-`build/plugin/TONE3000_artefacts/<config>/<format>/`; to copy one by hand
+`build/t3kj/TONE3000_artefacts/<config>/<format>/`; to copy one by hand
 instead, the usual folders are:
 
 | OS      | Format | Install to                                              |
@@ -179,7 +179,7 @@ bypassed at 48 kHz).
 ### Signal flow
 
 The full path in processing order (`TONE3000Processor::processBlock` in
-`plugin/src/Processor.cpp`). Stages marked `*` are bypassable or conditional:
+`t3kj/src/Processor.cpp`). Stages marked `*` are bypassable or conditional:
 
 ```mermaid
 flowchart LR
@@ -266,10 +266,10 @@ flowchart LR
   no lag lines every string up), so chords sustain without a periodic
   chuff. The research behind it (benchmarks against a phase vocoder,
   candidates, chords, the two-octave range, listening results) is recorded in
-  [`plugin/docs/pitch-shift.md`](plugin/docs/pitch-shift.md).
+  [`t3kj/docs/pitch-shift.md`](t3kj/docs/pitch-shift.md).
 - **Mono mode**: only the Left chain runs and the pan stage is skipped. With
   Spread on, the chain output becomes an ADT-style stereo double; see
-  [`plugin/docs/stereo-image.md`](plugin/docs/stereo-image.md) for the design
+  [`t3kj/docs/stereo-image.md`](t3kj/docs/stereo-image.md) for the design
   (it also covers the stereo-mode Align feature below, and what happens on a
   rig that can't reproduce stereo at all: Spread stays idle and greyed out,
   while stereo chains keep running and are summed to mono).
@@ -286,10 +286,10 @@ flowchart LR
   NAM models or IRs carry different baked-in latency; the auto-align button
   mutes the output for under half a second, drives both chains with an
   identical internal sweep, and measures the lag and relative polarity from
-  the cross-correlation (`plugin/include/AutoOffset.h`; the same probe
+  the cross-correlation (`t3kj/include/AutoOffset.h`; the same probe
   measured per model, with a dependency-free version for other
   integrators, is written up in
-  [`plugin/docs/model-latency.md`](plugin/docs/model-latency.md)). On a rig that can't
+  [`t3kj/docs/model-latency.md`](t3kj/docs/model-latency.md)). On a rig that can't
   reproduce stereo (mono track, one-channel output device) both chains still
   run and are summed to mono at the output (½(L+R), the host's own mono-fold
   law), with balance/solo/Ø live inside the sum, pans inert, and a MONO chip
@@ -305,7 +305,7 @@ flowchart LR
   IR blocks are the exception: convolution is linear, so each IR convolves
   at the 48 kHz base rate inside a per-block decimate/interpolate island,
   and IR CPU and sound are identical at every factor. Design notes in
-  [`plugin/docs/oversampling.md`](plugin/docs/oversampling.md).
+  [`t3kj/docs/oversampling.md`](t3kj/docs/oversampling.md).
 - **Multi-core processing**: a Plugin Settings option (on by default,
   machine-wide) spreads independent chain work across a realtime worker
   pool. The two stereo chains process concurrently (the Right chain, or the
@@ -314,7 +314,7 @@ flowchart LR
   voices) fork across cores too. The forking thread can always steal jobs back and run them
   inline, so the toggle is pure scheduling and the output is bit-identical
   either way (pinned by `test/src/multicore_tests.cpp`). Design notes in
-  [`plugin/docs/multicore.md`](plugin/docs/multicore.md).
+  [`t3kj/docs/multicore.md`](t3kj/docs/multicore.md).
 
 Inside every tone block:
 
@@ -349,7 +349,7 @@ and a plugin. The two machine-wide files and the presets folder share one
 app-data root: `~/Library/Application Support/TONE3000` on macOS,
 `%APPDATA%\TONE3000` on Windows, `~/.config/TONE3000` on Linux.
 
-- **Project state** (`getStateInformation`, `plugin/src/ProcessorState.cpp`).
+- **Project state** (`getStateInformation`, `t3kj/src/ProcessorState.cpp`).
   Per instance: the DAW saves it in the project and hands it back only to
   that instance; a freshly inserted plugin never sees it. Holds every host
   parameter (faceplate knobs and power switches, calibration, oversampling),
@@ -358,7 +358,7 @@ app-data root: `~/Library/Application Support/TONE3000` on macOS,
   preset, the MIDI map, input mode and the window size. The standalone app
   saves this same blob on quit and restores it on launch, which is why it
   remembers the whole session and a DAW instance remembers nothing on its own.
-- **Presets** (files in the user presets folder; `plugin/src/ProcessorPresets.cpp`).
+- **Presets** (files in the user presets folder; `t3kj/src/ProcessorPresets.cpp`).
   The chain plus the faceplate parameters that are *tone*: levels, tone
   stack, gate, pitch shift, spread, align, pan, polarity. Deliberately not in
   a preset: calibration (your interface, not the capture), oversampling,
@@ -372,7 +372,7 @@ app-data root: `~/Library/Application Support/TONE3000` on macOS,
   them in Plugin Settings updates the file (a host restore or automation
   moving the same parameter does not).
 - **Machine-wide UI preferences** (`ui-preferences.settings`,
-  `plugin/ui/services/UiPrefs.h`). View toggles (Info Bar, which effects the
+  `t3kj/ui/services/UiPrefs.h`). View toggles (Info Bar, which effects the
   faceplate shows, the per-block size and normalization controls, preset PC
   numbers), the TONE3000 sign-in, dismissed banners and update notices.
   Merged across processes under a lock, so a DAW and the standalone never
@@ -431,9 +431,9 @@ Debug`.
 
 | Path            | Contents                                              |
 | --------------- | ----------------------------------------------------- |
-| `plugin/`       | C++ plugin: processor, DSP, presets, MIDI mapping; vendors NeuralAmpModelerCore and AudioDSPTools |
-| `plugin/ui/`    | The JUCE UI: views, widgets, services, testbed (see [plugin/ui/README.md](plugin/ui/README.md)) |
-| `plugin/docs/`  | Design docs (UI, spread, oversampling, multi-core, local models, pitch shift, model latency) |
+| `t3kj/`       | C++ plugin: processor, DSP, presets, MIDI mapping; vendors NeuralAmpModelerCore and AudioDSPTools |
+| `t3kj/ui/`    | The JUCE UI: views, widgets, services, testbed (see [t3kj/ui/README.md](t3kj/ui/README.md)) |
+| `t3kj/docs/`  | Design docs (UI, spread, oversampling, multi-core, local models, pitch shift, model latency) |
 | `test/`         | GoogleTest DSP suite + test assets                    |
 | `script/`       | Build, packaging, and install helpers                 |
 | `tools/`        | Maintainer utilities, not built by default (`PresetTool` regenerates the shipped presets) |
@@ -466,12 +466,12 @@ source). The CLAP build uses **clap-juce-extensions** and the **CLAP** SDK
 - [NAM-Oversampler](https://github.com/DLC86/NAM-Oversampler) by DLC86:
   oversampled NAM processing; the chain oversampler's half-band
   allpass coefficients are adapted from its AudioDSPTools fork (MIT). See
-  [`plugin/docs/oversampling.md`](plugin/docs/oversampling.md).
+  [`t3kj/docs/oversampling.md`](t3kj/docs/oversampling.md).
 - Pitch Shift started from a contribution by Vivek Radhakrishna
   ([#133](https://github.com/tone-3000/tone3000-plugin/pull/133)) built on
   [Signalsmith Stretch](https://github.com/Signalsmith-Audio/signalsmith-stretch);
   the shipped engine is the correlation-spliced delay line documented in
-  [`plugin/docs/pitch-shift.md`](plugin/docs/pitch-shift.md) (Eventide H949
+  [`t3kj/docs/pitch-shift.md`](t3kj/docs/pitch-shift.md) (Eventide H949
   de-glitch lineage; Juillerat et al.'s low-latency shifting papers and the
   Signalsmith write-up
   [Four Ways To Write A Pitch-Shifter](https://signalsmith-audio.co.uk/writing/2023/stretch-design/)
@@ -491,7 +491,7 @@ source). The CLAP build uses **clap-juce-extensions** and the **CLAP** SDK
   [Arimo](https://fonts.google.com/specimen/Arimo) (Apache-2.0), embedded in
   the UI; Arimo stands in for Arial where it isn't installed.
 - [lucide](https://lucide.dev) icons (ISC), embedded as SVG paths in
-  `plugin/ui/core/LucideIcons.h`.
+  `t3kj/ui/core/LucideIcons.h`.
 
 ## Links
 

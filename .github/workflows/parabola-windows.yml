@@ -14,11 +14,11 @@ on:
     paths:
       - "shared/**"
       - "parabola/**"
-      - "plugin/NeuralAmpModelerCore"
-      - "plugin/src/PitchShift.cpp"
-      - "plugin/include/PitchShift.h"
-      - "plugin/src/TunerDetector.cpp"
-      - "plugin/include/TunerDetector.h"
+      - "t3kj/NeuralAmpModelerCore"
+      - "t3kj/src/PitchShift.cpp"
+      - "t3kj/include/PitchShift.h"
+      - "t3kj/src/TunerDetector.cpp"
+      - "t3kj/include/TunerDetector.h"
       - ".github/workflows/parabola-windows.yml"
   workflow_dispatch:
 

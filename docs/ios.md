@@ -2,7 +2,7 @@
 
 Standalone-only iPad port of the plugin: the same C++ and the same JUCE UI,
 with every difference gated. `#if JUCE_IOS` covers the platform code; the UI
-reads two compile-time flags from `plugin/ui/core/Design.h` (see Touch
+reads two compile-time flags from `t3kj/ui/core/Design.h` (see Touch
 adaptation below): `design::kIos` for the app shell and
 `design::kCoarsePointer` for touch-first ergonomics on any device, plus
 `MouseInputSource::isTouch()` per event for behaviours. Desktop behaviour is
@@ -45,12 +45,12 @@ each is the same.
 
 ```sh
 # Simulator
-xcrun simctl install <udid> build-ios/plugin/TONE3000_artefacts/Release/Standalone/TONE3000.app
+xcrun simctl install <udid> build-ios/t3kj/TONE3000_artefacts/Release/Standalone/TONE3000.app
 xcrun simctl launch <udid> <bundle-id>
 
 # Device
 xcrun devicectl device install app --device <udid> \
-  build-ios-device/plugin/TONE3000_artefacts/Release/Standalone/TONE3000.app
+  build-ios-device/t3kj/TONE3000_artefacts/Release/Standalone/TONE3000.app
 
 # The app's own log (juce::Logger; the UI's HTTP, OAuth and load flows all
 # write to it), the most useful debugging channel on Simulator and device.
@@ -68,7 +68,7 @@ A signed build is the `ios-device` preset plus your team. Everything below is
 what App Store Connect checks on top of that, and none of it shows up in a
 Simulator build.
 
-- `plugin/PrivacyInfo.xcprivacy` declares the required-reason APIs the binary
+- `t3kj/PrivacyInfo.xcprivacy` declares the required-reason APIs the binary
   reaches through JUCE: file timestamps and free disk space (both
   `juce_SharedCode_posix.h`), system boot time (`systemUptime` timestamping
   touch events in `juce_UIViewComponentPeer_ios.mm`, plus
@@ -94,7 +94,7 @@ Simulator build.
   all four orientations or declare itself full-screen; without the key the
   upload is refused with ITMS-90474. It costs nothing at runtime on
   iPadOS 26 (see the multitasking note below).
-- `plugin/icon/icon.png` is 512x512 and juceaide never enlarges a source, so the
+- `t3kj/icon/icon.png` is 512x512 and juceaide never enlarges a source, so the
   App Store icon is currently that 512 artwork centred on a blank 1024 field.
   Exporting the icon at 1024 fixes it; the configure step warns until then.
 - `T3K_IOS_BUILD_NUMBER` is CFBundleVersion, and it defaults to 1. App Store
@@ -146,7 +146,7 @@ the touch-ups a finger needs. Three gates, from narrowest reach to widest:
 Tiles, knobs and EQ handles claim their own drags
 (`setViewportIgnoreDragFlag`), so lanes and lists scroll from the space
 around them, not across them; once a drag has become a scroll, the press it
-started with never clicks (`Clickable`, see `plugin/docs/native-ui.md` §5.8).
+started with never clicks (`Clickable`, see `t3kj/docs/native-ui.md` §5.8).
 
 Local import is desktop's two rows, **Load File** and **Load Folder**, in the
 tile menus. On iOS the folder row opens the platform's multi-select file
@@ -217,15 +217,15 @@ picker instead (see Known gaps).
   `.t3kpreset` files down outside the app: a shared directory on macOS and
   Windows, the per-user Factory folder on Linux. iOS has no installer,
   so the Standalone target carries them as bundle resources and
-  `PresetManager::defaultSystemFactoryDir` points there (`plugin/CMakeLists.txt`
-  and `plugin/src/PresetManager.cpp`). iOS bundles are flat, so they land at
+  `PresetManager::defaultSystemFactoryDir` points there (`t3kj/CMakeLists.txt`
+  and `t3kj/src/PresetManager.cpp`). iOS bundles are flat, so they land at
   `TONE3000.app/FactoryPresets`. The bundle is read-only, which is the contract
   that directory already has, and a file carrying the same preset id in
   `Library/TONE3000/Presets/Factory` inside the app container still overrides a
   bundled entry in `list()`. The glob runs at configure time, so a
   new preset file needs a reconfigure.
 - **Sign-in uses the system browser and a loopback redirect**, the same as
-  desktop (`plugin/docs/native-ui.md` §5.14). The app declares background
+  desktop (`t3kj/docs/native-ui.md` §5.14). The app declares background
   audio, so the process and its listener socket stay alive while Safari is
   in front, and the redirect to `http://localhost:<port>/` lands back in the
   app.

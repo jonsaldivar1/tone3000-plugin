@@ -11,10 +11,10 @@
 // (cmake --build build), then from the repo root:
 //
 //   clang++ -std=c++17 -O2 \
-//     -I plugin/NeuralAmpModelerCore \
-//     -I plugin/NeuralAmpModelerCore/Dependencies/eigen \
-//     -I plugin/NeuralAmpModelerCore/Dependencies/nlohmann \
-//     test/src/os_bench.cpp -Wl,-force_load,build/plugin/libNAM.a -o /tmp/os_bench
+//     -I t3kj/NeuralAmpModelerCore \
+//     -I t3kj/NeuralAmpModelerCore/Dependencies/eigen \
+//     -I t3kj/NeuralAmpModelerCore/Dependencies/nlohmann \
+//     test/src/os_bench.cpp -Wl,-force_load,build/t3kj/libNAM.a -o /tmp/os_bench
 //   /tmp/os_bench                            # defaults to test/files/a2-amp-cab-test.nam
 //   /tmp/os_bench test/files/a2-amp-test.nam # or any other .nam
 #include "NAM/get_dsp.h"

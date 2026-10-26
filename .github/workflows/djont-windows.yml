@@ -14,8 +14,8 @@ on:
     paths:
       - "shared/**"
       - "djont/**"
-      - "plugin/src/PitchShift.cpp"
-      - "plugin/include/PitchShift.h"
+      - "t3kj/src/PitchShift.cpp"
+      - "t3kj/include/PitchShift.h"
       - ".github/workflows/djont-windows.yml"
   workflow_dispatch:
 

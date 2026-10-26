@@ -29,7 +29,7 @@ jobs:
     environment: builds
     env:
       # Publishable key (OAuth client_id), from the "builds" environment
-      # secrets. Read at CMake configure by plugin/ui/NativeUi.cmake into
+      # secrets. Read at CMake configure by t3kj/ui/NativeUi.cmake into
       # T3kConfig.h.
       T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
       # Startup update check. Sourced from the environment, not hardcoded,
@@ -96,7 +96,7 @@ jobs:
             libs/juce
             libs/googletest
             libs/clap-juce-extensions
-          key: cpm-deps-${{ matrix.os }}-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+          key: cpm-deps-${{ matrix.os }}-${{ hashFiles('CMakeLists.txt', 't3kj/CMakeLists.txt') }}
 
       - name: Install Linux dependencies
         if: matrix.os == 'linux'
@@ -228,20 +228,20 @@ jobs:
         if: matrix.os == 'macos'
         run: ctest --test-dir build-arm64/test --output-on-failure
 
-      # The native UI's pure-logic unit tests (plugin/ui/testbed/SelfTests.cpp:
+      # The native UI's pure-logic unit tests (t3kj/ui/testbed/SelfTests.cpp:
       # parsers, wrapping, OAuth/PKCE, token refresh, the connection gate).
       # The testbed is a JUCE GUI app, so Linux gives it a virtual display.
       - name: Run UI self-tests (Linux)
         if: matrix.os == 'linux'
-        run: xvfb-run -a ctest --test-dir build/plugin/ui/testbed --output-on-failure
+        run: xvfb-run -a ctest --test-dir build/t3kj/ui/testbed --output-on-failure
 
       - name: Run UI self-tests (Windows)
         if: matrix.os == 'windows'
-        run: ctest --test-dir build/plugin/ui/testbed --output-on-failure
+        run: ctest --test-dir build/t3kj/ui/testbed --output-on-failure
 
       - name: Run UI self-tests (macOS)
         if: matrix.os == 'macos'
-        run: ctest --test-dir build-arm64/plugin/ui/testbed --output-on-failure
+        run: ctest --test-dir build-arm64/t3kj/ui/testbed --output-on-failure
 
       # Merge single-arch artefact trees into the path create-pkg.sh expects.
       - name: Lipo universal artefacts (macOS)
@@ -249,9 +249,9 @@ jobs:
         run: |
           chmod +x script/lipo-macos-artefacts.sh
           ./script/lipo-macos-artefacts.sh \
-            "build-arm64/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}" \
-            "build-x86_64/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}" \
-            "build/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}"
+            "build-arm64/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}" \
+            "build-x86_64/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}" \
+            "build/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}"
 
       # macOS: import Developer ID certs into a temp keychain.
       # Bails out gracefully if signing secrets are not configured. In that
@@ -337,7 +337,7 @@ jobs:
           fi
           chmod +x script/sign-aax-macos.sh
           ./script/sign-aax-macos.sh \
-            "build/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}/AAX/TONE3000.aaxplugin"
+            "build/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}/AAX/TONE3000.aaxplugin"
 
       - name: Build .pkg installer (macOS)
         if: matrix.os == 'macos'
@@ -424,7 +424,7 @@ jobs:
           endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
           signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ secrets.AZURE_SIGNING_PROFILE }}
-          files-folder: ${{ github.workspace }}\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}
+          files-folder: ${{ github.workspace }}\build\t3kj\TONE3000_artefacts\${{ env.BUILD_TYPE }}
           files-folder-recurse: true
           files-folder-filter: exe,vst3,clap
           file-digest: SHA256
@@ -456,7 +456,7 @@ jobs:
           AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
         run: |
           pwsh -File script/sign-aax-windows.ps1 `
-            "$env:GITHUB_WORKSPACE\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}\AAX\TONE3000.aaxplugin"
+            "$env:GITHUB_WORKSPACE\build\t3kj\TONE3000_artefacts\${{ env.BUILD_TYPE }}\AAX\TONE3000.aaxplugin"
 
       # Windows: build a setup.exe with Inno Setup. It ships on current
       # windows-latest images; install via choco if a future image drops it.
@@ -469,7 +469,7 @@ jobs:
             choco install innosetup -y --no-progress
           }
           & $iscc /DVersion=$env:T3K_VERSION `
-            /DArtefactsDir="$env:GITHUB_WORKSPACE\build\plugin\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
+            /DArtefactsDir="$env:GITHUB_WORKSPACE\build\t3kj\TONE3000_artefacts\${{ env.BUILD_TYPE }}" `
             /DOutputDir="$env:GITHUB_WORKSPACE\build" `
             script\installer\windows\tone3000.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -504,7 +504,7 @@ jobs:
         run: |
           set -euo pipefail
           PKG="TONE3000-v${T3K_VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
-          ARTEFACTS="build/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}"
+          ARTEFACTS="build/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}"
           STAGE="build/${PKG}"
           mkdir -p "$STAGE"
           cp -r "$ARTEFACTS/VST3/TONE3000.vst3" "$STAGE/"
@@ -559,7 +559,7 @@ jobs:
             libs/juce
             libs/googletest
             libs/clap-juce-extensions
-          key: cpm-deps-ios-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+          key: cpm-deps-ios-${{ hashFiles('CMakeLists.txt', 't3kj/CMakeLists.txt') }}
 
       - name: Configure CMake (iOS Simulator)
         run: cmake --preset ios-simulator
@@ -572,7 +572,7 @@ jobs:
       - name: Package Simulator app
         run: |
           set -euo pipefail
-          APP="build-ios/plugin/TONE3000_artefacts/${{ env.BUILD_TYPE }}/Standalone/TONE3000.app"
+          APP="build-ios/t3kj/TONE3000_artefacts/${{ env.BUILD_TYPE }}/Standalone/TONE3000.app"
           test -d "$APP"
           ditto -c -k --keepParent "$APP" \
             "build-ios/TONE3000-v${T3K_VERSION}-ios-simulator.zip"
