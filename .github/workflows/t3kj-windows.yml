@@ -63,6 +63,16 @@ jobs:
             echo "::error::Upstream TONE3000 changes conflict with T3KJ changes. Resolve the merge by hand (or ask Claude), then push to main."
             exit 1
           fi
+          # New upstream build lines still say plugin/; point them at t3kj/
+          # (only path forms: ../plugin/, ${...}/plugin/, "plugin/, plugin/ at
+          # a line or word start; URLs like tone3000.com/plugin/ are left alone).
+          if [ "$(git rev-parse HEAD)" != "$before" ]; then
+            files=$(git ls-files 'CMakeLists.txt' '*/CMakeLists.txt' '*.cmake' 'script/*')
+            sed -i -E 's#(\.\./|\}/|^|[[:space:]"(])plugin/#\1t3kj/#g' $files
+            if ! git diff --quiet; then
+              git commit -qam "Point upstream's new plugin/ paths at t3kj/"
+            fi
+          fi
           if [ "$(git rev-parse HEAD)" != "$before" ]; then
             git push origin HEAD:main
             echo "changed=true" >> "$GITHUB_OUTPUT"

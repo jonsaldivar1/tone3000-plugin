@@ -15,7 +15,7 @@ enable_language(C)
 
 # Touch gesture state needs neither the DSP nor a GUI/display server.
 add_executable(EqPinchTests ui/eq_pinch_tests.cpp)
-target_include_directories(EqPinchTests PRIVATE ../plugin/ui)
+target_include_directories(EqPinchTests PRIVATE ../t3kj/ui)
 add_test(NAME EqPinchTests COMMAND EqPinchTests)
 
 juce_add_console_app(DspTests PRODUCT_NAME "DspTests")
