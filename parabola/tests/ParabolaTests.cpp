@@ -223,6 +223,50 @@ int main(int argc, char** argv) {
       check(sineRms(p, 48000.0, 2000.0, 0.3) > 0.15, "and opens for a played note");
     }
     {
+      // HUSH: learns the noise, then cuts it; off is a bypass; floors save.
+      ParabolaProcessor p;
+      p.prepareToPlay(48000.0, 256);
+      flatBands(p);
+      juce::Random rng(7);
+      const auto noiseRms = [&](double seconds) {
+        juce::AudioBuffer<float> buf(2, 256);
+        juce::MidiBuffer midi;
+        double sum = 0.0;
+        int count = 0;
+        const int total = static_cast<int>(48000.0 * seconds);
+        for (int start = 0; start < total; start += 256) {
+          for (int i = 0; i < 256; ++i) {
+            const float x = 0.0005f * 1.732f * (2.0f * rng.nextFloat() - 1.0f);  // -66 dBFS
+            buf.setSample(0, i, x);
+            buf.setSample(1, i, x);
+          }
+          p.processBlock(buf, midi);
+          if (start >= total / 2)
+            for (int i = 0; i < 256; ++i) {
+              sum += buf.getSample(0, i) * buf.getSample(0, i);
+              ++count;
+            }
+        }
+        return std::sqrt(sum / juce::jmax(1, count));
+      };
+      const double before = noiseRms(1.0);
+      p.hush.startLearn();
+      noiseRms(2.5);
+      check(p.hush.learnedCount.load() == 1, "Hush LEARN finishes after about two seconds");
+      set(p, "hushOn", 1.0f);
+      set(p, "hushStrength", 100.0f);
+      const double after = noiseRms(1.0);
+      std::printf("   hush on hiss alone: %.1f dB -> %.1f dB\n", db(before), db(after));
+      check(db(after / before) < -12.0, "Hush turns hiss alone down by 12+ dB");
+      check(std::abs(db(sineRms(p, 48000.0, 110.0, 0.3) / 0.2121)) < 0.5, "and leaves a played note at its level");
+      juce::MemoryBlock state;
+      p.getStateInformation(state);
+      ParabolaProcessor q;
+      q.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+      check(std::abs(q.hush.floorDb[3].load() - p.hush.floorDb[3].load()) < 0.2f && q.hush.floorDb[3].load() > -77.0f,
+            "the learned noise floors save with the state");
+    }
+    {
       // Pitch: +12 doubles the frequency; Parabola reports the shifter's delay.
       ParabolaProcessor p;
       set(p, "pitch", 12.0f);
@@ -442,6 +486,7 @@ int main(int argc, char** argv) {
       if (manual >= 0) e->showManual(true, manual);
       if (overlay == "mygear") e->showMyGear(true);
       if (overlay == "tuner") e->showTuner(true);
+      if (overlay == "hush") e->showHush(true);
       if (width > 0) e->setSize(width, width * parabola::ParabolaView::kHeight / parabola::ParabolaView::kWidth);
     }
     // Let the view's timer pick up the loaded files.

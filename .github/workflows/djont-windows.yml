@@ -12,6 +12,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "shared/**"
       - "djont/**"
       - "plugin/src/PitchShift.cpp"
       - "plugin/include/PitchShift.h"

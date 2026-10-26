@@ -1685,19 +1685,23 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
       help_(IconButton::Kind::help, "Manual: what every part does, how it works, and settings to try."),
       gear_(IconButton::Kind::gear, "Settings: the skin, and in the standalone app your audio interface and latency."),
       tuner_("TUNER", "Tuner: opens the tuner and mutes the output while it's open."),
+      hushChip_("HUSH", "Hush: the de-noiser on your DI (zero latency). Opens its panel: on / off, LEARN, Strength, "
+                        "Sensitivity, Release."),
       presetBar_(processor, presets_),
       crossover_(processor),
       geq_(processor.params),
       cab_(processor),
       settings_(processor, [this](const juce::String& id) { setLook(id); }),
       myGear_(processor),
-      tunerPanel_(processor) {
+      tunerPanel_(processor),
+      hushPanel_(processor.params, processor.hush,
+                 [](const juce::Component& c, float px) { return PbzLookAndFeel::display(c, px); }, true) {
   setLookAndFeel(&lnf_);
   pitch_.setBipolar();
   input_.setBipolar();
   output_.setBipolar();
   for (auto* k : {&gate_, &noise_, &pitch_, &input_, &output_}) k->setSize(56, k->getHeight());
-  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &noise_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_,
+  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &noise_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_, &hushChip_,
                                                           &presetBar_, &crossover_, &geq_, &cab_})
     addAndMakeVisible(c);
   for (int b = 0; b < kNumBands; ++b) {
@@ -1707,10 +1711,13 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
   help_.onClick = [this] { showManual(!manual_.isVisible()); };
   gear_.onClick = [this] { showSettings(!settings_.isVisible()); };
   tuner_.onClick = [this] { showTuner(!tunerPanel_.isVisible()); };
+  hushChip_.onClick = [this] { showHush(!hushPanel_.isVisible()); };
+  hushPanel_.onClose = [this] { showHush(false); };
   presetBar_.onMessage = [this](const juce::String& m) { flash(m); };
   presetBar_.onMyGear = [this] { showMyGear(!myGear_.isVisible()); };
   myGear_.onMessage = [this](const juce::String& m) { flash(m, 150); };
-  for (auto* c : std::initializer_list<juce::Component*>{&settings_, &manual_, &myGear_, &tunerPanel_}) addChildComponent(c);
+  for (auto* c : std::initializer_list<juce::Component*>{&settings_, &manual_, &myGear_, &tunerPanel_, &hushPanel_})
+    addChildComponent(c);
   settings_.onClose = [this] { showSettings(false); };
   manual_.onClose = [this] { showManual(false); };
   myGear_.onClose = [this] { showMyGear(false); };
@@ -1808,6 +1815,8 @@ void ParabolaView::showOverlay(juce::Component* overlay) {
   manual_.setVisible(overlay == &manual_);
   myGear_.setVisible(overlay == &myGear_);
   tunerPanel_.setVisible(overlay == &tunerPanel_);
+  hushPanel_.setVisible(overlay == &hushPanel_);
+  hushChip_.setToggleState(overlay == &hushPanel_, juce::dontSendNotification);
   gear_.setToggleState(overlay == &settings_, juce::dontSendNotification);
   help_.setToggleState(overlay == &manual_, juce::dontSendNotification);
   tuner_.setToggleState(overlay == &tunerPanel_, juce::dontSendNotification);
@@ -1847,6 +1856,7 @@ void ParabolaView::timerCallback() {
     repaint();
   }
   if (flashTicks_ > 0 && --flashTicks_ == 0) flash_ = {};
+  hushChip_.setButtonText(processor_.params.getRawParameterValue("hushOn")->load() > 0.5f ? "HUSH ON" : "HUSH");
   crossover_.tick();
   updateHint();
 }
@@ -1864,6 +1874,10 @@ void ParabolaView::updateHint() {
       }
       if (c->getHelpText().isNotEmpty()) {
         text = c->getHelpText();
+        break;
+      }
+      if (auto* panel = dynamic_cast<hushui::HushPanel*>(c)) {
+        text = panel->hint();
         break;
       }
     }
@@ -1951,7 +1965,8 @@ void ParabolaView::resized() {
   gear_.setTopRightPosition(right - 10, (kHeaderH - gear_.getHeight()) / 2);
   help_.setTopRightPosition(gear_.getX() - 6, gear_.getY());
   meterBox_ = {help_.getX() - 20, (kHeaderH - 56) / 2, 9, 56};
-  tuner_.setBounds(meterBox_.getX() - 12 - 62, (kHeaderH - 26) / 2, 62, 26);
+  tuner_.setBounds(meterBox_.getX() - 12 - 62, kHeaderH / 2 - 27, 62, 24);
+  hushChip_.setBounds(tuner_.getX(), kHeaderH / 2 + 3, 62, 24);
   output_.setTopRightPosition(tuner_.getX() - 8, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
   pitch_.setTopRightPosition(input_.getX() - 2, output_.getY());
@@ -1969,7 +1984,8 @@ void ParabolaView::resized() {
   geq_.setBounds(kPad, kBottomY, geqW, kBottomH);
   cab_.setBounds(kPad + geqW + gap, kBottomY, w - geqW - gap, kBottomH);
   settings_.setBounds(kPad, kXoverY, w, kBottomY + kBottomH - kXoverY);
-  for (auto* c : std::initializer_list<juce::Component*>{&manual_, &myGear_, &tunerPanel_}) c->setBounds(settings_.getBounds());
+  for (auto* c : std::initializer_list<juce::Component*>{&manual_, &myGear_, &tunerPanel_, &hushPanel_})
+    c->setBounds(settings_.getBounds());
   photoScaled_ = {};
 }
 

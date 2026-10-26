@@ -1286,9 +1286,13 @@ DjontView::DjontView(DjontProcessor& processor)
     : processor_(processor),
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
       output_(processor.params, "output", "Output", 44, "Output: level out of dJONt."),
+      hushChip_("HUSH", "Hush: the de-noiser on your DI, before everything (zero latency). Opens its panel: on / off, "
+                        "LEARN, Strength, Sensitivity, Release.", 74),
       wham_(processor),
       sustain_(processor),
-      settings_(processor, [this](const juce::String& id) { setLook(id); }) {
+      settings_(processor, [this](const juce::String& id) { setLook(id); }),
+      hushPanel_(processor.params, processor.hush,
+                 [](const juce::Component& c, float px) { return DjontLookAndFeel::display(c, px); }, true) {
   setLookAndFeel(&lnf_);
   input_.setBipolar();
   output_.setBipolar();
@@ -1298,6 +1302,8 @@ DjontView::DjontView(DjontProcessor& processor)
   gear_.onClick = [this] { showSettings(!settings_.isVisible()); };
   addAndMakeVisible(help_);
   help_.onClick = [this] { showManual(!manual_.isVisible()); };
+  addAndMakeVisible(hushChip_);
+  hushChip_.onClick = [this] { showHush(!hushPanel_.isVisible()); };
 
   auto& s = processor.params;
   auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes.");
@@ -1338,6 +1344,8 @@ DjontView::DjontView(DjontProcessor& processor)
   addChildComponent(settings_);
   settings_.onClose = [this] { showSettings(false); };
   addChildComponent(manual_);
+  addChildComponent(hushPanel_);
+  hushPanel_.onClose = [this] { showHush(false); };
   manual_.onClose = [this] { showManual(false); };
 
   hint_ = kDefaultHint;
@@ -1374,6 +1382,8 @@ void DjontView::showManual(bool show, int section) {
 void DjontView::showOverlay(juce::Component* overlay) {
   settings_.setVisible(overlay == &settings_);
   manual_.setVisible(overlay == &manual_);
+  hushPanel_.setVisible(overlay == &hushPanel_);
+  hushChip_.setToggleState(overlay == &hushPanel_, juce::dontSendNotification);
   gear_.setToggleState(overlay == &settings_, juce::dontSendNotification);
   help_.setToggleState(overlay == &manual_, juce::dontSendNotification);
   const bool controls = overlay == nullptr;
@@ -1392,6 +1402,7 @@ void DjontView::timerCallback() {
   }
   wham_.tick();
   sustain_.tick();
+  hushChip_.setButtonText(processor_.params.getRawParameterValue("hushOn")->load() > 0.5f ? "HUSH ON" : "HUSH");
   // MIDI learn: a CC arrived for the control waiting for one.
   if (const int learned = processor_.learnedCount.load(); learned != learnedSeen_) {
     learnedSeen_ = learned;
@@ -1424,6 +1435,10 @@ void DjontView::updateHint() {
       }
       if (c->getHelpText().isNotEmpty()) {
         text = c->getHelpText();
+        break;
+      }
+      if (auto* panel = dynamic_cast<hushui::HushPanel*>(c)) {
+        text = panel->hint();
         break;
       }
     }
@@ -1566,7 +1581,8 @@ void DjontView::resized() {
   meterBox_ = {help_.getX() - 18, (kHeaderH - 60) / 2, 9, 60};
   output_.setTopRightPosition(meterBox_.getX() - 10, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
-  ioPlate_ = juce::Rectangle<int>(input_.getX() - 6, 14, right - input_.getX() + 6, kHeaderH - 28);
+  hushChip_.setTopRightPosition(input_.getX() - 8, (kHeaderH - hushChip_.getHeight()) / 2);
+  ioPlate_ = juce::Rectangle<int>(hushChip_.getX() - 10, 14, right - hushChip_.getX() + 10, kHeaderH - 28);
 
   const int top = kBodyTop + 10;
   const int bottom = hintBox_.getY() - 10;
@@ -1579,6 +1595,7 @@ void DjontView::resized() {
   for (int i = 0; i < n; ++i) modules_[static_cast<size_t>(i)]->setBounds(x0 + i * (w + gap), top, w, bottom - top);
   settings_.setBounds(left, top, getWidth() - 2 * left, bottom - top);
   manual_.setBounds(settings_.getBounds());
+  hushPanel_.setBounds(settings_.getBounds());
   photoScaled_ = {};
 }
 

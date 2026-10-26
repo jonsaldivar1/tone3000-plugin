@@ -16,6 +16,10 @@
       ],
       "controls": [
         [
+          "Hush",
+          "The de-noiser on your DI, first in the chain (zero latency). Click HUSH in the header."
+        ],
+        [
           "Presets",
           "< and > step through them, click the name for the list, SAVE stores yours, DEL deletes yours."
         ],
@@ -389,19 +393,64 @@
       ]
     },
     {
+      "id": "hush",
+      "title": "Hush",
+      "tagline": "A de-noiser for your DI, with zero latency.",
+      "what": "Hush turns down the hiss and electrical buzz (EMI) your pickups bring, before anything in the chain amplifies it. It works between notes and also under them, in the parts of the spectrum your note isn't using. It's off until you turn it on: click HUSH in the header.",
+      "how": "Hush watches eight bands from 200 Hz up. Each band has a noise floor (set by LEARN) and opens the moment your note shows up in it, within about two milliseconds, so pick attacks get through. A band with only noise in it is turned down with an EQ cut, by up to Strength. Nothing is delayed, and with every band open your signal is untouched. Below 200 Hz nothing changes: hum is a job for the gates (and, on a Jazz Bass, both pickup volumes full up).",
+      "sound": "A quiet floor under high gain: no hiss between riffs and less fizz around held notes, without a gate's chop. Too much Strength or Sensitivity can make quiet notes a little duller.",
+      "try": [
+        "Click HUSH and turn it ON.",
+        "Volume up on your instrument, hands off the strings, click LEARN and wait two seconds.",
+        "Play, and raise Strength until the hiss is gone. If quiet notes lose sparkle, lower Sensitivity or Strength.",
+        "Use it with the gates, not instead of them: with Hush on you can set them lower, so notes fade out more naturally."
+      ],
+      "controls": [
+        [
+          "ON / OFF",
+          "Off is a perfect bypass."
+        ],
+        [
+          "LEARN",
+          "Two seconds of listening, hands off the strings, to set each band's noise floor. Saved with your settings."
+        ],
+        [
+          "Strength",
+          "How far a noise-only band is turned down (100% = 30 dB)."
+        ],
+        [
+          "Sensitivity",
+          "How far over its floor a band has to be to count as your note (0 to 24 dB)."
+        ],
+        [
+          "Release",
+          "How fast a band turns down once your note leaves it (10 to 500 ms)."
+        ],
+        [
+          "Meters",
+          "How far each band is being turned down right now."
+        ]
+      ]
+    },
+    {
       "id": "noise",
       "title": "Hiss & noise",
       "tagline": "Why a high-gain band hisses, and what fixes it.",
       "what": "A drive capture has a lot of gain, and it amplifies everything you feed it, including your bass's own noise: a passive single-coil (a Jazz Bass with one pickup down, say) hums and hisses at around -60 dB, and a high-gain capture can lift that to a loud fizz. The high band hears it most, because above the split a bass has little note to cover it.",
-      "how": "Gate (header) works on your DI before everything. Noise (header) is a second gate after the mid and high bands, following your DI: it shuts their hiss as each note fades, while the low band keeps ringing clean. Both use the same threshold idea: the level under which they close.",
+      "how": "Hush (header) is first in line: it learns your bass's noise and turns hiss down between notes and under them, with zero latency. Gate (header) works on your DI after it. Noise (header) is a second gate after the mid and high bands, following your DI: it shuts their hiss as each note fades, while the low band keeps ringing clean. Both gates use the same threshold idea: the level under which they close.",
       "sound": "Silent stops between riffs, no fizz tail on held low notes, and a clean low end underneath.",
       "try": [
         "Jazz Bass: both pickup volumes all the way up (that's when they cancel each other's hum).",
-        "Set Gate where the hiss between notes cuts out with your hands off the strings (often -55 to -45 dB).",
+        "Click HUSH, turn it ON, hands off the strings, LEARN. Raise Strength until the fizz is gone.",
+        "Set Gate where the hiss between notes cuts out with your hands off the strings (often -55 to -45 dB; lower with Hush on).",
         "Turn Noise up until the drive bands' fizz stops as notes fade (often -55 to -45 dB).",
         "Still hissy while notes ring: lower the high band's Drive, bring its Tone down, or use a less extreme capture."
       ],
       "controls": [
+        [
+          "Hush",
+          "The de-noiser: see Hush."
+        ],
         [
           "Gate",
           "DI gate, -90 (off) to -20 dB."

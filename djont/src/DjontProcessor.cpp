@@ -150,6 +150,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout
   layout.add(power("lofiOn", "Lo-Fi", false));
   layout.add(hertz("lofiTone", "Lo-Fi Tone", 300.0f, 3000.0f, 1000.0f));
   layout.add(percent("lofiBlend", "Lo-Fi Blend", 100.0f));
+  hushui::addParameters(layout);
   return layout;
 }
 
@@ -167,6 +168,7 @@ DjontProcessor::DjontProcessor()
   PitchShift::Params p;
   p.window = kWhamWindow;
   whamShift_.setParams(p);
+  hushParams_.attach(params);
 }
 
 DjontProcessor::~DjontProcessor() {
@@ -202,6 +204,7 @@ bool DjontProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
 }
 
 void DjontProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
+  hush.prepare(sampleRate);
   tight_.prepare(sampleRate);
   grit_.prepare(sampleRate);
   sub_.prepare(sampleRate, samplesPerBlock);
@@ -444,6 +447,8 @@ void DjontProcessor::readMidiState() {
 
 void DjontProcessor::processMono(float* x, int n) {
   inGain_.applyGain(x, n);
+  hushParams_.apply(hush);
+  hush.process(x, n);
   processWham(x, n);
   for (int m = 0; m < kNumModules; ++m) {
     auto& p = power_[static_cast<size_t>(m)];
@@ -492,6 +497,7 @@ juce::AudioProcessorEditor* DjontProcessor::createEditor() { return new DjontEdi
 
 void DjontProcessor::getStateInformation(juce::MemoryBlock& dest) {
   writeMidiState();
+  hushui::saveFloors(hush, params.state);
   if (auto xml = params.copyState().createXml()) copyXmlToBinary(*xml, dest);
 }
 
@@ -500,6 +506,7 @@ void DjontProcessor::setStateInformation(const void* data, int size) {
     if (xml->hasTagName(params.state.getType())) {
       params.replaceState(juce::ValueTree::fromXml(*xml));
       readMidiState();
+      hushui::loadFloors(hush, params.state);
     }
 }
 

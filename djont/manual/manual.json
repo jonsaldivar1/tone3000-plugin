@@ -15,10 +15,26 @@
         "Drag knobs up and down. Double-click a knob to reset it. Right-click any control for MIDI learn."
       ],
       "controls": [
-        ["Input / Output", "Level into and out of dJONt, ±24 dB. The meter turns red when the output clips."],
-        ["Gear", "Settings: the look (Chrome or Red Foil), and in the standalone app your audio interface, MIDI inputs and latency."],
-        ["?", "This manual."],
-        ["ADV", "Flips Wham or Sustain over to their voicing controls. BACK returns."]
+        [
+          "HUSH",
+          "The de-noiser on your DI, before Wham (zero latency). Click HUSH in the header."
+        ],
+        [
+          "Input / Output",
+          "Level into and out of dJONt, ±24 dB. The meter turns red when the output clips."
+        ],
+        [
+          "Gear",
+          "Settings: the look (Chrome or Red Foil), and in the standalone app your audio interface, MIDI inputs and latency."
+        ],
+        [
+          "?",
+          "This manual."
+        ],
+        [
+          "ADV",
+          "Flips Wham or Sustain over to their voicing controls. BACK returns."
+        ]
       ]
     },
     {
@@ -36,15 +52,42 @@
         "Presets: load a factory one (Dive Bomb, Siren, Octave Stabs) and SAVE your own."
       ],
       "controls": [
-        ["PEDAL / AUTO", "Who moves the pedal: you (mouse, scroll, MIDI) or an LFO."],
-        ["INTERVAL", "Custom (your Heel / Toe), Whammy (2 Oct Up … Dive Bomb), Harmony (your note plus a moving second voice), Detune (your note plus a slightly detuned copy)."],
-        ["Heel / Toe", "Custom only: the pitch at each end of the pedal, ±24 semitones."],
-        ["Rate / Shape / Retrig", "AUTO only: LFO speed, its shape (Sine, Triangle, Rise, Square), and restarting the sweep on every pick."],
-        ["Glide", "PEDAL only: how long the pitch takes to follow the pedal. Up it for footswitch sweeps."],
-        ["Mix", "Dry vs shifted. In Harmony it's the second voice's level."],
-        ["ADV: Grain", "Classic only: short is tighter and more metallic on chords, long is smoother and wobblier."],
-        ["ADV: Buffer", "Chords only: 20 ms is tightest, 60 ms smoothest on low notes."],
-        ["ADV: Tone", "Darkens the shifted signal. Up-shifts get fizzy; roll this back."]
+        [
+          "PEDAL / AUTO",
+          "Who moves the pedal: you (mouse, scroll, MIDI) or an LFO."
+        ],
+        [
+          "INTERVAL",
+          "Custom (your Heel / Toe), Whammy (2 Oct Up … Dive Bomb), Harmony (your note plus a moving second voice), Detune (your note plus a slightly detuned copy)."
+        ],
+        [
+          "Heel / Toe",
+          "Custom only: the pitch at each end of the pedal, ±24 semitones."
+        ],
+        [
+          "Rate / Shape / Retrig",
+          "AUTO only: LFO speed, its shape (Sine, Triangle, Rise, Square), and restarting the sweep on every pick."
+        ],
+        [
+          "Glide",
+          "PEDAL only: how long the pitch takes to follow the pedal. Up it for footswitch sweeps."
+        ],
+        [
+          "Mix",
+          "Dry vs shifted. In Harmony it's the second voice's level."
+        ],
+        [
+          "ADV: Grain",
+          "Classic only: short is tighter and more metallic on chords, long is smoother and wobblier."
+        ],
+        [
+          "ADV: Buffer",
+          "Chords only: 20 ms is tightest, 60 ms smoothest on low notes."
+        ],
+        [
+          "ADV: Tone",
+          "Darkens the shifted signal. Up-shifts get fizzy; roll this back."
+        ]
       ]
     },
     {
@@ -60,13 +103,34 @@
         "Map HOLD to a footswitch (right-click it, MIDI Learn) and use LATCH: tap on, tap off."
       ],
       "controls": [
-        ["HOLD", "Holds the sound. Works with the mouse or a MIDI footswitch."],
-        ["CHORD / PILE-UP", "Freeze one moment, or keep stacking notes while held."],
-        ["LATCH", "On: one press holds, the next lets go. Off: holds only while pressed."],
-        ["Fade", "How fast the held sound swells in and dies away."],
-        ["Level", "Held sound vs your live playing. 100% = as loud as it was."],
-        ["ADV: Shimmer", "Adds movement so the pad is less static."],
-        ["ADV: Low Cut / Tone", "Thin the held lows so they don't muddy what you play over them; darken the pad."]
+        [
+          "HOLD",
+          "Holds the sound. Works with the mouse or a MIDI footswitch."
+        ],
+        [
+          "CHORD / PILE-UP",
+          "Freeze one moment, or keep stacking notes while held."
+        ],
+        [
+          "LATCH",
+          "On: one press holds, the next lets go. Off: holds only while pressed."
+        ],
+        [
+          "Fade",
+          "How fast the held sound swells in and dies away."
+        ],
+        [
+          "Level",
+          "Held sound vs your live playing. 100% = as loud as it was."
+        ],
+        [
+          "ADV: Shimmer",
+          "Adds movement so the pad is less static."
+        ],
+        [
+          "ADV: Low Cut / Tone",
+          "Thin the held lows so they don't muddy what you play over them; darken the pad."
+        ]
       ]
     },
     {
@@ -82,13 +146,34 @@
         "If it gets noisy: lower Sustain, turn on Tight, or put a gate after dJONt."
       ],
       "controls": [
-        ["FUND / HARM / MIX", "Hold the note you played, bloom into the Interval, or bloom halfway."],
-        ["Sustain", "How much it holds the note up."],
-        ["Bloom", "How long HARM / MIX take to bloom after each pick (0.2 to 6 s)."],
-        ["ADV: Interval", "What it blooms into: Octave, 5th, 12th, 2 Octaves."],
-        ["ADV: Floor", "How quiet a note gets before it lets go."],
-        ["ADV: Response", "Fast is tight, slow swells."],
-        ["ADV: Tone", "Tames the hiss it brings up."]
+        [
+          "FUND / HARM / MIX",
+          "Hold the note you played, bloom into the Interval, or bloom halfway."
+        ],
+        [
+          "Sustain",
+          "How much it holds the note up."
+        ],
+        [
+          "Bloom",
+          "How long HARM / MIX take to bloom after each pick (0.2 to 6 s)."
+        ],
+        [
+          "ADV: Interval",
+          "What it blooms into: Octave, 5th, 12th, 2 Octaves."
+        ],
+        [
+          "ADV: Floor",
+          "How quiet a note gets before it lets go."
+        ],
+        [
+          "ADV: Response",
+          "Fast is tight, slow swells."
+        ],
+        [
+          "ADV: Tone",
+          "Tames the hiss it brings up."
+        ]
       ]
     },
     {
@@ -103,8 +188,14 @@
         "Set Freq near your low string: around 80–120 Hz for drop tunings, higher for more pick click."
       ],
       "controls": [
-        ["Amount", "How hard each attack is pushed and how much the ring-out is trimmed."],
-        ["Freq", "The band Tight listens to and punches up (60 Hz to 1 kHz)."]
+        [
+          "Amount",
+          "How hard each attack is pushed and how much the ring-out is trimmed."
+        ],
+        [
+          "Freq",
+          "The band Tight listens to and punches up (60 Hz to 1 kHz)."
+        ]
       ]
     },
     {
@@ -119,9 +210,18 @@
         "Use a low Freq (around 100 Hz) so only the very bottom gets fuzzed."
       ],
       "controls": [
-        ["Drive", "How hard the low-end fuzz is pushed."],
-        ["Blend", "How much fuzz sits under your dry signal."],
-        ["Freq", "Only the lows below this get fuzzed (60 to 400 Hz)."]
+        [
+          "Drive",
+          "How hard the low-end fuzz is pushed."
+        ],
+        [
+          "Blend",
+          "How much fuzz sits under your dry signal."
+        ],
+        [
+          "Freq",
+          "Only the lows below this get fuzzed (60 to 400 Hz)."
+        ]
       ]
     },
     {
@@ -136,9 +236,18 @@
         "SYNTH on single-note riffs for an analog-octaver buzz."
       ],
       "controls": [
-        ["CLEAN / SYNTH", "Chord-friendly shifter, or an instant analog-style divider."],
-        ["Blend", "How loud the octave below is."],
-        ["Tone", "Low-pass on the octave; lower is rounder."]
+        [
+          "CLEAN / SYNTH",
+          "Chord-friendly shifter, or an instant analog-style divider."
+        ],
+        [
+          "Blend",
+          "How loud the octave below is."
+        ],
+        [
+          "Tone",
+          "Low-pass on the octave; lower is rounder."
+        ]
       ]
     },
     {
@@ -153,8 +262,54 @@
         "Tone around 1 kHz is classic telephone; lower is muffled AM radio."
       ],
       "controls": [
-        ["Tone", "Center of the band (300 Hz to 3 kHz)."],
-        ["Blend", "Dry to fully filtered."]
+        [
+          "Tone",
+          "Center of the band (300 Hz to 3 kHz)."
+        ],
+        [
+          "Blend",
+          "Dry to fully filtered."
+        ]
+      ]
+    },
+    {
+      "id": "hush",
+      "title": "Hush",
+      "tagline": "A de-noiser for your DI, with zero latency.",
+      "what": "Hush turns down the hiss and electrical buzz (EMI) your pickups bring, before anything in the chain amplifies it. It works between notes and also under them, in the parts of the spectrum your note isn't using. It's off until you turn it on: click HUSH in the header.",
+      "how": "Hush watches eight bands from 200 Hz up. Each band has a noise floor (set by LEARN) and opens the moment your note shows up in it, within about two milliseconds, so pick attacks get through. A band with only noise in it is turned down with an EQ cut, by up to Strength. Nothing is delayed, and with every band open your signal is untouched. Below 200 Hz nothing changes: hum is a job for the gates (and, on a Jazz Bass, both pickup volumes full up).",
+      "sound": "A quiet floor under high gain: no hiss between riffs and less fizz around held notes, without a gate's chop. Too much Strength or Sensitivity can make quiet notes a little duller.",
+      "try": [
+        "Click HUSH and turn it ON.",
+        "Volume up on your instrument, hands off the strings, click LEARN and wait two seconds.",
+        "Play, and raise Strength until the hiss is gone. If quiet notes lose sparkle, lower Sensitivity or Strength.",
+        "Use it with the gates, not instead of them: with Hush on you can set them lower, so notes fade out more naturally."
+      ],
+      "controls": [
+        [
+          "ON / OFF",
+          "Off is a perfect bypass."
+        ],
+        [
+          "LEARN",
+          "Two seconds of listening, hands off the strings, to set each band's noise floor. Saved with your settings."
+        ],
+        [
+          "Strength",
+          "How far a noise-only band is turned down (100% = 30 dB)."
+        ],
+        [
+          "Sensitivity",
+          "How far over its floor a band has to be to count as your note (0 to 24 dB)."
+        ],
+        [
+          "Release",
+          "How fast a band turns down once your note leaves it (10 to 500 ms)."
+        ],
+        [
+          "Meters",
+          "How far each band is being turned down right now."
+        ]
       ]
     },
     {
@@ -170,8 +325,14 @@
         "Right-click again to Forget it."
       ],
       "controls": [
-        ["Right-click", "MIDI Learn / Forget MIDI / Cancel."],
-        ["Hint bar", "Shows a control's CC when it's mapped."]
+        [
+          "Right-click",
+          "MIDI Learn / Forget MIDI / Cancel."
+        ],
+        [
+          "Hint bar",
+          "Shows a control's CC when it's mapped."
+        ]
       ]
     },
     {
@@ -186,9 +347,18 @@
         "Pick ASIO and your interface, 48 kHz, buffer 64 or 128."
       ],
       "controls": [
-        ["Look", "Chrome or Red Foil. Saved with the plugin's state."],
-        ["Hear yourself", "Plays dJONt's output while your input is live. Off by default to prevent feedback."],
-        ["Window size", "Drag the bottom-right corner: 60% to 200%. dJONt remembers it."]
+        [
+          "Look",
+          "Chrome or Red Foil. Saved with the plugin's state."
+        ],
+        [
+          "Hear yourself",
+          "Plays dJONt's output while your input is live. Off by default to prevent feedback."
+        ],
+        [
+          "Window size",
+          "Drag the bottom-right corner: 60% to 200%. dJONt remembers it."
+        ]
       ]
     }
   ]

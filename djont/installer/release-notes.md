@@ -1,6 +1,8 @@
 ## dJONt v{{VERSION}}
 
-A pedalboard plugin for guitar that goes in front of your amp sim: **Wham** (a virtual whammy), **Sustain** (Hold and Sustainer), **Tight**, **Grit**, **Sub** and **Lo-Fi**. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
+A pedalboard plugin for guitar that goes in front of your amp sim: **Wham** (a virtual whammy), **Sustain** (Hold and Sustainer), **Tight**, **Grit**, **Sub** and **Lo-Fi**, plus **Hush**, a de-noiser for your DI. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
+
+**New in 0.7: HUSH**, a zero-latency de-noiser on your DI. It learns your guitar's hiss and turns it down between notes and under them, before your amp sim amplifies it. Click **HUSH** (left of Input), turn it ON, hands off the strings, **LEARN**, then raise Strength. It's off by default, so your settings sound the same.
 
 ### Install
 

@@ -81,10 +81,11 @@ set(PARABOLA_SOURCES
     src/ParabolaEditor.cpp
     src/NamSlot.cpp
     src/Presets.cpp
+    ${REPO_DIR}/shared/HushPanel.cpp
     ${REPO_DIR}/plugin/src/PitchShift.cpp
     ${REPO_DIR}/plugin/src/TunerDetector.cpp
 )
-set(PARABOLA_INCLUDES src "${REPO_DIR}/plugin/AudioDSPTools" "${REPO_DIR}/plugin/include")
+set(PARABOLA_INCLUDES src "${REPO_DIR}/plugin/AudioDSPTools" "${REPO_DIR}/plugin/include" "${REPO_DIR}/shared")
 
 juce_add_plugin(ParabolaBassZ
     COMPANY_NAME "Parabola Bass Z"

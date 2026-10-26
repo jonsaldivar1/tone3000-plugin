@@ -419,6 +419,7 @@ public:
   void showManual(bool show, int section = -1);
   void showMyGear(bool show);
   void showTuner(bool show) { showOverlay(show ? &tunerPanel_ : nullptr); }
+  void showHush(bool show) { showOverlay(show ? &hushPanel_ : nullptr); }
   void flash(const juce::String& message, int ticks = 240);
   void mouseDown(const juce::MouseEvent& e) override;
   void showAdvanced(bool show);
@@ -435,7 +436,7 @@ private:
   PresetStore presets_;
   Knob gate_, noise_, pitch_, input_, output_;
   IconButton help_, gear_;
-  Chip tuner_;
+  Chip tuner_, hushChip_;
   PresetBar presetBar_;
   CrossoverView crossover_;
   std::array<std::unique_ptr<BandStrip>, kNumBands> bands_;
@@ -445,6 +446,7 @@ private:
   ManualPanel manual_;
   MyGearPanel myGear_;
   TunerPanel tunerPanel_;
+  hushui::HushPanel hushPanel_;
   juce::Component* learnTarget_ = nullptr;
   juce::String learnName_, flash_;
   int flashTicks_ = 0, learnedSeen_ = 0;
@@ -467,6 +469,7 @@ public:
   void showManual(bool show, int section = -1) { view_.showManual(show, section); }
   void showMyGear(bool show) { view_.showMyGear(show); }
   void showTuner(bool show) { view_.showTuner(show); }
+  void showHush(bool show) { view_.showHush(show); }
   void showAdvanced(bool show) { view_.showAdvanced(show); }
   juce::String currentHint() const { return view_.currentHint(); }
 

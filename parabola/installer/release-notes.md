@@ -2,6 +2,8 @@
 
 A 3-band parallel bass processor in the spirit of a Parallax X: your bass is split into **low / mid / high**, each band runs its own amp capture (**NAM** files you load), the mid and high bands go through a **cab IR**, and a **6-band graphic EQ** shapes the result. The low band stays clean and compressed so the bottom never turns to mud. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
 
+**New in 0.4: HUSH**, a zero-latency de-noiser on your DI. It learns your bass's hiss and turns it down between notes and under them, before the drive bands amplify it. Click **HUSH** under TUNER, turn it ON, hands off the strings, **LEARN**, then raise Strength. It's off by default, so your presets sound the same.
+
 ### Install
 
 1. Download **Parabola-Bass-Z-v{{VERSION}}-windows-x64.exe** below and run it.

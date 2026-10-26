@@ -374,6 +374,47 @@ int main(int argc, char** argv) {
   }
 
   {
+    // HUSH on the DI: learns the hiss, then turns it down; floors save.
+    DjontProcessor p;
+    p.prepareToPlay(kFs, kBlock);
+    juce::Random rng(3);
+    const auto hissRms = [&](int blocks) {
+      juce::AudioBuffer<float> buf(2, kBlock);
+      juce::MidiBuffer midi;
+      double sum = 0.0;
+      int count = 0;
+      for (int k = 0; k < blocks; ++k) {
+        for (int i = 0; i < kBlock; ++i) {
+          const float x = 0.0005f * 1.732f * (2.0f * rng.nextFloat() - 1.0f);
+          buf.setSample(0, i, x);
+          buf.setSample(1, i, x);
+        }
+        p.processBlock(buf, midi);
+        if (k >= blocks / 2)
+          for (int i = 0; i < kBlock; ++i) {
+            sum += buf.getSample(0, i) * buf.getSample(0, i);
+            ++count;
+          }
+      }
+      return std::sqrt(sum / juce::jmax(1, count));
+    };
+    for (const auto& [id, v] : Params{{"tightOn", 0}}) p.params.getParameter(id)->setValueNotifyingHost(v);
+    const int second = static_cast<int>(kFs / kBlock);
+    const double before = hissRms(second);
+    p.hush.startLearn();
+    hissRms(second * 5 / 2);
+    p.params.getParameter("hushOn")->setValueNotifyingHost(1.0f);
+    p.params.getParameter("hushStrength")->setValueNotifyingHost(1.0f);
+    const double after = hissRms(second);
+    std::printf("   hush: hiss %.1f dB -> %.1f dB\n", 20.0 * std::log10(before), 20.0 * std::log10(after));
+    check(p.hush.learnedCount.load() == 1 && 20.0 * std::log10(after / before) < -12.0, "Hush learns the hiss and cuts it 12+ dB");
+    juce::MemoryBlock state;
+    p.getStateInformation(state);
+    DjontProcessor q;
+    q.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    check(std::abs(q.hush.floorDb[4].load() - p.hush.floorDb[4].load()) < 0.2f, "Hush's learned floors save with the state");
+  }
+  {
     // The manual: every topic parses, with the parts the panel shows.
     const auto sections = djont::ManualPanel::load();
     check(sections.size() >= 10, "the manual has all its topics");
@@ -387,6 +428,7 @@ int main(int argc, char** argv) {
   juce::String snapshotPath, look = "chrome";
   bool settings = false, adv = false;
   int width = 0, manual = -1;
+  bool hushPanel = false;
   juce::StringArray sets;  // --set id=value (real units), any number
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
@@ -395,6 +437,7 @@ int main(int argc, char** argv) {
     else if (arg == "--settings") settings = true;
     else if (arg == "--adv") adv = true;
     else if (arg == "--manual" && i + 1 < argc) manual = juce::String(argv[++i]).getIntValue();
+    else if (arg == "--hush") hushPanel = true;
     else if (arg == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
     else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
   }
@@ -412,6 +455,7 @@ int main(int argc, char** argv) {
       e->showSettings(settings);
       e->showAdvanced(adv);
       if (manual >= 0) e->showManual(true, manual);
+      if (hushPanel) e->showHush(true);
       if (width > 0) e->setSize(width, width * djont::DjontView::kHeight / djont::DjontView::kWidth);
     }
     const auto image = editor->createComponentSnapshot(editor->getLocalBounds(), true, 2.0f);

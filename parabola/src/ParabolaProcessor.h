@@ -27,6 +27,8 @@
 #include <vector>
 
 #include "Dsp.h"
+#include "Hush.h"
+#include "HushPanel.h"
 #include "NamSlot.h"
 #include "PitchShift.h"
 #include "TunerDetector.h"
@@ -96,6 +98,9 @@ public:
   // Tuner: while it's on, the detector listens to the DI and the output is
   // muted (silent tuning, like a stage tuner pedal).
   TunerDetector tuner;
+
+  // HUSH, the DI de-noiser (first in the chain; shared/Hush.h).
+  Hush hush;
   void setTunerActive(bool on);
   bool tunerActive() const { return tunerOn_.load(); }
 
@@ -125,6 +130,7 @@ private:
   void writeMidiState();
   void readMidiState();
 
+  hushui::Params hushParams_;
   PitchShift pitch_;
   std::atomic<float>* pitchP_ = nullptr;
   bool pitchWasOn_ = false;

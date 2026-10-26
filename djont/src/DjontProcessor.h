@@ -10,6 +10,8 @@
 #include <array>
 
 #include "Dsp.h"
+#include "Hush.h"
+#include "HushPanel.h"
 #include "PitchShift.h"
 #include "Sustain.h"
 #include "ClassicShift.h"
@@ -56,6 +58,9 @@ public:
   // The wham pedal's live position (0..1) for the editor's rocker; -1 off.
   std::atomic<float> whamPosition{-1.0f};
 
+  // HUSH, the DI de-noiser (first in the chain, before Wham; shared/Hush.h).
+  Hush hush;
+
   // MIDI learn. startLearn: the next CC that arrives is mapped to `id` (one
   // CC per parameter). Bool parameters follow the CC (>= 64 on), except
   // HOLD with LATCH on, which flips on each press so a momentary footswitch
@@ -95,6 +100,7 @@ private:
   Sustainer sustainer_;
   bool sustainHoldMode_ = true;
   PitchShift whamShift_;  // CHORDS engine
+  hushui::Params hushParams_;
   ClassicShift classic_;   // CLASSIC engine
   juce::SmoothedValue<float> whamFade_;
   juce::AudioBuffer<float> whamDry_, whamScratch_;

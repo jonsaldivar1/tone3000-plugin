@@ -120,6 +120,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParabolaProcessor::createLay
     }
   }
   layout.add(toggle("cabOn", "Cab On", true));
+  hushui::addParameters(layout);
   const char* geqNames[6] = {"80", "250", "500", "1k", "2.5k", "6k"};
   for (int i = 0; i < 6; ++i)
     layout.add(decibels("geq" + juce::String(i), juce::String("EQ ") + geqNames[i], -12.0f, 12.0f, 0.0f));
@@ -152,6 +153,7 @@ ParabolaProcessor::ParabolaProcessor()
   lowComp_ = params.getRawParameterValue("lowComp");
   for (int i = 0; i < 6; ++i) geqP_[static_cast<size_t>(i)] = params.getRawParameterValue("geq" + juce::String(i));
   pitchP_ = params.getRawParameterValue("pitch");
+  hushParams_.attach(params);
   driveGateP_ = params.getRawParameterValue("driveGate");
   for (auto* p : getParameters())
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
@@ -183,6 +185,7 @@ void ParabolaProcessor::prepareInternal(int maxInternalBlock) {
   for (auto& f : postLp_) f.reset();
   directBuf_.assign(n, 0.0f);
   gate_.prepare(kInternalRate);
+  hush.prepare(kInternalRate);
   pitch_.prepare(kInternalRate, internalMax_);
   {
     PitchShift::Params pp;
@@ -261,6 +264,8 @@ void ParabolaProcessor::processInternal(float* in, float* out, int n) {
 void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
   // Input, gate, split.
   inputGain_.process(in, n, dbToGain(input_->load()));
+  hushParams_.apply(hush);
+  hush.process(in, n);
   gate_.setThresholdDb(gate_p_->load());
   crossover_.setFrequencies(xoverLow_->load(), xoverHigh_->load());
   float* low = bandBuf_[kLow].data();
@@ -528,6 +533,7 @@ juce::String ParabolaProcessor::lastError() const {
 // ---------------------------------------------------------------- state
 void ParabolaProcessor::getStateInformation(juce::MemoryBlock& destData) {
   writeMidiState();
+  hushui::saveFloors(hush, params.state);
   auto state = params.copyState();
   state.removeChild(state.getChildWithName(kFilesNode), nullptr);
   juce::ValueTree files(kFilesNode);
@@ -545,6 +551,7 @@ void ParabolaProcessor::setStateInformation(const void* data, int sizeInBytes) {
   state.removeChild(state.getChildWithName(kFilesNode), nullptr);
   params.replaceState(state);
   readMidiState();
+  hushui::loadFloors(hush, params.state);
 
   for (int b = 0; b < kNumBands; ++b) {
     const auto path = files.getProperty(kBandIds[b]).toString();

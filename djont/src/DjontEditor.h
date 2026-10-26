@@ -416,6 +416,7 @@ public:
   void setLook(const juce::String& lookId);
   void showSettings(bool show);
   void showManual(bool show, int section = -1);
+  void showHush(bool show) { showOverlay(show ? &hushPanel_ : nullptr); }
   void showAdvanced(bool show);  // flips Wham and Sustain to their ADV side
   juce::String currentHint() const { return hint_; }
 
@@ -436,11 +437,13 @@ private:
   Knob input_, output_;
   GearButton gear_;
   HelpButton help_;
+  Chip hushChip_;
   WhamModule wham_;
   SustainModule sustain_;
   std::vector<std::unique_ptr<Module>> modules_;
   SettingsPanel settings_;
   ManualPanel manual_;
+  hushui::HushPanel hushPanel_;
   juce::Image photo_, photoScaled_;
   float photoScaledAt_ = 0.0f;
   float meterDb_ = -60.0f;
@@ -459,6 +462,7 @@ public:
   void setLook(const juce::String& lookId) { view_.setLook(lookId); }
   void showSettings(bool show) { view_.showSettings(show); }
   void showManual(bool show, int section = -1) { view_.showManual(show, section); }
+  void showHush(bool show) { view_.showHush(show); }
   void showAdvanced(bool show) { view_.showAdvanced(show); }
   juce::String currentHint() const { return view_.currentHint(); }
 
