@@ -1585,6 +1585,163 @@ void MyGearPanel::resized() {
 }
 
 // ---------------------------------------------------------------- tuner
+// ---------------------------------------------------------------- rack
+juce::String RackPanel::Fader::hint() const {
+  const double v = getValue();
+  return "DI Shaper " + label + " Hz: boost or cut around this frequency on the DI, before every band. "
+         + (std::abs(v) < 0.05 ? juce::String("0 dB (flat)") : (v > 0 ? "+" : "") + juce::String(v, 1) + " dB") +
+         ". Double-click resets.";
+}
+
+RackPanel::RackPanel(ParabolaProcessor& processor)
+    : processor_(processor),
+      diOn_(processor.params, "rackDiOn", "DI Shaper", 2,
+            "DI Shaper: seven bands of EQ on your DI before the crossover, so every band and capture hears the change."),
+      subOn_(processor.params, "rackSubOn", "Sub Comp", 0,
+             "Sub Comp: a compressor on only the lows below FREQ. A steady, even bottom without squashing your attack."),
+      driveOn_(processor.params, "rackDriveOn", "Split Drive", 1,
+               "Split Drive: a built-in drive on everything above SPLIT, clean below. Grit without captures, or under them."),
+      subAmount_(processor.params, "rackSubAmount", "Amount", 66,
+                 "Amount: how hard the lows are squeezed (lower threshold, higher ratio, more makeup)."),
+      subFreq_(processor.params, "rackSubFreq", "Freq", 62, "Freq: only the lows below this are compressed."),
+      subBlend_(processor.params, "rackSubBlend", "Blend", 62,
+                "Blend: compressed lows against the untouched lows. 100% is all compressed."),
+      drive_(processor.params, "rackDrive", "Drive", 92, "Drive: how hard the highs are pushed into the clipper."),
+      split_(processor.params, "rackDriveSplit", "Split", 64,
+             "Split: everything below this stays clean, everything above gets the drive (150 to 500 Hz)."),
+      tone_(processor.params, "rackDriveTone", "Tone", 64, "Tone: a low-pass on the drive. Lower is darker and less fizzy."),
+      blend_(processor.params, "rackDriveBlend", "Blend", 64,
+             "Blend: driven highs against the clean highs. The lows below Split are always clean."),
+      level_(processor.params, "rackDriveLevel", "Level", 64, "Level: trims the drive."),
+      solo_(processor.params, "rackSolo", "SOLO",
+            "Solo: hear the rack's output alone (no bands, cab or EQ), to dial in the DI. Turn it off to hear everything again.") {
+  for (auto* c : std::initializer_list<juce::Component*>{&diOn_, &subOn_, &driveOn_, &subAmount_, &subFreq_, &subBlend_, &drive_,
+                                                          &split_, &tone_, &blend_, &level_, &solo_, &done_})
+    addAndMakeVisible(c);
+  subAmount_.setColourIndex(0); subFreq_.setColourIndex(0); subBlend_.setColourIndex(0);
+  for (auto* k : {&drive_, &split_, &tone_, &blend_, &level_}) k->setColourIndex(1);
+  level_.setBipolar();
+  for (int i = 0; i < DiShaper::kBands; ++i) {
+    auto& f = faders_[static_cast<size_t>(i)];
+    const double hz = DiShaper::kHz[static_cast<size_t>(i)];
+    f.label = hz >= 1000.0 ? juce::String(hz / 1000.0, 1) + "K" : juce::String(juce::roundToInt(hz));
+    f.setSliderStyle(juce::Slider::LinearVertical);
+    f.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    f.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    f.setDoubleClickReturnValue(true, 0.0);
+    f.setTitle("DI Shaper " + f.label);
+    f.getProperties().set(kParamIdProp, "rackDi" + juce::String(i));
+    f.getProperties().set("band", 2);
+    addAndMakeVisible(f);
+    faderAtt_[static_cast<size_t>(i)] =
+        std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(processor.params, "rackDi" + juce::String(i), f);
+  }
+  done_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  done_.onClick = [this] {
+    if (onClose) onClose();
+  };
+}
+
+void RackPanel::visibilityChanged() {
+  if (isVisible()) startTimerHz(20);
+  else stopTimer();
+}
+
+void RackPanel::timerCallback() {
+  const float gr = processor_.subCompReductionDb.load();
+  const float shown = gr > grShown_ ? gr : juce::jmax(gr, grShown_ - 0.6f);
+  if (std::abs(shown - grShown_) > 0.05f) {
+    grShown_ = shown;
+    repaint(meterBox_.expanded(4));
+  }
+}
+
+void RackPanel::paint(juce::Graphics& g) {
+  const auto& L = PbzLookAndFeel::lookOf(*this);
+  drawPlate(g, *this, getLocalBounds().toFloat());
+  g.setColour(L.ink);
+  g.setFont(PbzLookAndFeel::display(*this, 30.0f));
+  g.drawText("RACK", 22, 12, 120, 40, juce::Justification::centredLeft, false);
+  g.setColour(L.muted);
+  g.setFont(PbzLookAndFeel::label(10.5f));
+  g.drawText("ON YOUR DI, BEFORE THE BANDS  /  SIGNAL FLOWS LEFT TO RIGHT", 112, 26, 460, 14, juce::Justification::centredLeft,
+             false);
+  const auto unit = [&](juce::Rectangle<int> box, const char* name, const char* sub) {
+    g.setColour(L.scrim.withAlpha(0.35f));
+    g.fillRoundedRectangle(box.toFloat(), 8.0f);
+    g.setColour(L.border);
+    g.drawRoundedRectangle(box.toFloat().reduced(0.5f), 8.0f, 1.0f);
+    g.setColour(L.ink);
+    g.setFont(PbzLookAndFeel::display(*this, 20.0f));
+    g.drawText(name, box.getX() + 46, box.getY() + 12, box.getWidth() - 60, 26, juce::Justification::centredLeft, false);
+    g.setColour(L.muted);
+    g.setFont(PbzLookAndFeel::label(9.5f));
+    g.drawFittedText(sub, box.getX() + 16, box.getBottom() - 46, box.getWidth() - 32, 36, juce::Justification::centredLeft, 3, 1.0f);
+  };
+  unit(diBox_, "DI SHAPER", "Seven bands on the DI that every band and capture hears. Cut boom, add clank, tame the pick.");
+  unit(subBox_, "SUB COMP", "Compresses only the lows below FREQ, so the bottom sits still while the attack stays.");
+  unit(driveBox_, "SPLIT DRIVE", "Clean below SPLIT, driven above it. Grit without loading captures, or under them.");
+  // arrows between units
+  g.setColour(L.muted);
+  for (auto* b : {&diBox_, &subBox_}) {
+    const float y = static_cast<float>(b->getCentreY()), x = static_cast<float>(b->getRight()) + 3.0f;
+    juce::Path p;
+    p.addTriangle(x, y - 6.0f, x, y + 6.0f, x + 9.0f, y);
+    g.fillPath(p);
+  }
+  // DI fader labels
+  g.setColour(L.ink);
+  g.setFont(PbzLookAndFeel::label(9.5f));
+  for (auto& f : faders_)
+    g.drawText(f.label, f.getX() - 10, f.getBottom() + 4, f.getWidth() + 20, 14, juce::Justification::centred, false);
+  // sub comp gain-reduction meter
+  g.setColour(L.track);
+  g.fillRoundedRectangle(meterBox_.toFloat(), 3.0f);
+  g.setColour(bandColour(*this, 0));
+  const float frac = juce::jlimit(0.0f, 1.0f, grShown_ / 18.0f);
+  g.fillRoundedRectangle(meterBox_.toFloat().withWidth(meterBox_.getWidth() * frac), 3.0f);
+  g.setColour(L.muted);
+  g.setFont(PbzLookAndFeel::label(9.5f));
+  g.drawText("SUB REDUCTION  " + juce::String(grShown_, 1) + " DB", meterBox_.getX(), meterBox_.getY() - 16,
+             meterBox_.getWidth(), 14, juce::Justification::centredLeft, false);
+}
+
+void RackPanel::resized() {
+  const int pad = 18, top = 64, gap = 22, bottom = 18;
+  done_.setBounds(getWidth() - pad - 90, 16, 90, 32);
+  solo_.setBounds(done_.getX() - 12 - 80, 20, 80, 26);
+  const int w = getWidth() - 2 * pad - 2 * gap, h = getHeight() - top - bottom;
+  const int diW = w * 40 / 100, subW = w * 26 / 100, drW = w - diW - subW;
+  diBox_ = {pad, top, diW, h};
+  subBox_ = {diBox_.getRight() + gap, top, subW, h};
+  driveBox_ = {subBox_.getRight() + gap, top, drW, h};
+  for (auto [led, box] : {std::pair{&diOn_, diBox_}, std::pair{&subOn_, subBox_}, std::pair{&driveOn_, driveBox_}})
+    led->setTopLeftPosition(box.getX() + 14, box.getY() + 12);
+  // DI faders
+  const int fx0 = diBox_.getX() + 20, fw = diBox_.getWidth() - 40, step = fw / DiShaper::kBands;
+  for (int i = 0; i < DiShaper::kBands; ++i)
+    faders_[static_cast<size_t>(i)].setBounds(fx0 + i * step + (step - 30) / 2, diBox_.getY() + 56, 30, h - 56 - 82);
+  // sub comp: three knobs in a column-ish row, meter under
+  {
+    const int kw = subAmount_.getWidth(), cx = subBox_.getCentreX();
+    subAmount_.setTopLeftPosition(cx - kw / 2, subBox_.getCentreY() - 150);
+    subFreq_.setTopLeftPosition(cx - kw - 8, subAmount_.getBottom() + 14);
+    subBlend_.setTopLeftPosition(cx + 8, subAmount_.getBottom() + 14);
+    meterBox_ = {subBox_.getX() + 18, subFreq_.getBottom() + 34, subBox_.getWidth() - 36, 10};
+  }
+  // split drive: Drive big on the left, the rest in a 2x2 grid
+  {
+    const int kw = split_.getWidth(), groupW = drive_.getWidth() + 26 + 2 * kw + 16;
+    const int y0 = driveBox_.getCentreY() - 130, x0 = driveBox_.getCentreX() - groupW / 2;
+    drive_.setTopLeftPosition(x0, y0 + 50);
+    const int gx = drive_.getRight() + 26;
+    split_.setTopLeftPosition(gx, y0);
+    tone_.setTopLeftPosition(gx + kw + 16, y0);
+    blend_.setTopLeftPosition(gx, split_.getBottom() + 18);
+    level_.setTopLeftPosition(gx + kw + 16, split_.getBottom() + 18);
+  }
+}
+
 TunerPanel::TunerPanel(ParabolaProcessor& processor) : processor_(processor) {
   addAndMakeVisible(done_);
   done_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
@@ -1687,6 +1844,8 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
       tuner_("TUNER", "Tuner: opens the tuner and mutes the output while it's open."),
       hushChip_("HUSH", "Hush: the de-noiser on your DI (zero latency). Opens its panel: on / off, LEARN, Strength, "
                         "Sensitivity, Release."),
+      rackChip_("RACK", "Rack: units on your DI before the bands. DI Shaper (7-band EQ), Sub Comp (compresses only the lows) "
+                        "and Split Drive (drive above a split, clean below), plus SOLO."),
       presetBar_(processor, presets_),
       crossover_(processor),
       geq_(processor.params),
@@ -1695,13 +1854,14 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
       myGear_(processor),
       tunerPanel_(processor),
       hushPanel_(processor.params, processor.hush,
-                 [](const juce::Component& c, float px) { return PbzLookAndFeel::display(c, px); }, true) {
+                 [](const juce::Component& c, float px) { return PbzLookAndFeel::display(c, px); }, true),
+      rackPanel_(processor) {
   setLookAndFeel(&lnf_);
   pitch_.setBipolar();
   input_.setBipolar();
   output_.setBipolar();
   for (auto* k : {&gate_, &noise_, &pitch_, &input_, &output_}) k->setSize(56, k->getHeight());
-  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &noise_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_, &hushChip_,
+  for (auto* c : std::initializer_list<juce::Component*>{&gate_, &noise_, &pitch_, &input_, &output_, &help_, &gear_, &tuner_, &hushChip_, &rackChip_,
                                                           &presetBar_, &crossover_, &geq_, &cab_})
     addAndMakeVisible(c);
   for (int b = 0; b < kNumBands; ++b) {
@@ -1713,10 +1873,12 @@ ParabolaView::ParabolaView(ParabolaProcessor& processor)
   tuner_.onClick = [this] { showTuner(!tunerPanel_.isVisible()); };
   hushChip_.onClick = [this] { showHush(!hushPanel_.isVisible()); };
   hushPanel_.onClose = [this] { showHush(false); };
+  rackChip_.onClick = [this] { showRack(!rackPanel_.isVisible()); };
+  rackPanel_.onClose = [this] { showRack(false); };
   presetBar_.onMessage = [this](const juce::String& m) { flash(m); };
   presetBar_.onMyGear = [this] { showMyGear(!myGear_.isVisible()); };
   myGear_.onMessage = [this](const juce::String& m) { flash(m, 150); };
-  for (auto* c : std::initializer_list<juce::Component*>{&settings_, &manual_, &myGear_, &tunerPanel_, &hushPanel_})
+  for (auto* c : std::initializer_list<juce::Component*>{&settings_, &manual_, &myGear_, &tunerPanel_, &hushPanel_, &rackPanel_})
     addChildComponent(c);
   settings_.onClose = [this] { showSettings(false); };
   manual_.onClose = [this] { showManual(false); };
@@ -1816,7 +1978,9 @@ void ParabolaView::showOverlay(juce::Component* overlay) {
   myGear_.setVisible(overlay == &myGear_);
   tunerPanel_.setVisible(overlay == &tunerPanel_);
   hushPanel_.setVisible(overlay == &hushPanel_);
+  rackPanel_.setVisible(overlay == &rackPanel_);
   hushChip_.setToggleState(overlay == &hushPanel_, juce::dontSendNotification);
+  rackChip_.setToggleState(overlay == &rackPanel_, juce::dontSendNotification);
   gear_.setToggleState(overlay == &settings_, juce::dontSendNotification);
   help_.setToggleState(overlay == &manual_, juce::dontSendNotification);
   tuner_.setToggleState(overlay == &tunerPanel_, juce::dontSendNotification);
@@ -1857,6 +2021,7 @@ void ParabolaView::timerCallback() {
   }
   if (flashTicks_ > 0 && --flashTicks_ == 0) flash_ = {};
   hushChip_.setButtonText(processor_.params.getRawParameterValue("hushOn")->load() > 0.5f ? "HUSH ON" : "HUSH");
+  rackChip_.setButtonText(processor_.rackActive() ? "RACK ON" : "RACK");
   crossover_.tick();
   updateHint();
 }
@@ -1965,8 +2130,9 @@ void ParabolaView::resized() {
   gear_.setTopRightPosition(right - 10, (kHeaderH - gear_.getHeight()) / 2);
   help_.setTopRightPosition(gear_.getX() - 6, gear_.getY());
   meterBox_ = {help_.getX() - 20, (kHeaderH - 56) / 2, 9, 56};
-  tuner_.setBounds(meterBox_.getX() - 12 - 62, kHeaderH / 2 - 27, 62, 24);
-  hushChip_.setBounds(tuner_.getX(), kHeaderH / 2 + 3, 62, 24);
+  tuner_.setBounds(meterBox_.getX() - 12 - 66, kHeaderH / 2 - 34, 66, 20);
+  hushChip_.setBounds(tuner_.getX(), kHeaderH / 2 - 10, 66, 20);
+  rackChip_.setBounds(tuner_.getX(), kHeaderH / 2 + 14, 66, 20);
   output_.setTopRightPosition(tuner_.getX() - 8, (kHeaderH - output_.getHeight()) / 2 + 2);
   input_.setTopRightPosition(output_.getX() - 2, output_.getY());
   pitch_.setTopRightPosition(input_.getX() - 2, output_.getY());
@@ -1984,7 +2150,7 @@ void ParabolaView::resized() {
   geq_.setBounds(kPad, kBottomY, geqW, kBottomH);
   cab_.setBounds(kPad + geqW + gap, kBottomY, w - geqW - gap, kBottomH);
   settings_.setBounds(kPad, kXoverY, w, kBottomY + kBottomH - kXoverY);
-  for (auto* c : std::initializer_list<juce::Component*>{&manual_, &myGear_, &tunerPanel_, &hushPanel_})
+  for (auto* c : std::initializer_list<juce::Component*>{&manual_, &myGear_, &tunerPanel_, &hushPanel_, &rackPanel_})
     c->setBounds(settings_.getBounds());
   photoScaled_ = {};
 }

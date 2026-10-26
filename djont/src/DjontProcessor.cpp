@@ -138,6 +138,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout
   layout.add(power("tightOn", "Tight", true));
   layout.add(percent("tightAmount", "Tight Amount", 50.0f));
   layout.add(hertz("tightFreq", "Tight Freq", 60.0f, 1000.0f, 180.0f));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(juce::ParameterID{"tightMode", 1}, "Tight Mode",
+                                                          juce::StringArray{"Punch", "Focus"}, 0));
+  layout.add(percent("blend", "Blend", 100.0f));
   layout.add(power("gritOn", "Grit", false));
   layout.add(percent("gritDrive", "Grit Drive", 50.0f));
   layout.add(hertz("gritFreq", "Grit Freq", 60.0f, 400.0f, 140.0f));
@@ -206,7 +209,13 @@ bool DjontProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
 void DjontProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   hush.prepare(sampleRate);
   tight_.prepare(sampleRate);
+  focus_.prepare(sampleRate);
   grit_.prepare(sampleRate);
+  blendRing_.assign(static_cast<size_t>(sampleRate) + 1, 0.0f);  // up to 1 s of Wham delay
+  blendDry_.assign(static_cast<size_t>(juce::jmax(1, samplesPerBlock)), 0.0f);
+  blendPos_ = 0;
+  blend_.reset(sampleRate, 0.03);
+  blend_.setCurrentAndTargetValue(value("blend") / 100.0f);
   sub_.prepare(sampleRate, samplesPerBlock);
   lofi_.prepare(sampleRate);
   hold_.prepare(sampleRate);
@@ -240,6 +249,12 @@ void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBu
   if (n <= 0 || buffer.getNumChannels() == 0) return;
 
   tight_.set(value("tightAmount") / 100.0f, value("tightFreq"));
+  focus_.set(value("tightAmount") / 100.0f, value("tightFreq"));
+  {
+    const bool focus = value("tightMode") > 0.5f;
+    if (focus != focusMode_) { focusMode_ = focus; tight_.reset(); focus_.reset(); }
+  }
+  blend_.setTargetValue(value("blend") / 100.0f);
   grit_.set(value("gritDrive") / 100.0f, value("gritFreq"), value("gritBlend") / 100.0f);
   sub_.set(value("subMode") > 0.5f ? Sub::Mode::synth : Sub::Mode::clean, value("subBlend") / 100.0f,
            value("subTone"), value("subOn") > 0.5f);
@@ -449,6 +464,23 @@ void DjontProcessor::processMono(float* x, int n) {
   inGain_.applyGain(x, n);
   hushParams_.apply(hush);
   hush.process(x, n);
+  // Global Blend: keep a copy of the (de-noised) DI, delayed by whatever Wham
+  // adds so it lines up with the board's output.
+  const bool blending = blend_.isSmoothing() || blend_.getCurrentValue() < 0.999f;
+  if (blending) {
+    const int lat = juce::jlimit(0, static_cast<int>(blendRing_.size()) - 1, getLatencySamples());
+    const int size = static_cast<int>(blendRing_.size());
+    for (int i = 0; i < n; ++i) {
+      blendRing_[static_cast<size_t>(blendPos_)] = x[i];
+      blendDry_[static_cast<size_t>(i)] = blendRing_[static_cast<size_t>((blendPos_ - lat + size) % size)];
+      blendPos_ = (blendPos_ + 1) % size;
+    }
+  } else {
+    for (int i = 0; i < n; ++i) {  // keep the ring current so turning Blend down is seamless
+      blendRing_[static_cast<size_t>(blendPos_)] = x[i];
+      blendPos_ = (blendPos_ + 1) % static_cast<int>(blendRing_.size());
+    }
+  }
   processWham(x, n);
   for (int m = 0; m < kNumModules; ++m) {
     auto& p = power_[static_cast<size_t>(m)];
@@ -465,7 +497,7 @@ void DjontProcessor::processMono(float* x, int n) {
             sustainer_.reset();
           }
           break;
-        case kTight: tight_.reset(); break;
+        case kTight: tight_.reset(); focus_.reset(); break;
         case kGrit: grit_.reset(); break;
         case kSub: sub_.reset(); break;
         case kLoFi: lofi_.reset(); break;
@@ -477,7 +509,7 @@ void DjontProcessor::processMono(float* x, int n) {
     std::copy(x, x + n, dry);
     switch (m) {
       case kSustain: processSustain(x, n); break;
-      case kTight: tight_.process(x, n); break;
+      case kTight: if (focusMode_) focus_.process(x, n); else tight_.process(x, n); break;
       case kGrit: grit_.process(x, n); break;
       case kSub: sub_.process(x, n); break;
       case kLoFi: lofi_.process(x, n); break;
@@ -490,6 +522,11 @@ void DjontProcessor::processMono(float* x, int n) {
       }
     }
   }
+  if (blending)
+    for (int i = 0; i < n; ++i) {
+      const float b = blend_.getNextValue();
+      x[i] = blendDry_[static_cast<size_t>(i)] + b * (x[i] - blendDry_[static_cast<size_t>(i)]);
+    }
   outGain_.applyGain(x, n);
 }
 

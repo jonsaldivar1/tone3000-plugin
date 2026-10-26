@@ -24,6 +24,10 @@
           "Level into and out of dJONt, ±24 dB. The meter turns red when the output clips."
         ],
         [
+          "Blend",
+          "The whole board against your dry DI (after Hush). 100% is all dJONt; lower keeps your amp's own tone under the effects. The dry is delayed to line up when Wham adds latency."
+        ],
+        [
           "Gear",
           "Settings: the look (Chrome or Red Foil), and in the standalone app your audio interface, MIDI inputs and latency."
         ],
@@ -179,22 +183,28 @@
     {
       "id": "tight",
       "title": "Tight",
-      "tagline": "Palm mutes that hit harder and stop sooner.",
-      "what": "Tight pushes each pick attack and trims the ring-out after it, in the band where your low strings live.",
-      "how": "A detector band-passes the signal at Freq and compares a fast envelope with a slow one. On an attack the band is lifted (up to about +12 dB); as the note decays it's trimmed a little. It's like a transient shaper aimed at the chug.",
-      "sound": "Tighter, punchier rhythm parts into a high-gain amp, without changing your tone between hits.",
+      "tagline": "Palm mutes that hit harder, or a tight boost into your amp.",
+      "what": "Tight has two voicings. PUNCH pushes each pick attack and trims the ring-out after it, in the band where your low strings live. FOCUS is the classic tight boost in front of a high-gain amp: it cuts the lows below Freq, pushes the mids and clips a little.",
+      "how": "PUNCH: a detector band-passes the signal at Freq and compares a fast envelope with a slow one. On an attack the band is lifted (up to about +12 dB); as the note decays it's trimmed a little, like a transient shaper aimed at the chug. FOCUS: a 12 dB/oct low cut at Freq, a mid hump around 720 Hz, then Amount drives a soft clipper (0 to +30 dB). The clipper is anti-aliased without oversampling, so FOCUS adds no latency.",
+      "sound": "PUNCH: tighter, punchier rhythm parts without changing your tone between hits. FOCUS: a tighter, more focused amp. Less flub on low notes, more bite, and a bit more gain for the amp to chew on.",
       "try": [
-        "Leave it on for any heavy rhythm part. Amount 50% is a good start.",
-        "Set Freq near your low string: around 80–120 Hz for drop tunings, higher for more pick click."
+        "Leave PUNCH on for any heavy rhythm part. Amount 50% is a good start.",
+        "PUNCH: set Freq near your low string, around 80–120 Hz for drop tunings, higher for more pick click.",
+        "FOCUS: Amount low (10–30%) and Freq 150–250 Hz is the classic boost into a high-gain amp. Turn the amp's gain down a little to make room.",
+        "FOCUS with Amount up gets you a drive pedal's grit on its own."
       ],
       "controls": [
         [
+          "PUNCH / FOCUS",
+          "Which voicing Tight uses."
+        ],
+        [
           "Amount",
-          "How hard each attack is pushed and how much the ring-out is trimmed."
+          "PUNCH: how hard each attack is pushed and how much the ring-out is trimmed. FOCUS: how hard the boost drives your amp."
         ],
         [
           "Freq",
-          "The band Tight listens to and punches up (60 Hz to 1 kHz)."
+          "PUNCH: the band Tight listens to (60 Hz to 1 kHz). FOCUS: the low cut; higher is tighter."
         ]
       ]
     },

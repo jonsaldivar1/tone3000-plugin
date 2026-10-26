@@ -20,6 +20,10 @@
           "The de-noiser on your DI, first in the chain (zero latency). Click HUSH in the header."
         ],
         [
+          "Rack",
+          "Units on your DI before the bands: DI Shaper, Sub Comp and Split Drive, plus SOLO. Click RACK in the header."
+        ],
+        [
           "Presets",
           "< and > step through them, click the name for the list, SAVE stores yours, DEL deletes yours."
         ],
@@ -389,6 +393,62 @@
         [
           "Hint bar",
           "Shows a control's CC once it's mapped."
+        ]
+      ]
+    },
+    {
+      "id": "rack",
+      "title": "Rack",
+      "tagline": "Shape, steady and dirty up your DI before the bands.",
+      "what": "The rack is three units on your DI, after Hush, the gate and Pitch and before the crossover, so every band and capture hears them. DI SHAPER is a 7-band EQ. SUB COMP compresses only the lows below Freq. SPLIT DRIVE drives everything above Split and leaves the lows clean. Click RACK in the header; it reads RACK ON while any unit is on.",
+      "how": "DI Shaper: peaking bands at 50, 100, 200, 400, 800 Hz, 1.6 and 3.2 kHz, ±12 dB. Sub Comp: the DI is split at Freq, a compressor works on the lows only and Blend mixes them back against the untouched lows; the highs never move. Split Drive: the DI is split at Split; the highs go through a mid push into a soft clipper (Drive, 0 to +40 dB) that runs at 4x the sample rate so the top stays smooth, then a Tone low-pass; Blend mixes driven against clean highs. Below Split it's always clean. None of it adds latency.",
+      "sound": "DI Shaper: cut boom before the captures, add clank, tame a harsh pick. Sub Comp: a bottom that sits perfectly still while the attack above it still snaps. Split Drive: the classic parallel bass grit (clean lows, driven highs) with no captures loaded, or as extra dirt under them.",
+      "try": [
+        "No captures yet? Turn on SPLIT DRIVE: Drive 50%, Split 350 Hz, Blend 60%. That's a full bass drive tone on its own.",
+        "SUB COMP: Amount 50%, Freq 150 Hz, then raise Blend until the low notes stop jumping around.",
+        "DI SHAPER: cut 200 Hz a few dB to clean up mud before the drive bands.",
+        "SOLO plays the rack alone (no bands, cab or EQ), so you can hear just what it does to your DI."
+      ],
+      "controls": [
+        [
+          "SOLO",
+          "Hear the rack's output alone. Turn it off to hear everything again."
+        ],
+        [
+          "DI Shaper",
+          "Seven faders, ±12 dB. Double-click a fader to reset it."
+        ],
+        [
+          "Sub Comp: Amount",
+          "How hard the lows are squeezed."
+        ],
+        [
+          "Sub Comp: Freq",
+          "Only the lows below this are compressed (60 to 250 Hz)."
+        ],
+        [
+          "Sub Comp: Blend",
+          "Compressed lows against untouched lows."
+        ],
+        [
+          "Split Drive: Drive",
+          "How hard the highs are pushed."
+        ],
+        [
+          "Split Drive: Split",
+          "Below this stays clean (150 to 500 Hz)."
+        ],
+        [
+          "Split Drive: Tone",
+          "Low-pass on the drive; lower is darker."
+        ],
+        [
+          "Split Drive: Blend",
+          "Driven highs against clean highs."
+        ],
+        [
+          "Split Drive: Level",
+          "Trims the drive, ±12 dB."
         ]
       ]
     },

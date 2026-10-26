@@ -2,7 +2,9 @@
 
 A pedalboard plugin for guitar that goes in front of your amp sim: **Wham** (a virtual whammy), **Sustain** (Hold and Sustainer), **Tight**, **Grit**, **Sub** and **Lo-Fi**, plus **Hush**, a de-noiser for your DI. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
 
-**New in 0.7: HUSH**, a zero-latency de-noiser on your DI. It learns your guitar's hiss and turns it down between notes and under them, before your amp sim amplifies it. Click **HUSH** (left of Input), turn it ON, hands off the strings, **LEARN**, then raise Strength. It's off by default, so your settings sound the same.
+**New in 0.8:** **Tight** has a second voicing, **FOCUS**: the classic tight boost in front of a high-gain amp (low cut, mid push, a little clipping, no added latency). Flip it with the PUNCH / FOCUS switch. And a global **Blend** knob in the header: the whole board against your dry DI, lined up even when Wham adds delay.
+
+**Also in 0.7: HUSH**, a zero-latency de-noiser on your DI.
 
 ### Install
 

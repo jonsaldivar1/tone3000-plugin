@@ -434,7 +434,7 @@ private:
 
   DjontProcessor& processor_;
   DjontLookAndFeel lnf_;
-  Knob input_, output_;
+  Knob input_, output_, blend_;
   GearButton gear_;
   HelpButton help_;
   Chip hushChip_;

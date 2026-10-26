@@ -123,6 +123,69 @@ private:
   float fastAttack_ = 0, fastRelease_ = 0, slowAttack_ = 0, slowRelease_ = 0, smooth_ = 0;
 };
 
+// ---------------------------------------------------------------- Focus
+// Tight's FOCUS voicing: the classic tight boost in front of a high-gain amp.
+// Freq is a low cut (keeps the low end from flubbing up the amp), a mid hump
+// around 720 Hz, then Amount drives a soft, slightly asymmetric clipper
+// (0 to +30 dB). The clipper uses first-order antiderivative anti-aliasing:
+// smooth top end without oversampling, so it adds no latency.
+class Focus {
+public:
+  void prepare(double fs) {
+    fs_ = fs;
+    dcR_ = 1.0f - static_cast<float>(juce::MathConstants<double>::twoPi * 8.0 / fs);
+    hump_.set(Biquad::Type::bandPass, fs, 720.0, 0.8);
+    lp_.set(Biquad::Type::lowPass, fs, 6500.0, 0.7071);
+    reset();
+  }
+  void reset() {
+    hp_.reset();
+    hump_.reset();
+    lp_.reset();
+    u1_ = 0.0f;
+    f1_ = logCosh(kBias);
+    dcX_ = dcY_ = 0.0f;
+  }
+  void set(float amount01, float freqHz) {
+    gain_ = dbToGain(amount01 * 30.0f);
+    humpGain_ = 0.6f + amount01 * 0.6f;
+    if (freqHz != freq_) {
+      freq_ = freqHz;
+      hp_.set(Biquad::Type::highPass, fs_, freqHz, 0.7071);  // 12 dB/oct: tight, not thin
+    }
+  }
+  void process(float* x, int n) {
+    const float off = std::tanh(kBias);
+    for (int i = 0; i < n; ++i) {
+      float y = hp_.process(x[i]);
+      y += humpGain_ * hump_.process(y);
+      const float u = gain_ * y / kCeil + kBias;
+      // ADAA: average of tanh between the last two inputs (exact integral)
+      const float f = logCosh(u);
+      const float d = u - u1_;
+      const float c = std::abs(d) > 1.0e-4f ? (f - f1_) / d : std::tanh(0.5f * (u + u1_));
+      u1_ = u;
+      f1_ = f;
+      const float clipped = kCeil * (c - off);
+      const float dc = clipped - dcX_ + dcR_ * dcY_;
+      dcX_ = clipped;
+      dcY_ = dc;
+      x[i] = lp_.process(dc) * kLevel;
+    }
+  }
+
+private:
+  static float logCosh(float u) {
+    const float a = std::abs(u);
+    return a + std::log1p(std::exp(-2.0f * a)) - 0.69314718f;
+  }
+  static constexpr float kCeil = 0.25f, kBias = 0.15f, kLevel = 1.4f;
+  double fs_ = 48000;
+  Biquad hp_, hump_, lp_;
+  float gain_ = 1, humpGain_ = 0.8f, freq_ = -1.0f;
+  float u1_ = 0, f1_ = 0, dcX_ = 0, dcY_ = 0, dcR_ = 0.999f;
+};
+
 // ---------------------------------------------------------------- Grit
 class Grit {
 public:

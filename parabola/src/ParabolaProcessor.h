@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "Dsp.h"
+#include "Rack.h"
 #include "Hush.h"
 #include "HushPanel.h"
 #include "NamSlot.h"
@@ -93,6 +94,9 @@ public:
   std::atomic<float> outputPeakDb{-100.0f};
   std::array<std::atomic<float>, kNumBands> bandPeakDb{};
   std::atomic<float> compReductionDb{0.0f};
+  std::atomic<float> subCompReductionDb{0.0f};
+  // True while any RACK unit is on (the header chip shows RACK ON).
+  bool rackActive() const;
   std::atomic<bool> gateOpen{true};
 
   // Tuner: while it's on, the detector listens to the DI and the output is
@@ -146,6 +150,16 @@ private:
   std::atomic<float> *input_ = nullptr, *output_ = nullptr, *gate_p_ = nullptr, *xoverLow_ = nullptr,
                      *xoverHigh_ = nullptr, *cabOn_ = nullptr, *lowComp_ = nullptr;
   std::array<std::atomic<float>*, 6> geqP_{};
+
+  // RACK (Rack.h): DI shaper, sub comp, split drive, solo.
+  void processRack(float* x, int n);
+  DiShaper di_;
+  SubComp subComp_;
+  SplitDrive splitDrive_;
+  std::array<std::atomic<float>*, DiShaper::kBands> diBand_{};
+  std::atomic<float> *diOn_ = nullptr, *subOn_ = nullptr, *subAmount_ = nullptr, *subFreq_ = nullptr, *subBlend_ = nullptr,
+                     *sdOn_ = nullptr, *sdDrive_ = nullptr, *sdSplit_ = nullptr, *sdTone_ = nullptr, *sdBlend_ = nullptr,
+                     *sdLevel_ = nullptr, *rackSolo_ = nullptr;
 
   Gate gate_, driveGate_;   // the DI gate, and the gate after the drive bands (keyed from the DI)
   std::array<LR4Split, kNumBands> postHp_, postLp_;  // POST bands' filters after the capture

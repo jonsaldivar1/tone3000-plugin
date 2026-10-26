@@ -93,6 +93,13 @@ private:
   void updateLatency();
 
   Tight tight_;
+  Focus focus_;
+  bool focusMode_ = false;
+  // Global Blend: dry DI (after Hush) against the whole board, the dry
+  // delayed to match Wham's latency.
+  std::vector<float> blendRing_, blendDry_;
+  int blendPos_ = 0;
+  juce::SmoothedValue<float> blend_;
   Grit grit_;
   Sub sub_;
   LoFi lofi_;

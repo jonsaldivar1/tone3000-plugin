@@ -1286,6 +1286,8 @@ DjontView::DjontView(DjontProcessor& processor)
     : processor_(processor),
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
       output_(processor.params, "output", "Output", 44, "Output: level out of dJONt."),
+      blend_(processor.params, "blend", "Blend", 44,
+             "Blend: the whole board against your dry DI (after Hush). 100% is all dJONt; lower keeps your amp's own tone under the effects."),
       hushChip_("HUSH", "Hush: the de-noiser on your DI, before everything (zero latency). Opens its panel: on / off, "
                         "LEARN, Strength, Sensitivity, Release.", 74),
       wham_(processor),
@@ -1298,6 +1300,7 @@ DjontView::DjontView(DjontProcessor& processor)
   output_.setBipolar();
   addAndMakeVisible(input_);
   addAndMakeVisible(output_);
+  addAndMakeVisible(blend_);
   addAndMakeVisible(gear_);
   gear_.onClick = [this] { showSettings(!settings_.isVisible()); };
   addAndMakeVisible(help_);
@@ -1306,13 +1309,18 @@ DjontView::DjontView(DjontProcessor& processor)
   hushChip_.onClick = [this] { showHush(!hushPanel_.isVisible()); };
 
   auto& s = processor.params;
-  auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes.");
+  auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes, or a tight boost into your amp.");
+  tight->setExtra(std::make_unique<ParamSegmented>(
+      s, "tightMode", juce::StringArray{"PUNCH", "FOCUS"},
+      "Tight: PUNCH pushes each pick attack and trims the ring-out. FOCUS is a tight boost: low cut, mid hump and a "
+      "little clipping to hit a high-gain amp harder.",
+      140));
   tight->addKnob(std::make_unique<Knob>(s, "tightAmount", "Amount", 58,
-                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Amount: how hard each pick attack is pushed, and how much the "
-                                        "ring-out is trimmed."))));
+                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Amount. PUNCH: how hard each pick attack is pushed and the "
+                                        "ring-out trimmed. FOCUS: how hard the boost drives your amp."))));
   tight->addKnob(std::make_unique<Knob>(s, "tightFreq", "Freq", 58,
-                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Freq: the band Tight listens to and punches up. Set it near your "
-                                        "low string."))));
+                                        juce::String(juce::CharPointer_UTF8("Tight \xc2\xb7 Freq. PUNCH: the band it listens to (near your low string). "
+                                        "FOCUS: the low cut; higher is tighter, 150 to 300 Hz is the classic range."))));
 
   auto grit = std::make_unique<Module>(s, "GRIT", "gritOn", "Fuzz on the low end only.");
   grit->addKnob(std::make_unique<Knob>(s, "gritDrive", "Drive", 58, juce::String(juce::CharPointer_UTF8("Grit \xc2\xb7 Drive: how hard the low-end fuzz is pushed."))));
@@ -1580,7 +1588,8 @@ void DjontView::resized() {
   help_.setTopRightPosition(gear_.getX() - 6, gear_.getY());
   meterBox_ = {help_.getX() - 18, (kHeaderH - 60) / 2, 9, 60};
   output_.setTopRightPosition(meterBox_.getX() - 10, (kHeaderH - output_.getHeight()) / 2 + 2);
-  input_.setTopRightPosition(output_.getX() - 2, output_.getY());
+  blend_.setTopRightPosition(output_.getX() - 2, output_.getY());
+  input_.setTopRightPosition(blend_.getX() - 2, output_.getY());
   hushChip_.setTopRightPosition(input_.getX() - 8, (kHeaderH - hushChip_.getHeight()) / 2);
   ioPlate_ = juce::Rectangle<int>(hushChip_.getX() - 10, 14, right - hushChip_.getX() + 10, kHeaderH - 28);
 

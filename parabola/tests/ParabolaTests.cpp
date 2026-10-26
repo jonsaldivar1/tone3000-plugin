@@ -267,6 +267,79 @@ int main(int argc, char** argv) {
             "the learned noise floors save with the state");
     }
     {
+      // RACK: split drive leaves the lows clean and drives the highs; sub comp
+      // squeezes only the lows; DI shaper boosts its band; SOLO is the rack
+      // alone; the reported latency doesn't move.
+      ParabolaProcessor p;
+      p.prepareToPlay(48000.0, 256);
+      flatBands(p);
+      // tone at `hz`; returns {rms, level of harmonic `k` relative to the fundamental in dB}
+      const auto probe = [&](double hz, double amp, int k) {
+        const int total = 48000, block = 256;
+        juce::AudioBuffer<float> buf(2, block);
+        juce::MidiBuffer midi;
+        std::vector<float> out;
+        for (int start = 0; start < total; start += block) {
+          for (int i = 0; i < block; ++i) {
+            const float x = static_cast<float>(amp * std::sin(juce::MathConstants<double>::twoPi * hz * (start + i) / 48000.0));
+            buf.setSample(0, i, x);
+            buf.setSample(1, i, x);
+          }
+          p.processBlock(buf, midi);
+          if (start >= total / 2)
+            for (int i = 0; i < block; ++i) out.push_back(buf.getSample(0, i));
+        }
+        const auto goertzel = [&](double f) {
+          double re = 0, im = 0;
+          for (size_t i = 0; i < out.size(); ++i) {
+            const double w = juce::MathConstants<double>::twoPi * f * static_cast<double>(i) / 48000.0;
+            re += out[i] * std::cos(w);
+            im -= out[i] * std::sin(w);
+          }
+          return std::sqrt(re * re + im * im);
+        };
+        double sum = 0;
+        for (float v : out) sum += static_cast<double>(v) * v;
+        return std::pair<double, double>{std::sqrt(sum / static_cast<double>(out.size())), db(goertzel(hz * k) / goertzel(hz))};
+      };
+      const int latencyOff = p.getLatencySamples();
+      const auto low0 = probe(70.0, 0.25, 3), high0 = probe(1000.0, 0.25, 3);
+      set(p, "rackDriveOn", 1.0f);
+      set(p, "rackDrive", 100.0f);
+      set(p, "rackDriveBlend", 100.0f);
+      set(p, "rackDriveTone", 8000.0f);
+      const auto low1 = probe(70.0, 0.25, 3), high1 = probe(1000.0, 0.25, 3);
+      std::printf("   split drive: 70 Hz %.2f -> %.2f dB, 3rd harmonic at 70 Hz %.0f dB; 1 kHz 3rd harmonic %.0f -> %.0f dB\n",
+                  db(low0.first), db(low1.first), low1.second, high0.second, high1.second);
+      check(std::abs(db(low1.first / low0.first)) < 1.0 && low1.second < -40.0, "split drive: a 70 Hz note stays clean");
+      check(high1.second > high0.second + 30.0 && high1.second > -30.0, "split drive: a 1 kHz note above the split gets driven");
+      check(p.getLatencySamples() == latencyOff, "the rack never changes the reported latency");
+      set(p, "rackDriveOn", 0.0f);
+      const auto lowOff = probe(70.0, 0.25, 3);
+      check(std::abs(db(lowOff.first / low0.first)) < 0.3, "split drive off: back to the same level");
+      set(p, "rackSubOn", 1.0f);
+      set(p, "rackSubAmount", 100.0f);
+      const auto subLow = probe(60.0, 0.5, 3), subHigh = probe(2000.0, 0.2, 3);
+      const auto ref2k = 0.2 / std::sqrt(2.0);
+      std::printf("   sub comp: 60 Hz at -6 dBFS %.1f dB, 2 kHz %.2f dB\n", db(subLow.first / (0.5 / std::sqrt(2.0))), db(subHigh.first / ref2k));
+      check(db(subLow.first / (0.5 / std::sqrt(2.0))) < -6.0, "sub comp squeezes a loud low note");
+      check(std::abs(db(subHigh.first / ref2k)) < 0.6, "and leaves a 2 kHz note alone");
+      set(p, "rackSubOn", 0.0f);
+      set(p, "rackDiOn", 1.0f);
+      set(p, "rackDi3", 12.0f);  // 400 Hz
+      const auto di = probe(400.0, 0.05, 3);
+      std::printf("   DI shaper +12 dB at 400 Hz: %.1f dB\n", db(di.first / (0.05 / std::sqrt(2.0))));
+      check(std::abs(db(di.first / (0.05 / std::sqrt(2.0))) - 12.0) < 1.5, "DI shaper: +12 dB at 400 Hz comes out about +12 dB");
+      set(p, "rackDi3", 0.0f);
+      set(p, "lowLevel", -36.0f);
+      set(p, "midLevel", -36.0f);
+      set(p, "highLevel", -36.0f);
+      set(p, "rackSolo", 1.0f);
+      const auto solo = probe(1000.0, 0.2, 3);
+      check(std::abs(db(solo.first / (0.2 / std::sqrt(2.0)))) < 0.5, "SOLO plays the rack alone (bands muted, level unchanged)");
+      check(p.rackActive(), "the RACK chip knows the rack is in use");
+    }
+    {
       // Pitch: +12 doubles the frequency; Parabola reports the shifter's delay.
       ParabolaProcessor p;
       set(p, "pitch", 12.0f);
@@ -487,6 +560,7 @@ int main(int argc, char** argv) {
       if (overlay == "mygear") e->showMyGear(true);
       if (overlay == "tuner") e->showTuner(true);
       if (overlay == "hush") e->showHush(true);
+      if (overlay == "rack") e->showRack(true);
       if (width > 0) e->setSize(width, width * parabola::ParabolaView::kHeight / parabola::ParabolaView::kWidth);
     }
     // Let the view's timer pick up the loaded files.

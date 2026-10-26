@@ -121,6 +121,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout ParabolaProcessor::createLay
   }
   layout.add(toggle("cabOn", "Cab On", true));
   hushui::addParameters(layout);
+  // RACK
+  layout.add(toggle("rackDiOn", "DI Shaper On", false));
+  for (int i = 0; i < DiShaper::kBands; ++i) {
+    const double hz = DiShaper::kHz[static_cast<size_t>(i)];
+    const juce::String label = hz >= 1000.0 ? juce::String(hz / 1000.0, 1) + "k" : juce::String(juce::roundToInt(hz));
+    layout.add(decibels("rackDi" + juce::String(i), "DI Shaper " + label, -12.0f, 12.0f, 0.0f));
+  }
+  layout.add(toggle("rackSubOn", "Sub Comp On", false));
+  layout.add(percent("rackSubAmount", "Sub Comp Amount", 50.0f));
+  layout.add(hertz("rackSubFreq", "Sub Comp Freq", 60.0f, 250.0f, 150.0f, 130.0f));
+  layout.add(percent("rackSubBlend", "Sub Comp Blend", 100.0f));
+  layout.add(toggle("rackDriveOn", "Split Drive On", false));
+  layout.add(percent("rackDrive", "Split Drive", 50.0f));
+  layout.add(hertz("rackDriveSplit", "Split Drive Split", 150.0f, 500.0f, 350.0f, 300.0f));
+  layout.add(hertz("rackDriveTone", "Split Drive Tone", 1000.0f, 8000.0f, 3500.0f, 3000.0f));
+  layout.add(percent("rackDriveBlend", "Split Drive Blend", 60.0f));
+  layout.add(decibels("rackDriveLevel", "Split Drive Level", -12.0f, 12.0f, 0.0f));
+  layout.add(toggle("rackSolo", "Rack Solo", false));
   const char* geqNames[6] = {"80", "250", "500", "1k", "2.5k", "6k"};
   for (int i = 0; i < 6; ++i)
     layout.add(decibels("geq" + juce::String(i), juce::String("EQ ") + geqNames[i], -12.0f, 12.0f, 0.0f));
@@ -155,6 +173,19 @@ ParabolaProcessor::ParabolaProcessor()
   pitchP_ = params.getRawParameterValue("pitch");
   hushParams_.attach(params);
   driveGateP_ = params.getRawParameterValue("driveGate");
+  for (int i = 0; i < DiShaper::kBands; ++i) diBand_[static_cast<size_t>(i)] = params.getRawParameterValue("rackDi" + juce::String(i));
+  diOn_ = params.getRawParameterValue("rackDiOn");
+  subOn_ = params.getRawParameterValue("rackSubOn");
+  subAmount_ = params.getRawParameterValue("rackSubAmount");
+  subFreq_ = params.getRawParameterValue("rackSubFreq");
+  subBlend_ = params.getRawParameterValue("rackSubBlend");
+  sdOn_ = params.getRawParameterValue("rackDriveOn");
+  sdDrive_ = params.getRawParameterValue("rackDrive");
+  sdSplit_ = params.getRawParameterValue("rackDriveSplit");
+  sdTone_ = params.getRawParameterValue("rackDriveTone");
+  sdBlend_ = params.getRawParameterValue("rackDriveBlend");
+  sdLevel_ = params.getRawParameterValue("rackDriveLevel");
+  rackSolo_ = params.getRawParameterValue("rackSolo");
   for (auto* p : getParameters())
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
   for (auto& cc : ccMap_) cc.store(-1);
@@ -194,6 +225,9 @@ void ParabolaProcessor::prepareInternal(int maxInternalBlock) {
   }
   crossover_.prepare(kInternalRate);
   comp_.prepare(kInternalRate);
+  di_.prepare(kInternalRate);
+  subComp_.prepare(kInternalRate);
+  splitDrive_.prepare(kInternalRate, internalMax_);
   for (auto& t : tone_) t.reset();
   toneHz_.fill(-1.0f);
   for (auto& e : eq_) e.prepare(kInternalRate);
@@ -283,6 +317,13 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
     juce::AudioBuffer<float> view(chans, 1, n);
     pitch_.process(view);
   }
+  processRack(in, n);
+  if (rackSolo_->load() > 0.5f) {  // SOLO: the rack alone, straight out
+    juce::FloatVectorOperations::copy(out, in, n);
+    outputGain_.process(out, n, dbToGain(output_->load()));
+    gateOpen.store(gate_.isOpen());
+    return;
+  }
   float* rest = restBuf_.data();
   for (int i = 0; i < n; ++i) crossover_.process(in[i], low[i], mid[i], high[i], rest[i]);
   gateOpen.store(gate_.isOpen());
@@ -365,6 +406,25 @@ void ParabolaProcessor::processInternalChunk(float* in, float* out, int n) {
   outputGain_.process(out, n, dbToGain(output_->load()));
 }
 
+// ---------------------------------------------------------------- RACK
+bool ParabolaProcessor::rackActive() const {
+  return diOn_->load() > 0.5f || subOn_->load() > 0.5f || sdOn_->load() > 0.5f || rackSolo_->load() > 0.5f;
+}
+
+void ParabolaProcessor::processRack(float* x, int n) {
+  if (diOn_->load() > 0.5f) {
+    for (int i = 0; i < DiShaper::kBands; ++i) di_.set(i, diBand_[static_cast<size_t>(i)]->load());
+    if (!di_.flat())
+      for (int i = 0; i < n; ++i) x[i] = di_.process(x[i]);
+  }
+  subComp_.set(subOn_->load() > 0.5f, subAmount_->load() / 100.0f, subFreq_->load(), subBlend_->load() / 100.0f);
+  for (int i = 0; i < n; ++i) x[i] = subComp_.process(x[i]);
+  subCompReductionDb.store(subOn_->load() > 0.5f ? subComp_.reductionDb() : 0.0f);
+  splitDrive_.set(sdOn_->load() > 0.5f, sdDrive_->load() / 100.0f, sdSplit_->load(), sdTone_->load(),
+                  sdBlend_->load() / 100.0f, sdLevel_->load());
+  splitDrive_.process(x, n);
+}
+
 juce::AudioProcessorEditor* ParabolaProcessor::createEditor() { return new ParabolaEditor(*this); }
 
 void ParabolaProcessor::setTunerActive(bool on) {
@@ -376,6 +436,7 @@ void ParabolaProcessor::setTunerActive(bool on) {
 // in host samples. Reported from the message thread.
 void ParabolaProcessor::updateLatency() {
   double samples = resampler_ != nullptr ? resampler_->GetLatency() : 0.0;
+  samples += splitDrive_.latency() * hostRate_ / kInternalRate;  // always in the path, so it never changes
   if (std::abs(pitchP_->load()) > 0.5f)
     samples += PitchShift::latencySamples(kPitchWindow, kInternalRate) * hostRate_ / kInternalRate;
   setLatencySamples(juce::roundToInt(samples));

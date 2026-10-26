@@ -404,6 +404,46 @@ private:
   double hz_ = 0.0, smoothCents_ = 0.0;
 };
 
+// The RACK overlay: DI SHAPER, SUB COMP and SPLIT DRIVE (Rack.h), the units
+// on the DI before the bands, plus SOLO to hear them alone.
+class RackPanel : public juce::Component, public HintSource, private juce::Timer {
+public:
+  explicit RackPanel(ParabolaProcessor& processor);
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  void visibilityChanged() override;
+  juce::String hint() const override {
+    return "Rack: the units on your DI, before the crossover. Left to right is the signal order. DONE (or RACK) closes it.";
+  }
+  std::function<void()> onClose;
+
+private:
+  class Led : public PowerLed {
+  public:
+    Led(juce::AudioProcessorValueTreeState& s, const juce::String& id, const juce::String& name, int band, juce::String d)
+        : PowerLed(s, id, name, band), description_(std::move(d)) {}
+    juce::String hint() const override { return description_ + (getToggleState() ? "  On" : "  Off"); }
+
+  private:
+    juce::String description_;
+  };
+  class Fader : public KnobSlider, public HintSource {
+  public:
+    juce::String hint() const override;
+    juce::String label;
+  };
+  void timerCallback() override;
+  ParabolaProcessor& processor_;
+  Led diOn_, subOn_, driveOn_;
+  std::array<Fader, DiShaper::kBands> faders_;
+  std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, DiShaper::kBands> faderAtt_;
+  Knob subAmount_, subFreq_, subBlend_, drive_, split_, tone_, blend_, level_;
+  ParamChip solo_;
+  juce::TextButton done_{"DONE"};
+  juce::Rectangle<int> diBox_, subBox_, driveBox_, meterBox_;
+  float grShown_ = 0.0f;
+};
+
 // Everything, laid out at its design size (kWidth x kHeight).
 class ParabolaView : public juce::Component, private juce::Timer {
 public:
@@ -420,6 +460,7 @@ public:
   void showMyGear(bool show);
   void showTuner(bool show) { showOverlay(show ? &tunerPanel_ : nullptr); }
   void showHush(bool show) { showOverlay(show ? &hushPanel_ : nullptr); }
+  void showRack(bool show) { showOverlay(show ? &rackPanel_ : nullptr); }
   void flash(const juce::String& message, int ticks = 240);
   void mouseDown(const juce::MouseEvent& e) override;
   void showAdvanced(bool show);
@@ -436,7 +477,7 @@ private:
   PresetStore presets_;
   Knob gate_, noise_, pitch_, input_, output_;
   IconButton help_, gear_;
-  Chip tuner_, hushChip_;
+  Chip tuner_, hushChip_, rackChip_;
   PresetBar presetBar_;
   CrossoverView crossover_;
   std::array<std::unique_ptr<BandStrip>, kNumBands> bands_;
@@ -447,6 +488,7 @@ private:
   MyGearPanel myGear_;
   TunerPanel tunerPanel_;
   hushui::HushPanel hushPanel_;
+  RackPanel rackPanel_;
   juce::Component* learnTarget_ = nullptr;
   juce::String learnName_, flash_;
   int flashTicks_ = 0, learnedSeen_ = 0;
@@ -468,6 +510,7 @@ public:
   void showSettings(bool show) { view_.showSettings(show); }
   void showManual(bool show, int section = -1) { view_.showManual(show, section); }
   void showMyGear(bool show) { view_.showMyGear(show); }
+  void showRack(bool show) { view_.showRack(show); }
   void showTuner(bool show) { view_.showTuner(show); }
   void showHush(bool show) { view_.showHush(show); }
   void showAdvanced(bool show) { view_.showAdvanced(show); }

@@ -415,6 +415,49 @@ int main(int argc, char** argv) {
     check(std::abs(q.hush.floorDb[4].load() - p.hush.floorDb[4].load()) < 0.2f, "Hush's learned floors save with the state");
   }
   {
+    // Tight FOCUS: a tight boost. Cuts the lows under Freq, pushes the mids,
+    // clips a little when Amount is up.
+    const auto lowIn = sine(82.0, 1.0, 0.2f), midIn = sine(720.0, 1.0, 0.05f);
+    const Params focus{{"tightOn", 1}, {"tightMode", 1}, {"tightFreq", 250}, {"tightAmount", 0}};
+    const double low = tone(run(*make(focus), lowIn), 82.0) / tone(lowIn, 82.0);
+    const double mid = tone(run(*make(focus), midIn), 720.0) / tone(midIn, 720.0);
+    std::printf("   focus: 82 Hz %.1f dB, 720 Hz %+.1f dB\n", 10.0 * std::log10(low), 10.0 * std::log10(mid));
+    check(10.0 * std::log10(low) < -12.0, "FOCUS cuts the low E's fundamental (Freq 250 Hz)");
+    check(10.0 * std::log10(mid) > 2.0, "and pushes the mids");
+    Params hot = focus;
+    hot.push_back({"tightAmount", 100});
+    const auto hotOut = run(*make(hot), sine(720.0, 1.0, 0.2f));
+    const double h3 = 10.0 * std::log10(tone(hotOut, 2160.0) / tone(hotOut, 720.0));
+    std::printf("   focus at full Amount: 3rd harmonic %.0f dB\n", h3);
+    check(h3 > -30.0 && finite(hotOut, 1.0f), "full Amount clips (harmonics), and stays bounded");
+    const auto punch = run(*make({{"tightOn", 1}, {"tightMode", 0}}), chugs());
+    const auto punch2 = run(*make({{"tightOn", 1}}), chugs());
+    float diff = 0;
+    for (size_t i = 0; i < punch.size(); ++i) diff = std::max(diff, std::abs(punch[i] - punch2[i]));
+    check(diff == 0.0f, "PUNCH is still the default and unchanged");
+  }
+  {
+    // Global Blend: 0% is the dry DI, lined up with Wham's delay; 100% is the board.
+    const auto in = sine(220.0, 1.0, 0.2f);
+    auto dryOnly = make({{"lofiOn", 1}, {"lofiBlend", 100}, {"gritOn", 1}, {"gritBlend", 100}, {"blend", 0}});
+    const auto out = run(*dryOnly, in);
+    float diff = 0;
+    for (size_t i = 4800; i < in.size(); ++i) diff = std::max(diff, std::abs(out[i] - in[i]));
+    check(diff < 1.0e-5f, "Blend 0% passes the dry DI untouched, whatever the modules do");
+    auto whammed = make({{"whamOn", 1}, {"blend", 0}});
+    const auto wout = run(*whammed, in);
+    const int lat = whammed->getLatencySamples();
+    float wdiff = 0;
+    for (size_t i = 9600; i < in.size(); ++i) wdiff = std::max(wdiff, std::abs(wout[i] - in[i - static_cast<size_t>(lat)]));
+    std::printf("   blend with Wham on: latency %d samples, max error %.2g\n", lat, wdiff);
+    check(lat > 0 && wdiff < 1.0e-5f, "with Wham on, the dry is delayed to line up with the board");
+    const auto full = run(*make({{"lofiOn", 1}, {"lofiTone", 1000}, {"lofiBlend", 100}}), in);
+    const auto half = run(*make({{"lofiOn", 1}, {"lofiTone", 1000}, {"lofiBlend", 100}, {"blend", 50}}), in);
+    float mdiff = 0;
+    for (size_t i = 4800; i < in.size(); ++i) mdiff = std::max(mdiff, std::abs(half[i] - 0.5f * (full[i] + in[i])));
+    check(mdiff < 1.0e-4f, "Blend 50% is halfway between the dry DI and the board");
+  }
+  {
     // The manual: every topic parses, with the parts the panel shows.
     const auto sections = djont::ManualPanel::load();
     check(sections.size() >= 10, "the manual has all its topics");
