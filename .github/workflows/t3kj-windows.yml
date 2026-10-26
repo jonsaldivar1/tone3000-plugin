@@ -84,7 +84,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          submodules: recursive
+
+      # Eigen's home is GitLab, which rate-limits CI clones; take it from the
+      # GitHub mirror instead (same commits).
+      - name: Fetch submodules (Eigen via its GitHub mirror)
+        shell: bash
+        run: |
+          git config --global url."https://github.com/eigenteam/eigen-git-mirror".insteadOf "https://gitlab.com/libeigen/eigen"
+          for i in 1 2 3; do git submodule update --init --recursive && break; sleep 20; done
+          git submodule status --recursive
 
       - name: Read version
         shell: bash
