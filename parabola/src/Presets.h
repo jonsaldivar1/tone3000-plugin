@@ -37,6 +37,11 @@ public:
   static std::vector<juce::File> addedRoots();
   static void addRoot(const juce::File& folder);
   static void removeRoot(const juce::File& folder);
+  // The folder you last loaded a capture (nam) or an IR from, by any route
+  // (LOAD, drag and drop, My Gear); every band's LOAD opens there.
+  // Kept per computer in settings.json, not in presets or the DAW project.
+  static juce::File lastFolder(bool nam);  // invalid if none yet
+  static void rememberFolder(const juce::File& loadedFile);
   static juce::File parabolaRoot();         // Documents\Parabola Bass Z (may not exist yet)
   static std::vector<Entry> scan();        // everything, sorted by pack then name
   // The first file named `fileName` (case-insensitive) in the library.

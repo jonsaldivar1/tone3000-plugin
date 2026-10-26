@@ -2,6 +2,8 @@
 
 A 3-band parallel bass processor in the spirit of a Parallax X: your bass is split into **low / mid / high**, each band runs its own amp capture (**NAM** files you load), the mid and high bands go through a **cab IR**, and a **6-band graphic EQ** shapes the result. The low band stays clean and compressed so the bottom never turns to mud. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
 
+**New in 0.5.1:** every band's **LOAD** (and the cab's) now opens in the folder you last loaded a capture from, on any band, through My Gear or by drag and drop, so you can go LOW, MID, HIGH without digging for the folder each time. It's remembered per computer, so loading a preset doesn't reset it.
+
 **New in 0.5: the RACK.** Three units on your DI before the bands (click **RACK** under HUSH): **Split Drive**, a built-in drive on everything above a split you choose, clean below it, so you get a full parallel bass drive with no captures loaded. **Sub Comp**, a compressor on only the lows, blended back in. **DI Shaper**, a 7-band EQ on the DI every band hears. **SOLO** lets you hear the rack alone. All off by default; no added latency.
 
 **Also in 0.4: HUSH**, a zero-latency de-noiser on your DI.

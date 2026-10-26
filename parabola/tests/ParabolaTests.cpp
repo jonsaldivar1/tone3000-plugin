@@ -9,6 +9,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -412,6 +413,31 @@ int main(int argc, char** argv) {
       check(std::abs(hz - 55.0) < 0.5, "the tuner reads a low A (55 Hz)");
       p.setTunerActive(false);
       check(sineRms(p, 48000.0, 55.0, 0.3, 0.5) > 0.05, "closing the tuner unmutes");
+    }
+    {
+      // Every LOAD opens where the last capture (or IR) came from, whichever
+      // band loaded it, and it survives presets (kept outside the state).
+      const auto settings = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                                .getChildFile("Parabola Bass Z").getChildFile("settings.json");
+      const bool had = settings.existsAsFile();
+      const auto before = settings.loadFileAsString();
+      const auto tmp = juce::File::getSpecialLocation(juce::File::tempDirectory).getChildFile("pbz-last-folder");
+      const auto bass = tmp.getChildFile("Bass Pack"), cabs = tmp.getChildFile("Cabs");
+      bass.createDirectory();
+      cabs.createDirectory();
+      bass.getChildFile("a.nam").replaceWithText("{}");
+      cabs.getChildFile("c.wav").replaceWithText("x");
+      parabola::Library::addRoot(tmp);
+      parabola::Library::rememberFolder(bass.getChildFile("a.nam"));
+      parabola::Library::rememberFolder(cabs.getChildFile("c.wav"));
+      check(parabola::Library::lastFolder(true) == bass, "LOAD remembers the folder of the last capture");
+      check(parabola::Library::lastFolder(false) == cabs, "and the IR folder separately");
+      const auto added = parabola::Library::addedRoots();
+      check(std::find(added.begin(), added.end(), tmp) != added.end(), "without losing your My Gear folders");
+      tmp.deleteRecursively();
+      check(!parabola::Library::lastFolder(true).exists(), "a folder that's gone falls back to the default");
+      if (had) settings.replaceWithText(before);
+      else settings.deleteFile();
     }
     {
       const auto sections = parabola::ManualPanel::load();

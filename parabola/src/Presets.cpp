@@ -16,15 +16,42 @@ juce::File settingsFile() {
       .getChildFile("settings.json");
 }
 
+juce::var readSettings() {
+  auto json = juce::JSON::parse(settingsFile());
+  if (json.getDynamicObject() == nullptr) json = juce::var(new juce::DynamicObject());
+  return json;
+}
+
+void writeSettings(const juce::var& json) {
+  settingsFile().getParentDirectory().createDirectory();
+  settingsFile().replaceWithText(juce::JSON::toString(json));
+}
+
 void writeAdded(const std::vector<juce::File>& folders) {
   juce::Array<juce::var> list;
   for (const auto& f : folders) list.add(f.getFullPathName());
-  auto* obj = new juce::DynamicObject();
-  obj->setProperty("myGearFolders", list);
-  settingsFile().getParentDirectory().createDirectory();
-  settingsFile().replaceWithText(juce::JSON::toString(juce::var(obj)));
+  auto json = readSettings();
+  json.getDynamicObject()->setProperty("myGearFolders", list);
+  writeSettings(json);
 }
+
+const char* lastKey(bool nam) { return nam ? "lastNamFolder" : "lastIrFolder"; }
 }  // namespace
+
+juce::File Library::lastFolder(bool nam) {
+  const juce::File f(readSettings()[lastKey(nam)].toString());
+  return juce::File::isAbsolutePath(f.getFullPathName()) && f.isDirectory() ? f : juce::File();
+}
+
+void Library::rememberFolder(const juce::File& file) {
+  const bool nam = isNamFile(file);
+  if (!nam && !isIrFile(file)) return;
+  const auto folder = file.getParentDirectory().getFullPathName();
+  auto json = readSettings();
+  if (json[lastKey(nam)].toString() == folder) return;
+  json.getDynamicObject()->setProperty(lastKey(nam), folder);
+  writeSettings(json);
+}
 
 std::vector<juce::File> Library::addedRoots() {
   std::vector<juce::File> out;

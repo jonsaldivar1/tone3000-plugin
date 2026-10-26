@@ -23,8 +23,6 @@ const juce::String kDefaultHint = "Hover any control to see what it does. Double
                                   "Drop a .nam on a band, or an IR on the cab.";
 const juce::Identifier kLookProp{"look"};
 const juce::Identifier kUiWidthProp{"uiWidth"};
-const juce::Identifier kNamDirProp{"namDir"};
-const juce::Identifier kIrDirProp{"irDir"};
 
 juce::Colour hex(juce::uint32 argb) { return juce::Colour(argb); }
 juce::Colour rgba(int r, int g, int b, float a) {
@@ -106,10 +104,11 @@ juce::Colour bandColour(const juce::Component& c, int band) {
   return band >= 0 && band < kNumBands ? L.band[static_cast<size_t>(band)] : L.accent;
 }
 
-// Where file choosers start: the folder last used, else Documents\Parabola
-// Bass Z\<sub> when it exists, else Documents.
-juce::File startDir(const juce::ValueTree& state, const juce::Identifier& prop, const juce::String& sub) {
-  const juce::File last(state.getProperty(prop).toString());
+// Where file choosers start: the folder you last loaded a capture (or IR)
+// from, on any band and by any route, else Documents\Parabola Bass Z\<sub>
+// when it exists, else the first tones folder, else Documents.
+juce::File startDir(bool nam, const juce::String& sub) {
+  const auto last = Library::lastFolder(nam);
   if (last.isDirectory()) return last;
   const auto docs = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
   const auto ours = docs.getChildFile("Parabola Bass Z").getChildFile(sub);
@@ -808,7 +807,7 @@ void BandStrip::refreshSlot() {
 
 void BandStrip::chooseFile() {
   chooser_ = std::make_unique<juce::FileChooser>("Load a NAM capture for the " + juce::String(kBandNames[band_]) + " band",
-                                                 startDir(processor_.params.state, kNamDirProp, "NAMs"), "*.nam");
+                                                 startDir(true, "NAMs"), "*.nam");
   chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                         [this](const juce::FileChooser& fc) {
                           const auto file = fc.getResult();
@@ -817,8 +816,8 @@ void BandStrip::chooseFile() {
 }
 
 void BandStrip::load(const juce::File& file) {
-  processor_.params.state.setProperty(kNamDirProp, file.getParentDirectory().getFullPathName(), nullptr);
   const auto error = processor_.loadNam(band_, file);
+  if (error.isEmpty()) Library::rememberFolder(file);
   refreshSlot();
   if (error.isNotEmpty()) {
     slotNote_ = error;
@@ -969,14 +968,13 @@ void CabPanel::refresh() {
 }
 
 void CabPanel::chooseFile() {
-  chooser_ = std::make_unique<juce::FileChooser>("Load a cab IR", startDir(processor_.params.state, kIrDirProp, "Cabs"),
+  chooser_ = std::make_unique<juce::FileChooser>("Load a cab IR", startDir(false, "Cabs"),
                                                  "*.wav;*.aif;*.aiff;*.flac");
   chooser_->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                         [this](const juce::FileChooser& fc) {
                           const auto file = fc.getResult();
                           if (!file.existsAsFile()) return;
-                          processor_.params.state.setProperty(kIrDirProp, file.getParentDirectory().getFullPathName(), nullptr);
-                          processor_.loadIr(file);
+                          if (processor_.loadIr(file).isEmpty()) Library::rememberFolder(file);
                           refresh();
                         });
 }
@@ -989,7 +987,7 @@ bool CabPanel::isInterestedInFileDrag(const juce::StringArray& files) {
 void CabPanel::filesDropped(const juce::StringArray& files, int, int) {
   dragOver_ = false;
   if (!isInterestedInFileDrag(files)) return;
-  processor_.loadIr(juce::File(files[0]));
+  if (processor_.loadIr(juce::File(files[0])).isEmpty()) Library::rememberFolder(juce::File(files[0]));
   refresh();
 }
 
@@ -1532,6 +1530,7 @@ void MyGearPanel::listBoxItemClicked(int row, const juce::MouseEvent&) {
   const auto entry = shown_[static_cast<size_t>(row)];
   if (!entry.isNam) {
     const auto error = processor_.loadIr(entry.file);
+    if (error.isEmpty()) Library::rememberFolder(entry.file);
     if (onMessage) onMessage(error.isEmpty() ? "Cab: " + entry.name + "." : error);
     return;
   }
@@ -1543,6 +1542,7 @@ void MyGearPanel::listBoxItemClicked(int row, const juce::MouseEvent&) {
                      [safe = juce::Component::SafePointer<MyGearPanel>(this), entry](int result) {
                        if (safe == nullptr || result <= 0) return;
                        const auto error = safe->processor_.loadNam(result - 1, entry.file);
+                       if (error.isEmpty()) Library::rememberFolder(entry.file);
                        if (safe->onMessage)
                          safe->onMessage(error.isEmpty() ? juce::String(kBandNames[result - 1]) + ": " + entry.name + "."
                                                          : error);
