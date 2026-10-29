@@ -70,6 +70,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; Components: stand
 Source: "{#ArtefactsDir}\Standalone\T3KJ.exe"; DestDir: "{app}"; Components: standalone; Flags: ignoreversion
 Source: "{#ArtefactsDir}\VST3\T3KJ.vst3\*"; DestDir: "{commoncf64}\VST3\T3KJ.vst3"; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#ArtefactsDir}\CLAP\T3KJ.clap"; DestDir: "{commoncf64}\CLAP"; Components: clap; Flags: ignoreversion
+; The manual (the plugin's menu > Manual opens it from here).
+Source: "..\..\..\t3kj\manual\T3KJ-Manual.pdf"; DestDir: "{app}\docs"; Flags: ignoreversion
 ; The factory folder belongs to TONE3000 (shared path). Add files only when
 ; missing and never remove them, so T3KJ can't clobber or delete the
 ; official install's presets.
@@ -87,6 +89,7 @@ Type: files; Name: "{autodesktop}\TK3J.lnk"
 
 [Icons]
 Name: "{autoprograms}\T3KJ"; Filename: "{app}\T3KJ.exe"; Components: standalone
+Name: "{autoprograms}\T3KJ Manual"; Filename: "{app}\docs\T3KJ-Manual.pdf"
 Name: "{autodesktop}\T3KJ"; Filename: "{app}\T3KJ.exe"; Tasks: desktopicon
 
 [Run]

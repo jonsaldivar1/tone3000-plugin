@@ -1,5 +1,7 @@
 #include "PluginHeader.h"
 
+#include "core/ForkManual.h"
+
 #include "core/Brand.h"
 #include "core/CustomIcons.h"
 #include "core/Design.h"
@@ -68,6 +70,7 @@ PluginHeader::PluginHeader(Services& services)
   account_.onOpenSettings = [this] {
     if (onOpenSettings) onOpenSettings();
   };
+  account_.onOpenManual = [] { fork_manual::open(); };  // Fork (T3KJ)
   account_.onLogin = [this] {
     if (onLogin) onLogin();
   };

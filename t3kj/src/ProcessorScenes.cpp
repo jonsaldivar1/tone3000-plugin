@@ -174,11 +174,30 @@ void TONE3000Processor::applySceneSet(const juce::ValueTree& snapshot) {
     for (const auto& param : scene)
       params.values.emplace_back(param.getProperty("id").toString(), static_cast<float>(static_cast<double>(param.getProperty("value"))));
   }
+  // Restores run under the chain lock: bring the Scene parameter along later.
+  sceneParamStale.store(true);
+  triggerAsyncUpdate();
 }
 
 int TONE3000Processor::getSceneCount() const {
   juce::ScopedLock lock(chainMutex);
   return sceneCount;
+}
+
+int TONE3000Processor::getActiveScene() const {
+  juce::ScopedLock lock(chainMutex);
+  return activeScene;
+}
+
+// Message thread, outside chainMutex: the "scene" host parameter follows the
+// active scene (its listener sees the same index and does nothing).
+void TONE3000Processor::syncSceneParameter() {
+  auto* p = parameters.getParameter("scene");
+  if (p == nullptr)
+    return;
+  const float norm = p->convertTo0to1(static_cast<float>(getActiveScene()));
+  if (std::abs(norm - p->getValue()) > 1.0e-6f)
+    p->setValueNotifyingHost(norm);
 }
 
 bool TONE3000Processor::selectScene(int index) {
@@ -208,6 +227,7 @@ bool TONE3000Processor::selectScene(int index) {
     bumpChainRevision();
   }
   applySceneParams(next);
+  syncSceneParameter();
   juce::Logger::writeToLog("[Scenes] Scene " + juce::String::charToString(static_cast<juce::juce_wchar>('A' + index)));
   return true;
 }
@@ -269,6 +289,7 @@ bool TONE3000Processor::removeScene(int index) {
     bumpChainRevision();
   }
   applySceneParams(next);
+  syncSceneParameter();
   return true;
 }
 

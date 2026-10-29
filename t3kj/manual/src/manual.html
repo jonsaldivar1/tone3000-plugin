@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>T3KJ Manual</title>
+<!-- Source of t3kj/manual/T3KJ-Manual.pdf. Screenshots come from the UI testbed (UiTestbed --capture, the main-* / chrome-* / settings-* scenarios); print to PDF (Letter, backgrounds on), e.g. with Chromium / Playwright. -->
+<style>
+@font-face { font-family: "Anton"; src: url("../../ui/assets/Anton-Regular.ttf"); }
+@page { size: Letter; margin: 0.55in 0.6in 0.6in; }
+:root { --ink:#15130f; --muted:#5d584f; --rule:#e2ddd2; --accent:#e8b400; --soft:#fff8dc; --panel:#f6f3ec; --dark:#141414; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: Inter, "DejaVu Sans", sans-serif; color: var(--ink); font-size: 9.8pt; line-height: 1.4; }
+h1, h2, h3 { font-family: Anton, Inter, sans-serif; font-weight: 400; letter-spacing: .01em; margin: 0; }
+h1 { font-size: 54pt; line-height: .95; }
+h2 { font-size: 24pt; margin: 0 0 6pt; padding-top: 2pt; }
+h3 { font-size: 14pt; margin: 14pt 0 4pt; }
+h2 .n { color: var(--accent); margin-right: 8pt; }
+p { margin: 0 0 7pt; }
+.page { page-break-after: always; }
+.page:last-child { page-break-after: auto; }
+.cover { height: 9.6in; display: flex; flex-direction: column; }
+.cover .word span { color: var(--accent); }
+.cover .sub { font-size: 14pt; color: var(--muted); margin: 10pt 0 22pt; }
+.shot { width: 100%; border-radius: 6pt; display: block; }
+.figure { position: relative; margin: 6pt 0 10pt; }
+.badge { position: absolute; width: 20pt; height: 20pt; margin: -10pt 0 0 -10pt; border-radius: 50%; background: var(--accent); color: #111;
+  font: 700 10pt Inter, sans-serif; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2pt #fff; }
+.legend { columns: 2; column-gap: 22pt; font-size: 9.6pt; }
+.legend div { break-inside: avoid; margin-bottom: 4pt; }
+.legend b.k { display: inline-flex; width: 15pt; height: 15pt; border-radius: 50%; background: var(--accent); color: #111; font-size: 8pt;
+  align-items: center; justify-content: center; margin-right: 5pt; }
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 4pt 0 8pt; }
+ol.steps > li { counter-increment: s; position: relative; padding: 0 0 6pt 26pt; }
+ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: -1pt; width: 18pt; height: 18pt; border-radius: 50%;
+  background: var(--ink); color: #fff; font: 700 9pt Inter, sans-serif; display: flex; align-items: center; justify-content: center; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16pt; align-items: start; }
+.side { display: grid; grid-template-columns: 1.85in 1fr; gap: 16pt; align-items: start; }
+.tip { background: var(--soft); border-left: 3pt solid var(--accent); padding: 7pt 10pt; margin: 8pt 0; border-radius: 0 4pt 4pt 0; font-size: 9.6pt; }
+.note { background: var(--panel); padding: 7pt 10pt; margin: 8pt 0; border-radius: 4pt; font-size: 9.4pt; color: #3b3832; }
+table { border-collapse: collapse; width: 100%; font-size: 9.4pt; margin: 4pt 0 8pt; }
+th, td { text-align: left; padding: 4pt 6pt; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; font-size: 8.6pt; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.k { font-weight: 700; letter-spacing: .04em; }
+.cap { font-size: 8.8pt; color: var(--muted); margin-top: 3pt; }
+svg { display: block; width: 100%; height: auto; }
+.toc { font-size: 10.5pt; line-height: 1.65; margin-top: auto; }
+.toc span { color: var(--accent); font-weight: 700; margin-right: 8pt; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.8pt; background: var(--panel); padding: 0 3pt; border-radius: 2pt; }
+.small { font-size: 9pt; color: var(--muted); }
+ol.steps>li{min-height:20pt}
+.cover .word span{color:var(--accent)}
+.shot.s{width:60%}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12pt;align-items:start}
+</style>
+</head><body>
+
+<section class="page cover">
+  <div style="display:flex;align-items:center;gap:18pt"><img src="icon.png" style="width:78pt;height:78pt"><h1 class="word">T3K<span>J</span></h1></div>
+  <div class="sub">Manual: loading tones, the block card, scenes and footswitches, presets, MIDI with the Quad Cortex, and automating in REAPER.</div>
+  <img class="shot" src="main-scenes.jpg" alt="T3KJ" style="width:78%">
+  <p class="cap">T3KJ is Jon's build of the free, open-source TONE3000 plugin: NAM captures and impulse responses in a signal chain, plus My Gear, scenes, footswitches, a split channel strip, skins and cover art.</p>
+  <div class="toc">
+    <div><span>1</span>Start here</div>
+    <div><span>2</span>The screen at a glance</div>
+    <div><span>3</span>Loading tones: My Gear, TONE3000, files</div>
+    <div><span>4</span>The block card</div>
+    <div><span>5</span>The faceplate</div>
+    <div><span>6</span>Stereo, two chains and the split strip</div>
+    <div><span>7</span>Presets</div>
+    <div><span>8</span>Scenes and footswitches</div>
+    <div><span>9</span>MIDI and the Quad Cortex</div>
+    <div><span>10</span>Automating in REAPER</div>
+    <div><span>11</span>Settings, the tuner, and where things live</div>
+    <div><span>12</span>Troubleshooting</div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">1</span>Start here</h2>
+  <p>T3KJ loads <b>NAM captures</b> (amps, pedals, full rigs) and <b>IRs</b> (cabinets, rooms) as blocks in a signal chain. A NAM capture is a snapshot of real gear at the knob settings it was captured with: to change the amp's knobs, load another capture (a "tone" can hold several, one per setting) or shape it with the block EQ and the faceplate.</p>
+  <ol class="steps">
+    <li>Run <span class="k">T3KJ-v…-windows-x64.exe</span>: standalone app, VST3 and CLAP. It installs next to the official TONE3000 plugin without touching it. Windows may warn the first time: <i>More info → Run anyway</i>.</li>
+    <li><b>REAPER:</b> <i>Options → Preferences → Plug-ins → VST → Re-scan</i>, then add <b>T3KJ</b> to your guitar track, after dJONt if you use it.</li>
+    <li><b>Standalone:</b> open T3KJ from the Start menu, then <b>☰ → Settings</b> for your audio interface (ASIO for the lowest latency), inputs, outputs and MIDI inputs.</li>
+    <li>Click <b>+</b> in the chain to load a tone, or drag a <code>.nam</code> / <code>.wav</code> file (or a folder) onto it.</li>
+  </ol>
+  <div class="tip"><b>Hover anything.</b> The bar at the bottom explains every control as you point at it (turn it back on in Settings if you hid it). Most controls also have a right-click (advanced decks, menus).</div>
+  <h3>What T3KJ adds to the stock TONE3000 plugin</h3>
+  <table>
+    <tr><th style="width:26%">Feature</th><th>What it does</th></tr>
+    <tr><td class="k">My Gear</td><td>Your own captures and IRs from a folder on your computer, with Recent and Pinned, shown before the TONE3000 search (section 3).</td></tr>
+    <tr><td class="k">Scenes</td><td>Up to eight versions of the preset (A to H): which blocks are on, their levels and EQ, and the faceplate (section 8).</td></tr>
+    <tr><td class="k">Footswitches</td><td>Group blocks on switches 1 to 8 that turn them on and off together (section 8).</td></tr>
+    <tr><td class="k">Split strip</td><td>With two chains, lane 2 gets its own Input, Gate, tone stack and Output (section 6).</td></tr>
+    <tr><td class="k">Skins, art, notes</td><td>Seven looks, your own cover art for local tones, block labels, and notes per tone (section 11).</td></tr>
+    <tr><td class="k">Scene parameter</td><td>REAPER can automate scene changes from the timeline (section 10).</td></tr>
+  </table>
+  <p class="small">T3KJ updates itself with TONE3000's changes every night, so new features from the official plugin arrive here too.</p>
+</section>
+
+<section class="page">
+  <h2><span class="n">2</span>The screen at a glance</h2>
+  <div class="figure">
+    <img class="shot" src="main-scenes.jpg" alt="Main screen">
+    <div class="badge" style="left:40.5%;top:5.5%">1</div><div class="badge" style="left:54.2%;top:5.5%">2</div><div class="badge" style="left:65.2%;top:5.5%">3</div><div class="badge" style="left:74.5%;top:5.5%">4</div><div class="badge" style="left:84%;top:5.5%">5</div><div class="badge" style="left:94.2%;top:5.5%">6</div>
+    <div class="badge" style="left:11.5%;top:22%">7</div><div class="badge" style="left:82%;top:30%">8</div><div class="badge" style="left:28.8%;top:49%">9</div><div class="badge" style="left:4%;top:76.3%">10</div><div class="badge" style="left:54.5%;top:76.3%">11</div><div class="badge" style="left:3%;top:45%">12</div>
+    <div class="badge" style="left:5.4%;top:85%">13</div><div class="badge" style="left:18%;top:85%">14</div><div class="badge" style="left:40.8%;top:85%">15</div><div class="badge" style="left:61.5%;top:85%">16</div><div class="badge" style="left:94.7%;top:85%">17</div>
+  </div>
+  <div class="legend">
+    <div><b class="k">1</b><b>Preset bar:</b> ‹ › step through presets; click the name to browse, rename, reorder (section 7).</div>
+    <div><b class="k">2</b><b>Save</b> (disk) and <b>New</b> (+). New clears the chain and resets every control.</div>
+    <div><b class="k">3</b><b>Mono / Stereo:</b> one chain, or independent Left and Right chains (section 6).</div>
+    <div><b class="k">4</b><b>Tuner.</b> Click again to go back.</div>
+    <div><b class="k">5</b><b>Undo / Redo</b> for chain edits (loads, moves, settings, scenes added or deleted).</div>
+    <div><b class="k">6</b><b>Menu:</b> Settings, <b>Manual</b> (this PDF), and TONE3000 sign-in / sign-out.</div>
+    <div><b class="k">7</b><b>Blocks:</b> click one to open its card (section 4); drag to reorder, Alt-drag to duplicate, right-click for the tile menu.</div>
+    <div><b class="k">8</b><b>+ slot:</b> add a tone here, or drop files on it.</div>
+    <div><b class="k">9</b><b>Footswitch badge:</b> the block is on switch 1 to 8 (section 8).</div>
+    <div><b class="k">10</b><b>Scenes</b> A to H and <b>+</b> (section 8).</div>
+    <div><b class="k">11</b><b>Footswitch chips:</b> one per switch in use; click to stomp it.</div>
+    <div><b class="k">12</b><b>Meters:</b> input on the left, output on the right; the dot at the top latches red on clipping (click to clear).</div>
+    <div><b class="k">13</b><b>Input</b> level (and the input-mode menu on a stereo input).</div>
+    <div><b class="k">14</b><b>Gate</b> (right-click for Release / Hold / Range). Pitch Shift sits next to it when shown.</div>
+    <div><b class="k">15</b><b>Bass / Middle / Treble:</b> the global tone stack, with its power switch.</div>
+    <div><b class="k">16</b><b>Spread:</b> mono-to-stereo double (Align in stereo mode).</div>
+    <div><b class="k">17</b><b>Output</b> level.</div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">3</span>Loading tones</h2>
+  <div class="pair">
+    <div><img class="shot" src="main-mygear.jpg" alt="My Gear"><p class="cap">My Gear: Pinned, Recent and your Library. Browse TONE3000 is at the bottom.</p></div>
+    <div><img class="shot" src="chrome-tile-menu.jpg" alt="Tile menu"><p class="cap">Right-click a block: Copy, Load File, Load Folder, Footswitch (Set Art for local tones).</p></div>
+  </div>
+  <h3>My Gear (your own files)</h3>
+  <p>Click <b>+</b> (or a block's swap button) and My Gear opens first. <b>Change folder</b> points it at the folder where you keep captures (subfolders included, three levels deep). Every folder that holds <code>.nam</code> or IR <code>.wav</code> files shows up as one tone with all its models; loose files show on their own. <b>Pin</b> favourites with the bookmark; <b>Recent</b> fills itself. <b>Browse TONE3000</b> switches to the online search. (Settings → <i>Open My Gear First</i> turns this off.)</p>
+  <h3>TONE3000 (online)</h3>
+  <p>Sign in once (☰ → Login: a browser page, or a code on your phone). Search by title, gear, tags or creator; filter by gear type, format (NAM / IR), makes, creators, verified creators or calibrated; or open your Profile for Recently used, Favorites and your own uploads. Pick a tone and it lands in the slot.</p>
+  <h3>Files and folders</h3>
+  <p>Drag a <code>.nam</code> (A2), an IR <code>.wav</code>, or a folder of them onto a <b>+</b> slot, or right-click → <i>Load File</i> / <i>Load Folder</i>. No account needed. A folder becomes one block with every model inside it.</p>
+  <table>
+    <tr><th style="width:30%">Do this</th><th>To</th></tr>
+    <tr><td>Click a block</td><td>Open its card (levels, EQ, model).</td></tr>
+    <tr><td>Drag a block</td><td>Move it in the chain. Alt-drag duplicates it.</td></tr>
+    <tr><td>Right-click → Copy, then right-click a + → Paste</td><td>A copy with every setting.</td></tr>
+    <tr><td>Swap (in the card)</td><td>Replace the tone, keep the slot.</td></tr>
+    <tr><td>Right-click → Set Art</td><td>Your own JPG / PNG as the tile's art (local tones; saved next to the files).</td></tr>
+  </table>
+</section>
+
+<section class="page">
+  <h2><span class="n">4</span>The block card</h2>
+  <img class="shot" src="main-detail.jpg" alt="Block card" style="width:72%">
+  <p class="cap">A capture's card: the model picker (‹ AC30-6 TB Brl 3 › and 1/6) switches between the models in this tone.</p>
+  <table>
+    <tr><th style="width:24%">Control</th><th>What it does</th></tr>
+    <tr><td class="k">Power</td><td>Bypass this block (top left of the card, or a footswitch / scene).</td></tr>
+    <tr><td class="k">In / Out</td><td>Level into and out of the block, ±24 dB. Out comes after the Mix, so it moves the whole blend.</td></tr>
+    <tr><td class="k">Mix</td><td>Dry against wet: lower blends the block's input back in (handy on IRs and reverb-like captures).</td></tr>
+    <tr><td class="k">Model picker</td><td>‹ › steps through the captures in this tone (each is the gear at different settings); the folder icon lists them.</td></tr>
+    <tr><td class="k">EQ</td><td>A 6-band EQ on the wet signal. <b>PRE</b> puts it before the capture (changes how it distorts), off = after. <b>Sliders</b> view for gains, <b>Curve</b> view to drag bands (scroll = width, Alt-click = reset). An outlined EQ button means it's shaping the sound.</td></tr>
+    <tr><td class="k">Info (i)</td><td>The tone's description, makes and tags, plus your own label and notes (local tones keep them in a <code>tk3j.json</code> beside the files).</td></tr>
+    <tr><td class="k">Normalize</td><td>Levels the block's loudness so captures sit at a similar volume (Settings → Per-Block Normalization shows it).</td></tr>
+    <tr><td class="k">NAM size</td><td>LITE saves CPU, FULL is the most accurate (Settings → Per-Block NAM Size shows it).</td></tr>
+  </table>
+  <div>
+    <div><p style="margin-top:6pt"><b>Calibration:</b> captures made with calibration data set their own input level from your interface's dBu (Settings → Calibration). Uncalibrated ones use Normalize instead. If you're not sure, leave both at their defaults.</p></div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">5</span>The faceplate</h2>
+  <p>The bottom row works on the whole chain. Its knobs (all but Pitch) are also part of each scene (section 8).</p>
+  <table>
+    <tr><th style="width:20%">Control</th><th>What it does</th></tr>
+    <tr><td class="k">Input</td><td>Level into the chain. With a stereo input, its menu picks how the two channels enter: Stereo SUM, Stereo (channel 1 → Left chain, 2 → Right), Dual Mono (L and R each run the chain; twice the CPU), Left or Right only.</td></tr>
+    <tr><td class="k">Gate</td><td>Noise gate threshold (−100 to 0 dB) and power. <b>Right-click</b> for Release (5–500 ms), Hold (0–200 ms) and Range (20–80 dB; 80 = full mute).</td></tr>
+    <tr><td class="k">Pitch Shift</td><td>Transposes the DI before the amp, ±24 semitones: −2 plays drop D on a standard-tuned guitar. Off by default and hidden until Settings → <i>Show Pitch Shift</i>. On adds latency (11–31 ms, reported to REAPER). <b>Right-click:</b> STEP (whole semitones; off = smooth whammy sweep), Tonality (highs above it stay unshifted, keeps the pick natural), Buffer (shorter = less latency, longer = cleaner lows). Pitch is <b>not</b> per scene.</td></tr>
+    <tr><td class="k">Bass / Middle / Treble</td><td>Global tone stack after the chain: ±20 dB at 150 Hz, ±15 dB at 425 Hz, ±10 dB at 1.8 kHz; 5 = flat. Its power switch bypasses it.</td></tr>
+    <tr><td class="k">Spread</td><td>Mono chain only: turns it into a wide double-tracked stereo sound with a short, wobbling delay on one side. Right-click for Wobble, Crossover (keeps the lows mono) and Diffuse. The mono-safety light warns if it would cancel on a mono sum.</td></tr>
+    <tr><td class="k">Output</td><td>Master level, ±24 dB.</td></tr>
+  </table>
+  <div class="pair">
+    <div><img class="shot" src="chrome-gate-deck.jpg" alt="Gate deck"><p class="cap">Gate's advanced deck (right-click the Gate).</p></div>
+    <div><img class="shot" src="chrome-pitch-deck.jpg" alt="Pitch deck"><p class="cap">Pitch Shift's deck: STEP, Tonality, Buffer.</p></div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">6</span>Stereo, two chains and the split strip</h2>
+  <img class="shot" src="main-stereo-branched.jpg" alt="Stereo, branched" style="width:68%">
+  <p class="cap">Stereo mode with the Right chain branching off the Left one after the amp.</p>
+  <table>
+    <tr><th style="width:24%">Control</th><th>What it does</th></tr>
+    <tr><td class="k">Stereo</td><td>The header switch: a Left and a Right chain, each with its own blocks. Mono runs only the Left chain to both outputs.</td></tr>
+    <tr><td class="k">Branch</td><td>Click the gap after a block: the other chain starts from that point (one amp into two cabs, say). Click the branch point to make the chains independent again.</td></tr>
+    <tr><td class="k">Pan L / R, Link</td><td>Where each chain sits; Link mirrors them.</td></tr>
+    <tr><td class="k">Solo, Ø</td><td>Hear one chain alone; flip a chain's polarity if the two sound hollow together.</td></tr>
+    <tr><td class="k">Balance, Auto</td><td>Trims the chains against each other (±12 dB). Auto: play for about 2 s and it matches their levels.</td></tr>
+    <tr><td class="k">Align, Auto</td><td>Delays one chain up to 24 ms when captures carry different latency. Auto runs a half-second sweep and also fixes flipped polarity.</td></tr>
+    <tr><td class="k">Swap</td><td>Exchange the Left and Right chains.</td></tr>
+    <tr><td class="k">Split strip</td><td>With two lanes running (stereo or dual mono), the lane buttons split the faceplate: lane 2 gets its own Input, Gate, tone stack and Output. Click lane 1 / lane 2 to choose which one the knobs edit.</td></tr>
+  </table>
+  <img class="shot" src="main-split-strip.jpg" alt="Split strip" style="width:42%">
+</section>
+
+<section class="page">
+  <h2><span class="n">7</span>Presets</h2>
+  <img class="shot s" src="chrome-preset-browse.jpg" alt="Preset browser">
+  <p>A preset is the whole chain (every block, its model and settings, with the captures embedded so it loads offline), the faceplate, and <b>all of its scenes</b>. It leaves out what belongs to your rig: calibration, oversampling, solo, input mode, the MIDI map and the window size.</p>
+  <table>
+    <tr><th style="width:30%">To</th><th>Do this</th></tr>
+    <tr><td>Save</td><td>Disk icon, type a name. The same name overwrites: that's how you edit a preset.</td></tr>
+    <tr><td>Start from scratch</td><td><b>+</b> (New) clears the chain and resets every control. Save first if you want to keep what you had.</td></tr>
+    <tr><td>Browse / rename / delete</td><td>Click the preset name.</td></tr>
+    <tr><td>Reorder</td><td>Drag presets in the browser. Prev / Next and MIDI follow the order.</td></tr>
+    <tr><td>See PC numbers</td><td>Turn on <i>MIDI PC</i> in the browser: each preset shows the Program Change that loads it.</td></tr>
+  </table>
+  <p class="small">Presets are plain files: Settings → Presets → <i>Open presets folder</i>. Copy them to back up or move to another computer.</p>
+</section>
+
+<section class="page">
+  <h2><span class="n">8</span>Scenes and footswitches</h2>
+  <img class="shot" src="main-scenes-preview.jpg" alt="Scene preview" style="width:66%">
+  <p class="cap">Hovering a scene marks the blocks it would turn on or off.</p>
+  <p>A <b>scene</b> is a version of the preset: for every block its power, In, Out, Mix and EQ, plus the faceplate (Input, Gate, Bass / Middle / Treble, Spread, Output, Balance). <b>Not</b> in scenes: Pitch (tuning stays put) and which capture a block has loaded (load the amps you want as separate blocks and turn them on per scene, like the "Amp Testing" setup). There's no save step: whatever you change in a scene is what that scene keeps, and scenes save with the preset.</p>
+  <table>
+    <tr><th style="width:30%">To</th><th>Do this</th></tr>
+    <tr><td>Switch</td><td>Click a scene. Switching is instant: no capture reloads.</td></tr>
+    <tr><td>Add</td><td><b>+</b> after the last scene, up to 8 (A to H). It starts as a copy of the one you're in.</td></tr>
+    <tr><td>Name</td><td>Double-click it (or right-click → Rename).</td></tr>
+    <tr><td>Delete</td><td>Right-click → Delete. Later scenes move up a letter. Undo brings it back.</td></tr>
+  </table>
+  <h3>Footswitches 1 to 8</h3>
+  <div class="pair">
+    <div><img class="shot" src="main-scenes-picker.jpg" alt="Footswitch picker"></div>
+    <div><p>Right-click a block → <i>Footswitch…</i> and pick 1 to 8. Every block on the same switch turns on and off together, and the switch shows as a chip next to the scenes (click it to stomp). Use footswitches for things you kick in during a scene (a boost, a delay); use scenes for whole changes.</p></div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">9</span>MIDI and the Quad Cortex</h2>
+  <img class="shot s" src="settings-midi-learning.jpg" alt="MIDI mapping">
+  <p><b>☰ → Settings → MIDI Mapping:</b> <i>Choose a control</i>, then move the knob / press the switch on your controller (or type its CC). Mappings save with the plugin and in your REAPER project. In the standalone app, tick your controller under MIDI inputs first.</p>
+  <table>
+    <tr><th style="width:32%">Target</th><th>How it responds</th></tr>
+    <tr><td class="k">Program Change</td><td>No mapping needed: PC n loads the preset at position n in the list (PC 0 = the first).</td></tr>
+    <tr><td class="k">Scene (value 0–7 = A–H)</td><td>The CC's <b>value</b> picks the scene: 0 = A, 1 = B… Values past the last scene are ignored. Reliable for automation: the value always says which scene.</td></tr>
+    <tr><td class="k">Footswitch 1–8</td><td>Each press flips the switch (on ↔ off). A momentary QC switch (127 then 0) flips once per stomp.</td></tr>
+    <tr><td class="k">Block N Power</td><td>Flips that block on / off per press.</td></tr>
+    <tr><td class="k">Knobs and power switches</td><td>Follow the CC value (an expression pedal on Pitch makes a whammy).</td></tr>
+    <tr><td class="k">Previous / Next Preset</td><td>Step through the list.</td></tr>
+  </table>
+  <div class="tip"><b>One footswitch, three devices.</b> On the Quad Cortex, changing presets sends a Program Change: T3KJ and dJONt each load their preset at that number, so keep presets <b>in the same order</b> in both. For scenes, have the QC send <b>one CC</b> with values 0, 1, 2… and map that CC to <i>Scene</i> in T3KJ and to the scene switch in dJONt: one press switches all three.</div>
+</section>
+
+<section class="page">
+  <h2><span class="n">10</span>Automating in REAPER</h2>
+  <p>Faceplate controls and the <b>Scene</b> parameter are REAPER parameters, so they can be drawn as envelopes, no MIDI needed. Blocks themselves aren't parameters (the chain changes from preset to preset), so to turn blocks on and off over a song, <b>put them in scenes and automate the scene</b>.</p>
+  <h3>A scene per section (envelope)</h3>
+  <ol class="steps">
+    <li>Set up the scenes: A verse, B chorus, C lead, and so on.</li>
+    <li>In REAPER's FX window for T3KJ: <b>Param → Show track envelope → Scene</b>. (For a faceplate knob, touch it in T3KJ first, then <i>Param → Show track envelope</i> picks the last touched control.)</li>
+    <li>Set the envelope points to <b>square</b> so it jumps instead of sliding, and draw the steps: each step is a scene (A at the bottom, H at the top).</li>
+    <li>Leave the track in <i>Read</i> mode. Clicking a scene while playing back follows the envelope again at the next point.</li>
+  </ol>
+  <h3>With MIDI instead</h3>
+  <ol class="steps">
+    <li>Settings → MIDI Mapping → <i>Scene (value 0–7 = A–H)</i>, then send the CC once (e.g. CC 20).</li>
+    <li>Put an empty MIDI item on the same track over the song, open it, add a <b>CC 20</b> lane and draw one event per section: value <b>0</b> = A, <b>1</b> = B, <b>2</b> = C…</li>
+    <li>dJONt before T3KJ passes the MIDI on, so the same item can switch dJONt's scenes too (map the same CC there).</li>
+  </ol>
+  <div class="note"><b>Why not automate block power over MIDI?</b> Block power and footswitch targets <i>flip</i> on each press, so automation gets out of step if a press is missed or you start playback mid-song. Scene values can't get out of step.</div>
+</section>
+
+<section class="page">
+  <h2><span class="n">11</span>Settings, the tuner, and where things live</h2>
+  <img class="shot" src="menu-crop.jpg" alt="Menu" style="width:34%">
+  <table>
+    <tr><th style="width:30%">Setting</th><th>What it does</th></tr>
+    <tr><td class="k">Show Info Bar</td><td>The hint bar at the bottom.</td></tr>
+    <tr><td class="k">Show Gate / Pitch Shift</td><td>Which effects the faceplate shows (one that's switched on always shows).</td></tr>
+    <tr><td class="k">Fit Chain to Window, Show Block Labels</td><td>Chain layout and the gear / name labels under each tile.</td></tr>
+    <tr><td class="k">Show Scene Bar, Open My Gear First</td><td>The scene row; My Gear before the TONE3000 search.</td></tr>
+    <tr><td class="k">Skin</td><td>Stock, Zenith, Tidal, Inferno, Ironwave, Hologram, Gilded. The look only: sound and presets don't change.</td></tr>
+    <tr><td class="k">NAM A2 Size</td><td>A2-Lite (less CPU, sounds great) or A2-Full (most accurate) for new blocks; Per-Block NAM Size shows the switch on each card.</td></tr>
+    <tr><td class="k">Calibration</td><td>Your interface's input level (dBu) for calibrated captures.</td></tr>
+    <tr><td class="k">Oversampling</td><td>Runs the chain at 2×, 4× or 8× to cut aliasing (smoother highs on high gain). No added latency; more CPU.</td></tr>
+    <tr><td class="k">Multi-Core Processing</td><td>Spreads the chains across CPU cores. Same sound either way.</td></tr>
+    <tr><td class="k">Presets, Diagnostics</td><td>Open the presets folder; copy logs for a bug report.</td></tr>
+  </table>
+  <div class="pair">
+    <div><img class="shot" src="main-tuner-intune.jpg" alt="Tuner"></div>
+    <div><p><b>Tuner:</b> the fork icon in the header. Play one open string; click again to go back.</p>
+    <p><b>Where things live:</b> presets, settings and UI preferences in <code>%APPDATA%\TONE3000</code> (shared with the official plugin); My Gear, scene-bar and skin choices per computer; cover art and notes for local tones next to their files (<code>tk3j.json</code>); this manual in <code>C:\Program Files\T3KJ\docs</code>.</p></div>
+  </div>
+</section>
+
+<section class="page">
+  <h2><span class="n">12</span>Troubleshooting</h2>
+  <table>
+    <tr><th style="width:34%">Problem</th><th>Try this</th></tr>
+    <tr><td>REAPER doesn't list T3KJ, or lists TK3J</td><td>Re-scan VST3. TK3J was the old name; the installer removes it. Use T3KJ (the "T3 over knobs" icon).</td></tr>
+    <tr><td>No sound in the standalone app</td><td>☰ → Settings: input device and channels, outputs, and turn off the input mute (the banner says when it's muted).</td></tr>
+    <tr><td>A scene switch doesn't change something</td><td>Pitch and the loaded captures aren't part of scenes. For a different amp per scene, load each amp as its own block and turn them on per scene.</td></tr>
+    <tr><td>The QC loads the wrong preset</td><td>PC n = the nth preset in the browser's order (turn on <i>MIDI PC</i> to see the numbers). Match the order in dJONt.</td></tr>
+    <tr><td>A footswitch is "backwards"</td><td>Footswitch and block power targets flip per press; stomp it once to resync, or use scenes for anything that must be exact.</td></tr>
+    <tr><td>Crackles / high CPU</td><td>Bigger buffer, A2-Lite, oversampling off, Multi-Core on. Dual Mono doubles the amp CPU.</td></tr>
+    <tr><td>Everything feels late</td><td>Pitch Shift adds latency while it's on; turn it off or shorten its Buffer.</td></tr>
+    <tr><td>Two chains sound thin together</td><td>Flip one chain's Ø, or use Auto Align.</td></tr>
+    <tr><td>Something else</td><td>Settings → Diagnostics → Copy Logs, and paste them to Claude.</td></tr>
+  </table>
+</section>
+</body></html>

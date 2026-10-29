@@ -187,7 +187,7 @@ jobs:
         run: |
           exe=$(ls build/T3KJ-v*-windows-x64.exe)
           gh release delete t3kj-latest --cleanup-tag -y || true
-          gh release create t3kj-latest "$exe" \
+          gh release create t3kj-latest "$exe" t3kj/manual/T3KJ-Manual.pdf \
             --prerelease \
             --target "$(git rev-parse HEAD)" \
             --title "T3KJ latest (v${T3K_VERSION}, $(git rev-parse --short HEAD))" \

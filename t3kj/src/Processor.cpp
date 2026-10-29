@@ -80,6 +80,7 @@ TONE3000Processor::TONE3000Processor()
   // applyOversamplingSettings); the relays can fire from any thread.
   parameters.addParameterListener("osEnabled", this);
   parameters.addParameterListener("osFactor", this);
+  parameters.addParameterListener("scene", this);  // Fork (T3KJ)
 
   // The preset-managed faceplate params feed getChainState's atDefault flag,
   // so their changes must reach pollers (see parameterChanged).
@@ -400,6 +401,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createPar
       juce::ParameterID{"toneTreble2", 51}, "toneTreble2", 0.0f, 10.0f, 5.0f));
   layout.add(normParam("outputLevel2", 52, 0.5f));
 
+  // Fork (T3KJ): the active scene as a host parameter, so a DAW can automate
+  // scene changes (REAPER: Param > Show track envelope on "Scene"). The
+  // scene set itself rides the chain snapshot; this only picks one.
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID{"scene", 53}, "Scene", juce::StringArray{"A", "B", "C", "D", "E", "F", "G", "H"}, 0));
+
   return layout;
 }
 
@@ -413,7 +420,13 @@ int TONE3000Processor::resolvedOversampleFactor() const {
 }
 
 void TONE3000Processor::parameterChanged(const juce::String& parameterID, float newValue) {
-  juce::ignoreUnused(newValue);
+  if (parameterID == "scene") {
+    // Fork (T3KJ): host automation / the knob picked a scene; switch on the
+    // message thread (selectScene takes the chain lock and sets parameters).
+    pendingSceneParam.store(static_cast<int>(std::lround(newValue)));
+    triggerAsyncUpdate();
+    return;
+  }
   if (parameterID == "osEnabled" || parameterID == "osFactor") {
     // Defer to the message thread: this can fire from the UI relays or host
     // restore, and the apply is heavy.
@@ -441,6 +454,15 @@ void TONE3000Processor::handleAsyncUpdate() {
   // deferred program change here (last one wins, like MidiMapper's PC path).
   if (const int program = pendingHostProgram.exchange(-1); program >= 0)
     applyHostProgram(program);
+
+  // Fork (T3KJ): the Scene parameter moved (host automation), or a scene
+  // change elsewhere left it behind.
+  if (const int scene = pendingSceneParam.exchange(-1); scene >= 0 && scene != getActiveScene()) {
+    if (!selectScene(scene))
+      syncSceneParameter();  // past the last scene: snap back
+  }
+  if (sceneParamStale.exchange(false))
+    syncSceneParameter();
 }
 
 // Message thread. Boundary plus a powered pitch shifter's window; read from
@@ -546,6 +568,7 @@ int TONE3000Processor::namEngineVoiceCount(const std::string& blockId) const {
 TONE3000Processor::~TONE3000Processor() {
   parameters.removeParameterListener("osEnabled", this);
   parameters.removeParameterListener("osFactor", this);
+  parameters.removeParameterListener("scene", this);
   for (const auto& paramId : presetParameterIds())
     parameters.removeParameterListener(paramId, this);
   cancelPendingUpdate();

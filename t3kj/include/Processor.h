@@ -259,6 +259,7 @@ public:
   bool addScene();
   bool removeScene(int index);
   int getSceneCount() const;
+  int getActiveScene() const;
   // The faceplate parameters each scene keeps its own copy of: the preset
   // parameters minus Pitch (tuning stays put across scenes) and the
   // stereo routing (align, pans, polarity, split strip on/off).
@@ -932,6 +933,10 @@ private:
   // Message-thread work for a setCurrentProgram call from another thread
   // (-1 = none, last one wins); drained in handleAsyncUpdate.
   std::atomic<int> pendingHostProgram{-1};
+  // Fork (T3KJ): the "scene" host parameter (see handleAsyncUpdate).
+  std::atomic<int> pendingSceneParam{-1};
+  std::atomic<bool> sceneParamStale{false};
+  void syncSceneParameter();
   // Load the program's preset (message thread). Empty slots are ignored;
   // re-selecting the already-active preset is a no-op (hosts echo the
   // program parameter back after every change and on session restore, and a

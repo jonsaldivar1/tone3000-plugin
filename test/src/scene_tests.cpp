@@ -256,3 +256,22 @@ TEST(SceneTest, AddAndRemoveScenesUpToEight) {
   ASSERT_TRUE(proc.undoChain());
   EXPECT_EQ(sceneCount(proc), 2);
 }
+
+TEST(SceneTest, SceneParameterFollowsAndDrivesScenes) {
+  ChainTestProcessor proc;
+  proc.restoreFromTree(twoBlockRig());
+  ASSERT_TRUE(waitForChainLoaded(proc));
+  // Automating "Scene" switches scenes (on the message thread).
+  setParam(proc, "scene", 2.0f);
+  pump();
+  EXPECT_EQ(activeScene(proc), 2);
+  // Switching any other way moves the parameter, so automation reads back.
+  proc.selectScene(1);
+  pump();
+  EXPECT_NEAR(getParam(proc, "scene"), 1.0f, 1e-4);
+  // Past the last scene: ignored, and the parameter snaps back.
+  setParam(proc, "scene", 6.0f);
+  pump();
+  EXPECT_EQ(activeScene(proc), 1);
+  EXPECT_NEAR(getParam(proc, "scene"), 1.0f, 1e-4);
+}
