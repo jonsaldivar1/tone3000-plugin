@@ -8,15 +8,17 @@
 
 namespace t3k::ui::fork_colors {
 
-// Scenes A-D.
+// Scenes A-H.
 inline juce::Colour scene(int index) {
   static const juce::Colour colours[] = {juce::Colour(0xffff5a4f), juce::Colour(0xff4c8dff),
-                                         juce::Colour(0xffffd23f), juce::Colour(0xffb76bff)};
-  return colours[juce::jlimit(0, 3, index)];
+                                         juce::Colour(0xffffd23f), juce::Colour(0xffb76bff),
+                                         juce::Colour(0xff34d399), juce::Colour(0xffff9f45),
+                                         juce::Colour(0xff5ce1e6), juce::Colour(0xffff8fd0)};
+  return colours[juce::jlimit(0, 7, index)];
 }
 
 inline juce::String sceneLetter(int index) {
-  return juce::String::charToString(static_cast<juce::juce_wchar>('A' + juce::jlimit(0, 3, index)));
+  return juce::String::charToString(static_cast<juce::juce_wchar>('A' + juce::jlimit(0, 7, index)));
 }
 
 // Footswitches 1-8; transparent for anything else.

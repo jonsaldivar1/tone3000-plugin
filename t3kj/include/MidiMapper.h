@@ -106,8 +106,9 @@ public:
   /** Mapped preset prev/next controls fired; delta is the net step count
       (+1 per next press, -1 per previous, coalesced like the toggles). */
   std::function<void(int delta)> onPresetStep;
-  /** Fork (T3KJ): a mapped scene control picked scene 0-3 (the CC value, or
-      the note number mod 4). Last one wins within an async hop. */
+  /** Fork (T3KJ): a mapped scene control picked scene 0-7 (the CC value, or
+      the note number mod 8). Last one wins within an async hop; the
+      processor ignores scenes past the preset's count. */
   std::function<void(int index)> onSceneSelect;
   /** Fork (T3KJ): a mapped footswitch fired (0-7 = 1-8), parity-coalesced. */
   std::function<void(int index)> onFootswitchToggle;

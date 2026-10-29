@@ -50,6 +50,8 @@ enum class Key {
   setArtTile, clearArtTile, footswitchTile,
   // Fork (T3KJ): split channel strip
   laneStripLinked, laneStrip1, laneStrip2,
+  // Fork (T3KJ): scenes
+  sceneAdd, sceneRename, sceneDelete,
 };
 
 // The (touch-reworded when applicable) copy for a key.

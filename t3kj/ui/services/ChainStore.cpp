@@ -131,6 +131,12 @@ bool ChainStore::selectScene(int index) {
 bool ChainStore::renameScene(int index, const juce::String& name) {
   return run([&] { return backend_.renameScene(index, name); });
 }
+bool ChainStore::addScene() {
+  return run([&] { return backend_.addScene(); });
+}
+bool ChainStore::removeScene(int index) {
+  return run([&] { return backend_.removeScene(index); });
+}
 bool ChainStore::setBlockFootswitch(const std::string& blockId, const juce::String& letter) {
   return run([&] { return backend_.setBlockFootswitch(blockId, letter); });
 }

@@ -168,10 +168,11 @@ ChainState ChainState::parse(const juce::var& v) {
   s.dualMonoActive = boolean(v, "dualMonoActive");
   s.namSlimSizeDefault = num(v, "namSlimSizeDefault", 0);
   s.multiCore = boolean(v, "multiCore", true);
-  s.activeScene = juce::jlimit(0, 3, integer(v["scenes"], "active"));
-  s.sceneNames.assign(4, {});
+  s.sceneCount = juce::jlimit(1, 8, v["scenes"].hasProperty("count") ? integer(v["scenes"], "count") : 4);
+  s.activeScene = juce::jlimit(0, s.sceneCount - 1, integer(v["scenes"], "active"));
+  s.sceneNames.assign(static_cast<size_t>(s.sceneCount), {});
   if (const auto* names = v["scenes"]["names"].getArray())
-    for (int i = 0; i < juce::jmin(4, names->size()); ++i) s.sceneNames[static_cast<size_t>(i)] = names->getReference(i).toString();
+    for (int i = 0; i < juce::jmin(s.sceneCount, names->size()); ++i) s.sceneNames[static_cast<size_t>(i)] = names->getReference(i).toString();
   s.sampleRate = num(v, "sampleRate", 48000);
   s.chain = list<ChainItem>(v, "chain", parseItem);
   if (v["chainRight"].isArray())

@@ -182,15 +182,19 @@ juce::var ensureObj(const juce::var& parent, const char* key) {
 }
 }  // namespace
 
+namespace {
+int mockSceneCount(const juce::var& scenes) { return scenes.hasProperty("count") ? static_cast<int>(scenes["count"]) : 4; }
+}  // namespace
+
 bool MockBackend::selectScene(int index) {
-  if (index < 0 || index > 3) return false;
   auto scenes = ensureObj(chain_, "scenes");
+  if (index < 0 || index >= mockSceneCount(scenes)) return false;
   const int from = scenes["active"];
   forEachTone(chain_, [&](juce::var& b) {
     auto fork = ensureObj(b, "tk3j");
     if (!fork["sceneOn"].isArray()) {
       juce::Array<juce::var> on;
-      for (int i = 0; i < 4; ++i) on.add(b["params"]["enabled"]);
+      for (int i = 0; i < 8; ++i) on.add(b["params"]["enabled"]);
       fork.getDynamicObject()->setProperty("sceneOn", on);
     }
     auto* on = fork["sceneOn"].getArray();
@@ -205,7 +209,30 @@ bool MockBackend::selectScene(int index) {
 bool MockBackend::renameScene(int index, const juce::String& name) {
   auto scenes = ensureObj(chain_, "scenes");
   if (!scenes["names"].isArray()) scenes.getDynamicObject()->setProperty("names", juce::Array<juce::var>{"", "", "", ""});
-  scenes["names"].getArray()->set(index, name.trim());
+  auto* names = scenes["names"].getArray();
+  while (names->size() <= index) names->add("");
+  names->set(index, name.trim());
+  bumpChain();
+  return true;
+}
+
+bool MockBackend::addScene() {
+  auto scenes = ensureObj(chain_, "scenes");
+  const int count = mockSceneCount(scenes);
+  if (count >= 8) return false;
+  scenes.getDynamicObject()->setProperty("count", count + 1);
+  bumpChain();
+  return selectScene(count);
+}
+
+bool MockBackend::removeScene(int index) {
+  auto scenes = ensureObj(chain_, "scenes");
+  const int count = mockSceneCount(scenes);
+  if (index < 0 || index >= count || count <= 1) return false;
+  if (auto* names = scenes["names"].getArray(); names != nullptr && index < names->size()) names->remove(index);
+  const int active = scenes["active"];
+  scenes.getDynamicObject()->setProperty("count", count - 1);
+  scenes.getDynamicObject()->setProperty("active", active > index || active == count - 1 ? juce::jmax(0, active - 1) : active);
   bumpChain();
   return true;
 }

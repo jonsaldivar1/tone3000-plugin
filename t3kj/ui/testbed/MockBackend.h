@@ -61,6 +61,8 @@ public:
   // Fork (T3KJ): scenes and footswitches, mirrored into the fixture chain.
   bool selectScene(int index) override;
   bool renameScene(int index, const juce::String& name) override;
+  bool addScene() override;
+  bool removeScene(int index) override;
   bool setBlockFootswitch(const std::string& blockId, const juce::String& letter) override;
   bool toggleFootswitch(const juce::String& letter) override;
   void setStereoMode(bool) override {}

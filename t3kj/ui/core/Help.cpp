@@ -270,6 +270,10 @@ std::map<Key, String> buildTable() {
       U("Lane 2 Strip: the plate's knobs control lane 2 only: its own Input, Gate, tone stack and Output. "
         "Click: split the strip and edit lane 2.");
 
+  t[Key::sceneAdd] = U("Add Scene: a new scene (up to 8) that starts as a copy of this one.");
+  t[Key::sceneRename] = U("Rename: give this scene a name.");
+  t[Key::sceneDelete] = U("Delete Scene: remove this scene. Later scenes move up a letter.");
+
   for (auto& [key, value] : t) value = touchify(value);
   return t;
 }

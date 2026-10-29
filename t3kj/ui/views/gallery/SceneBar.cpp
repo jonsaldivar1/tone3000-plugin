@@ -4,6 +4,8 @@
 #include "core/ForkColors.h"
 #include "core/Paint.h"
 #include "core/Theme.h"
+#include "core/Help.h"
+#include "core/Icons.h"
 #include "widgets/Clickable.h"
 
 namespace t3k::ui {
@@ -28,17 +30,28 @@ public:
   SceneChip(SceneBar& bar, int index) : Clickable(fork_colors::sceneLetter(index)), bar_(bar), index_(index) {
     setMouseCursor(juce::MouseCursor::PointingHandCursor);
     setHelpText("Scene " + fork_colors::sceneLetter(index) +
-                ": switch to this scene. Double-click: rename. Tweaks you make in a scene stay in it.");
+                ": switch to this scene. Double-click: rename. Right-click: rename or delete. Tweaks you make in a "
+                "scene (blocks and the knobs below, except Pitch) stay in it.");
   }
 
   void set(const juce::String& name, bool active) {
     name_ = name;
     active_ = active;
     setTitle("Scene " + fork_colors::sceneLetter(index_) + ": " + name);
-    const int w = 6 + kDot + 10 + juce::roundToInt(Fonts::width(Fonts::sans(kTextPx, true), name_)) + 16;
-    setSize(w, kChipH);
+    setCompact(compact_);
     repaint();
   }
+
+  // Compact: just the letter dot (when the bar runs out of room).
+  void setCompact(bool compact) {
+    compact_ = compact;
+    const int w = compact_ ? 6 + kDot + 6
+                           : 6 + kDot + 10 + juce::roundToInt(Fonts::width(Fonts::sans(kTextPx, true), name_)) + 16;
+    setSize(w, kChipH);
+  }
+  int fullWidth() const { return 6 + kDot + 10 + juce::roundToInt(Fonts::width(Fonts::sans(kTextPx, true), name_)) + 16; }
+  int compactWidth() const { return 6 + kDot + 6; }
+  bool active() const { return active_; }
 
   void paintButton(juce::Graphics& g, bool highlighted, bool) override {
     const auto box = getLocalBounds().toFloat().reduced(0.5f);
@@ -51,12 +64,28 @@ public:
     g.fillEllipse(dot);
     paint::text(g, fork_colors::sceneLetter(index_), dot.toNearestInt(), Fonts::sans(12.0f, true),
                 juce::Colours::black, juce::Justification::centred);
+    if (compact_) return;
     paint::text(g, name_, {6 + kDot + 10, 0, getWidth() - (6 + kDot + 10), getHeight()},
                 Fonts::sans(kTextPx, active_), active_ ? juce::Colours::black : theme::kWhite,
                 juce::Justification::centredLeft);
   }
 
   void clicked() override { bar_.services_.chain.selectScene(index_); }
+  void mouseDown(const juce::MouseEvent& e) override {
+    popupPress_ = e.mods.isPopupMenu() && !e.source.isTouch();
+    if (popupPress_) {
+      bar_.openSceneMenu(index_, *this, e.getPosition());
+      return;
+    }
+    Clickable::mouseDown(e);
+  }
+  void mouseUp(const juce::MouseEvent& e) override {
+    if (popupPress_) {
+      popupPress_ = false;
+      return;
+    }
+    Clickable::mouseUp(e);
+  }
   void mouseDoubleClick(const juce::MouseEvent&) override { bar_.beginRename(index_); }
   void mouseEnter(const juce::MouseEvent& e) override {
     Clickable::mouseEnter(e);
@@ -72,7 +101,28 @@ private:
   SceneBar& bar_;
   int index_;
   juce::String name_;
-  bool active_ = false;
+  bool active_ = false, compact_ = false, popupPress_ = false;
+};
+
+// "+": add a scene (hidden at 8).
+class SceneBar::AddChip : public Clickable {
+public:
+  explicit AddChip(SceneBar& bar) : Clickable("+"), bar_(bar) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+    setTitle("Add scene");
+    setHelpText(help::text(help::Key::sceneAdd));
+    setSize(kChipH, kChipH);
+  }
+  void paintButton(juce::Graphics& g, bool highlighted, bool) override {
+    const auto box = getLocalBounds().toFloat().reduced(0.5f);
+    paint::fill(g, box, box.getHeight() / 2, highlighted ? chipHover() : chipBg());
+    paint::dashedBorder(g, box, box.getHeight() / 2, chipBorder(), 1.0f);
+    Icons::draw(g, Icon::Plus, box.withSizeKeepingCentre(16.0f, 16.0f), theme::kWhite);
+  }
+  void clicked() override { bar_.services_.chain.addScene(); }
+
+private:
+  SceneBar& bar_;
 };
 
 // A footswitch: colored letter square + the blocks on it; lit while they're on.
@@ -112,10 +162,12 @@ private:
 };
 
 SceneBar::SceneBar(Services& services) : services_(services) {
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < 8; ++i) {
     scenes_.push_back(std::make_unique<SceneChip>(*this, i));
-    addAndMakeVisible(*scenes_.back());
+    addChildComponent(*scenes_.back());
   }
+  add_ = std::make_unique<AddChip>(*this);
+  addChildComponent(*add_);
   rename_.setFontSize(kTextPx);
   rename_.setCornerRadius(kChipH / 2.0f);
   rename_.setPadding(0, 14, 14);
@@ -127,10 +179,19 @@ SceneBar::SceneBar(Services& services) : services_(services) {
   chainChanged(services_.chain.state());
 }
 
-SceneBar::~SceneBar() { services_.chain.removeListener(this); }
+SceneBar::~SceneBar() {
+  services_.chain.removeListener(this);
+  if (menu_ != nullptr) menu_->close();
+}
 
 void SceneBar::chainChanged(const ChainState& state) {
-  for (int i = 0; i < 4; ++i) scenes_[static_cast<size_t>(i)]->set(sceneName(state, i), i == state.activeScene);
+  count_ = juce::jlimit(1, 8, state.sceneCount);
+  for (int i = 0; i < 8; ++i) {
+    auto& chip = *scenes_[static_cast<size_t>(i)];
+    chip.setVisible(i < count_);
+    if (i < count_) chip.set(sceneName(state, i), i == state.activeScene);
+  }
+  add_->setVisible(count_ < 8);
   rebuildSwitches();
   resized();
   repaint();
@@ -170,20 +231,43 @@ void SceneBar::rebuildSwitches() {
 
 void SceneBar::resized() {
   const int cy = (getHeight() - kChipH) / 2;
-  int x = 24;
-  for (auto& chip : scenes_) {
-    chip->setTopLeftPosition(x, cy);
-    x += chip->getWidth() + kGap;
-  }
   int right = getWidth() - 24;
   for (auto it = switches_.rbegin(); it != switches_.rend(); ++it) {
     (*it)->setTopLeftPosition(right - (*it)->getWidth(), cy);
     right -= (*it)->getWidth() + kGap;
   }
+  // Scenes fill from the left; when they'd run into the footswitches, the
+  // inactive ones shrink to their letter.
+  int full = 0;
+  for (int i = 0; i < count_; ++i) full += scenes_[static_cast<size_t>(i)]->fullWidth() + kGap;
+  if (add_->isVisible()) full += add_->getWidth() + kGap;
+  const bool compact = 24 + full > right;
+  int x = 24;
+  for (int i = 0; i < count_; ++i) {
+    auto& chip = *scenes_[static_cast<size_t>(i)];
+    chip.setCompact(compact && !chip.active());
+    chip.setTopLeftPosition(x, cy);
+    x += chip.getWidth() + kGap;
+  }
+  add_->setTopLeftPosition(x, cy);
   if (renaming_ >= 0) {
     const auto& chip = *scenes_[static_cast<size_t>(renaming_)];
     rename_.setBounds(chip.getX(), cy, juce::jmax(160, chip.getWidth()), kChipH);
   }
+}
+
+void SceneBar::openSceneMenu(int index, juce::Component& chip, juce::Point<int> at) {
+  if (auto* old = menu_.release()) {
+    old->close();
+    juce::MessageManager::callAsync([old] { delete old; });
+  }
+  std::vector<ContextMenu::Item> items{
+      {"Rename", Icon::Pencil, help::Key::sceneRename, [this, index] { beginRename(index); }},
+      {"Delete", Icon::Trash2, help::Key::sceneDelete, [this, index] { services_.chain.removeScene(index); },
+       /*disabled=*/count_ <= 1},
+  };
+  menu_ = std::make_unique<ContextMenu>(std::move(items));
+  menu_->openAtPoint(chip, at);
 }
 
 void SceneBar::paint(juce::Graphics& g) {

@@ -287,8 +287,10 @@ struct ChainBlock {
     float inputGain = 0.5f, outputGain = 0.5f, mix = 1.0f;
     juce::ValueTree eq;
   };
-  static constexpr int kNumScenes = 4;
-  std::array<SceneState, kNumScenes> scenes;
+  // Up to 8 scenes (A-H); how many a preset uses is the processor's
+  // sceneCount. Slots past it are unused.
+  static constexpr int kMaxScenes = 8;
+  std::array<SceneState, kMaxScenes> scenes;
   // Footswitch ("1".."8") this block toggles with, or empty.
   juce::String footswitch;
 

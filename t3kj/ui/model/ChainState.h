@@ -122,7 +122,7 @@ struct ChainItem {
   std::optional<double> outputLevelDbu;
   BlockParams params;
   // Fork (T3KJ): footswitch ("1".."8" or empty) and the block's power
-  // in each scene A-D (the active scene's entry is the live power).
+  // in each scene (the active scene's entry is the live power).
   juce::String footswitch;
   std::vector<bool> sceneOn;
 
@@ -168,8 +168,9 @@ struct ChainState {
   std::vector<ChainItem> chain;
   std::optional<std::vector<ChainItem>> chainRight;
   std::optional<ChainBranch> branch;
-  // Fork (T3KJ): scenes. Empty names show as "Scene A".."Scene D".
+  // Fork (T3KJ): scenes (1-8, A-H). Empty names show as "Scene A" etc.
   int activeScene = 0;
+  int sceneCount = 4;
   std::vector<juce::String> sceneNames;
 
   // The `{ revision, unchanged: true }` short reply.

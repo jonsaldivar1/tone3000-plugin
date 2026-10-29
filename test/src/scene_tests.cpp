@@ -157,3 +157,102 @@ TEST(SceneTest, FirstBuildFootswitchLettersLoadAsNumbers) {
   pump();
   EXPECT_EQ(proc.midiMapper.getState()["mappings"][0]["targetId"].toString(), juce::String("tk3jFootswitch3"));
 }
+
+namespace {
+void setParam(TONE3000Processor& proc, const char* id, float value) {
+  auto* p = proc.parameters.getParameter(id);
+  p->setValueNotifyingHost(p->convertTo0to1(value));
+}
+float getParam(TONE3000Processor& proc, const char* id) {
+  auto* p = proc.parameters.getParameter(id);
+  return p->convertFrom0to1(p->getValue());
+}
+int sceneCount(TONE3000Processor& proc) { return static_cast<int>(proc.getChainState(-1)["scenes"]["count"]); }
+int activeScene(TONE3000Processor& proc) { return static_cast<int>(proc.getChainState(-1)["scenes"]["active"]); }
+}  // namespace
+
+TEST(SceneTest, FaceplateKnobsFollowTheSceneButPitchStaysPut) {
+  ChainTestProcessor proc;
+  proc.restoreFromTree(twoBlockRig());
+  ASSERT_TRUE(waitForChainLoaded(proc));
+  setParam(proc, "outputLevel", 0.3f);
+  setParam(proc, "toneMid", 7.0f);
+  setParam(proc, "pitchSemitones", -2.0f);
+
+  ASSERT_TRUE(proc.selectScene(3));  // never visited: a copy of A
+  EXPECT_NEAR(getParam(proc, "outputLevel"), 0.3f, 1e-4);
+  setParam(proc, "outputLevel", 0.7f);
+  setParam(proc, "toneMid", 2.0f);
+  setParam(proc, "gateThreshold", -40.0f);
+  setParam(proc, "pitchSemitones", -5.0f);
+
+  ASSERT_TRUE(proc.selectScene(0));
+  EXPECT_NEAR(getParam(proc, "outputLevel"), 0.3f, 1e-4);
+  EXPECT_NEAR(getParam(proc, "toneMid"), 7.0f, 1e-3);
+  EXPECT_NEAR(getParam(proc, "gateThreshold"), -80.0f, 1e-3);
+  EXPECT_NEAR(getParam(proc, "pitchSemitones"), -5.0f, 1e-3);  // shared
+  ASSERT_TRUE(proc.selectScene(3));
+  EXPECT_NEAR(getParam(proc, "outputLevel"), 0.7f, 1e-4);
+  EXPECT_NEAR(getParam(proc, "toneMid"), 2.0f, 1e-3);
+  EXPECT_NEAR(getParam(proc, "gateThreshold"), -40.0f, 1e-3);
+
+  // Saved with the state: back in A after a restore, D still has its knobs.
+  proc.selectScene(0);
+  juce::MemoryBlock data;
+  proc.getStateInformation(data);
+  TONE3000Processor restored;
+  restored.setStateInformation(data.getData(), static_cast<int>(data.getSize()));
+  ASSERT_TRUE(waitForChainLoaded(restored));
+  EXPECT_NEAR(getParam(restored, "outputLevel"), 0.3f, 1e-4);
+  ASSERT_TRUE(restored.selectScene(3));
+  EXPECT_NEAR(getParam(restored, "outputLevel"), 0.7f, 1e-4);
+  EXPECT_NEAR(getParam(restored, "toneMid"), 2.0f, 1e-3);
+}
+
+TEST(SceneTest, AddAndRemoveScenesUpToEight) {
+  ChainTestProcessor proc;
+  proc.restoreFromTree(twoBlockRig());
+  ASSERT_TRUE(waitForChainLoaded(proc));
+  EXPECT_EQ(sceneCount(proc), 4);
+  EXPECT_FALSE(proc.selectScene(4));
+
+  // E starts as a copy of the scene you were in, and you land in it.
+  proc.selectScene(1);
+  proc.setBlockParam("cab", "enabled", 0.0);
+  setParam(proc, "outputLevel", 0.65f);
+  ASSERT_TRUE(proc.addScene());
+  EXPECT_EQ(sceneCount(proc), 5);
+  EXPECT_EQ(activeScene(proc), 4);
+  EXPECT_FALSE(enabled(proc, "cab"));
+  EXPECT_NEAR(getParam(proc, "outputLevel"), 0.65f, 1e-4);
+  while (proc.addScene()) {}
+  EXPECT_EQ(sceneCount(proc), 8);
+
+  // MIDI value 7 picks H now that there are eight.
+  ASSERT_TRUE(proc.midiMapper.setCcMapping("tk3jScene", 43));
+  pump();
+  proc.midiMapper.processMidi(cc(43, 7));
+  pump();
+  EXPECT_EQ(activeScene(proc), 7);
+
+  // Removing B moves C..H up a letter; names go with them.
+  proc.renameScene(2, "Lead");
+  ASSERT_TRUE(proc.removeScene(1));
+  EXPECT_EQ(sceneCount(proc), 7);
+  EXPECT_EQ(activeScene(proc), 6);
+  EXPECT_EQ(proc.getChainState(-1)["scenes"]["names"][1].toString(), juce::String("Lead"));
+
+  // Removing the active scene lands on the one after it (or before, at the
+  // end) and recalls it.
+  proc.selectScene(0);
+  EXPECT_TRUE(enabled(proc, "cab"));
+  ASSERT_TRUE(proc.removeScene(0));
+  EXPECT_EQ(activeScene(proc), 0);  // the old C ("Lead"), never visited: kept live
+  EXPECT_EQ(proc.getChainState(-1)["scenes"]["names"][0].toString(), juce::String("Lead"));
+  while (sceneCount(proc) > 1) ASSERT_TRUE(proc.removeScene(sceneCount(proc) - 1));
+  EXPECT_FALSE(proc.removeScene(0));  // one always stays
+
+  // Undo brings the scene back.
+  ASSERT_TRUE(proc.undoChain());
+  EXPECT_EQ(sceneCount(proc), 2);
+}

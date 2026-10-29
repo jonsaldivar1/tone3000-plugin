@@ -245,13 +245,24 @@ public:
   // deferredRevisionBump) so drag-rate calls never force full chain resyncs.
   bool setBlockParam(const std::string& blockId, const juce::String& param, double value);
 
-  // Fork (T3KJ): scenes (A-D = 0-3) and footswitches ("1".."8").
-  // selectScene stores every tone block's current power / knobs / EQ into the
-  // scene being left, then applies the new scene's (blocks never visited in
-  // it keep their state). No model loads, so it is gapless. Not undoable: a
-  // performance action, like a preset switch.
+  // Fork (T3KJ): scenes (A-H = 0-7, sceneCount of them) and footswitches
+  // ("1".."8"). selectScene stores every tone block's current power / knobs
+  // / EQ and the faceplate controls (sceneParameterIds: everything but
+  // Pitch) into the scene being left, then applies the new scene's (blocks
+  // and controls never visited in it keep their state). No model loads, so
+  // it is gapless. Not undoable: a performance action, like a preset switch.
   bool selectScene(int index);
   bool renameScene(int index, const juce::String& name);
+  // Add a scene after the last (a copy of the current one, then switched
+  // to), up to 8. Remove one (at least one stays); later scenes move up a
+  // letter. Both undoable.
+  bool addScene();
+  bool removeScene(int index);
+  int getSceneCount() const;
+  // The faceplate parameters each scene keeps its own copy of: the preset
+  // parameters minus Pitch (tuning stays put across scenes) and the
+  // stereo routing (align, pans, polarity, split strip on/off).
+  static const std::vector<juce::String>& sceneParameterIds();
   // Assign a block to a footswitch letter ("" clears).
   bool setBlockFootswitch(const std::string& blockId, const juce::String& letter);
   // Flip every block on that footswitch together: all on -> all off, else
@@ -870,10 +881,22 @@ private:
   bool toggleBlockPower(int position, bool rightLane);
 
   // Fork (T3KJ): scenes and footswitches (ProcessorScenes.cpp).
-  // Scene state lives under chainMutex: the active scene index and the four
-  // names ride the chain snapshot (presets, undo, DAW state).
+  // Scene state lives under chainMutex: the active scene index, how many
+  // scenes there are, their names and their faceplate values ride the chain
+  // snapshot (presets, undo, DAW state). Like the blocks' scene slots, the
+  // active scene's values are refreshed from the live parameters whenever
+  // it is left; `stored` false = never visited (entering keeps the live
+  // values).
+  struct SceneParams {
+    bool stored = false;
+    std::vector<std::pair<juce::String, float>> values;  // denormalized
+  };
   int activeScene = 0;
-  std::array<juce::String, ChainBlock::kNumScenes> sceneNames;
+  int sceneCount = 4;
+  std::array<juce::String, ChainBlock::kMaxScenes> sceneNames;
+  std::array<SceneParams, ChainBlock::kMaxScenes> sceneParams;
+  SceneParams captureSceneParams() const;
+  void applySceneParams(const SceneParams& params);
   static juce::ValueTree serializeBlockScenes(const ChainBlock& block);
   static void applyBlockScenes(ChainBlock& block, const juce::ValueTree& blockState);
   juce::ValueTree serializeSceneSet() const;

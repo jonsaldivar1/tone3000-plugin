@@ -47,6 +47,8 @@ public:
   bool clearChainBranch() override;
   bool selectScene(int index) override;  // Fork (T3KJ)
   bool renameScene(int index, const juce::String& name) override;
+  bool addScene() override;
+  bool removeScene(int index) override;
   bool setBlockFootswitch(const std::string& blockId, const juce::String& letter) override;
   bool toggleFootswitch(const juce::String& letter) override;
   void setStereoMode(bool enabled) override;

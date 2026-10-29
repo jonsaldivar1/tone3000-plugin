@@ -92,6 +92,8 @@ std::string ProcessorBackend::pasteChainBlock(const juce::String& side, int inde
 bool ProcessorBackend::swapChains() { return processor_.swapChains(); }
 // Fork (T3KJ): scenes and footswitches.
 bool ProcessorBackend::selectScene(int index) { return processor_.selectScene(index); }
+bool ProcessorBackend::addScene() { return processor_.addScene(); }
+bool ProcessorBackend::removeScene(int index) { return processor_.removeScene(index); }
 bool ProcessorBackend::renameScene(int index, const juce::String& name) {
   return processor_.renameScene(index, name);
 }

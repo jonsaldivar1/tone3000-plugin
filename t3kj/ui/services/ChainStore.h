@@ -63,6 +63,8 @@ public:
   // Fork (T3KJ): scenes and footswitches.
   bool selectScene(int index);
   bool renameScene(int index, const juce::String& name);
+  bool addScene();
+  bool removeScene(int index);
   bool setBlockFootswitch(const std::string& blockId, const juce::String& letter);
   bool toggleFootswitch(const juce::String& letter);
   // Fire-and-forget (safe at drag rates); no resync.

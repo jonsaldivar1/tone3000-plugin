@@ -993,7 +993,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
     // Fork (T3KJ): footswitch letter + power per scene (the active scene's
     // entry is the live power).
     juce::String footswitch;
-    std::array<bool, ChainBlock::kNumScenes> sceneOn{};
+    std::array<bool, ChainBlock::kMaxScenes> sceneOn{};
   };
 
   juce::uint32 revision = 0;
@@ -1001,8 +1001,8 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   bool stereo = false, canUndo = false, canRedo = false, branched = false;
   bool canPaste = false, atDefault = false;
   juce::String presetId, presetName, branchSide, activeSide, branchAfter;
-  int sceneActive = 0;  // Fork (T3KJ)
-  std::array<juce::String, ChainBlock::kNumScenes> sceneNameCopy;
+  int sceneActive = 0, sceneCountCopy = 4;  // Fork (T3KJ)
+  std::array<juce::String, ChainBlock::kMaxScenes> sceneNameCopy;
 
   {
     juce::ScopedLock lock(chainMutex);
@@ -1071,6 +1071,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
 
     copyLane(lane(ChainSide::Left), left);
     sceneActive = activeScene;
+    sceneCountCopy = sceneCount;
     sceneNameCopy = sceneNames;
     stereo = stereoEnabled.load();
     if (stereo)
@@ -1091,7 +1092,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   }
 
   // Lock released; build the payload.
-  auto serializeChain = [sceneActive](const std::vector<BlockRow>& rows) {
+  auto serializeChain = [sceneActive, sceneCountCopy](const std::vector<BlockRow>& rows) {
     juce::Array<juce::var> chainArray;
     for (const auto& row : rows) {
       if (row.rtFailed)
@@ -1152,7 +1153,7 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
       if (row.footswitch.isNotEmpty())
         fork->setProperty("footswitch", row.footswitch);
       juce::Array<juce::var> sceneOn;
-      for (size_t s = 0; s < row.sceneOn.size(); ++s)
+      for (size_t s = 0; s < static_cast<size_t>(sceneCountCopy); ++s)
         sceneOn.add(static_cast<int>(s) == sceneActive ? row.enabled : row.sceneOn[s]);
       fork->setProperty("sceneOn", sceneOn);
       item->setProperty("tk3j", juce::var(fork.get()));
@@ -1189,8 +1190,9 @@ juce::var TONE3000Processor::getChainState(int knownRevision) const {
   {
     juce::DynamicObject::Ptr scenes = new juce::DynamicObject();
     scenes->setProperty("active", sceneActive);
+    scenes->setProperty("count", sceneCountCopy);
     juce::Array<juce::var> names;
-    for (const auto& n : sceneNameCopy) names.add(n);
+    for (int i = 0; i < sceneCountCopy; ++i) names.add(sceneNameCopy[static_cast<size_t>(i)]);
     scenes->setProperty("names", names);
     state->setProperty("scenes", juce::var(scenes.get()));
   }

@@ -98,7 +98,7 @@ PluginSettingsPage::PluginSettingsPage(Services& services)
       blockLabels_("Show Block Labels",
                    "Gear and product name under each block in the signal chain. Click a label to edit it."),
       sceneBar_("Show Scene Bar",
-                "Scenes A to D and your footswitches under the signal chain. Map them to your QC under MIDI."),
+                "Scenes (A to H, + adds one) and your footswitches under the signal chain. Map them to your QC under MIDI."),
       myGearFirst_("Open My Gear First",
                    "Adding or swapping a block shows your own tones folder, pinned and recent tones before the "
                    "TONE3000 search."),

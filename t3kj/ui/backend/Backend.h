@@ -61,9 +61,11 @@ public:
   virtual bool swapChains() = 0;
   virtual bool setChainBranch(const juce::String& side, const std::string& afterBlockId) = 0;
   virtual bool clearChainBranch() = 0;
-  // Fork (T3KJ): scenes (0-3 = A-D) and footswitches ("1".."8", "" = none).
+  // Fork (T3KJ): scenes (0-7 = A-H) and footswitches ("1".."8", "" = none).
   virtual bool selectScene(int index) = 0;
   virtual bool renameScene(int index, const juce::String& name) = 0;
+  virtual bool addScene() = 0;
+  virtual bool removeScene(int index) = 0;
   virtual bool setBlockFootswitch(const std::string& blockId, const juce::String& letter) = 0;
   virtual bool toggleFootswitch(const juce::String& letter) = 0;
   virtual void setStereoMode(bool enabled) = 0;

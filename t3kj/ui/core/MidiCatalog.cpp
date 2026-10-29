@@ -13,7 +13,7 @@ const std::vector<MappableTarget>& mappableTargets() {
         {"presetNext", "Next Preset", "Presets", K::trigger},
         // Fork (T3KJ): scenes (the CC value picks: 0-3 = A-D) and the
         // footswitches blocks are put on from their tile menu (added below).
-        {"tk3jScene", "Scene (value 0-3 = A-D)", "Scenes", K::continuous},
+        {"tk3jScene", "Scene (value 0-7 = A-H)", "Scenes", K::continuous},
         {"inputLevel", "Input Gain", "Global", K::continuous},
         {"outputLevel", "Output Level", "Global", K::continuous},
         {"outputBalance", "Output Balance", "Global", K::continuous},

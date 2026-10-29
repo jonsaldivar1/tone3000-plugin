@@ -76,11 +76,11 @@ void MidiMapper::processMidi(const juce::MidiBuffer& midi) {
 }
 
 void MidiMapper::applyEvent(Mapping& mapping, const juce::MidiMessage& msg) {
-  // Fork (T3KJ): a scene control picks by value (CC 0-3 = A-D; a note picks
-  // by its number mod 4). Values past 3 are ignored rather than guessed at.
+  // Fork (T3KJ): a scene control picks by value (CC 0-7 = A-H; a note picks
+  // by its number mod 8). Values past 7 are ignored rather than guessed at.
   if (mapping.kind == Kind::scene) {
-    const int index = msg.isController() ? msg.getControllerValue() : msg.getNoteNumber() % 4;
-    if (index >= 0 && index < 4) {
+    const int index = msg.isController() ? msg.getControllerValue() : msg.getNoteNumber() % 8;
+    if (index >= 0 && index < 8) {
       pendingScene.store(index);
       triggerAsyncUpdate();
     }
