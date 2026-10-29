@@ -402,11 +402,64 @@ private:
   int current_ = 0;
 };
 
+// The header's preset bar: < name > SAVE and a menu (save as new, rename,
+// delete, move up / down). The list shows each preset's MIDI PC number.
+class PresetBar : public juce::Component, public HintSource {
+public:
+  explicit PresetBar(DjontProcessor& processor);
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  juce::String hint() const override;
+  void refresh();
+  std::function<void(const juce::String&)> onMessage;
+
+private:
+  enum class Naming { none, saveAs, rename };
+  void step(int delta);
+  void showList();
+  void showMore();
+  void save();
+  void beginNaming(Naming mode);
+  void finishNaming(bool keep);
+  void message(const juce::String& m) { if (onMessage) onMessage(m); }
+
+  DjontProcessor& processor_;
+  Chip prev_, next_, save_, more_;
+  juce::TextButton name_;
+  juce::TextEditor editor_;
+  Naming naming_ = Naming::none;
+};
+
+// The scene row: a chip per scene (click to switch, double-click to rename,
+// right-click for rename / delete / MIDI learn) and + to add one, up to 8.
+// Scene letters keep T3KJ's colours, so A means the same scene in both.
+class SceneBar : public juce::Component, public HintSource {
+public:
+  explicit SceneBar(DjontProcessor& processor);
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  juce::String hint() const override;
+  void refresh();
+  std::function<void()> onLearnScene;  // the view runs MIDI learn for "scene"
+
+private:
+  class SceneChip;
+  void beginRename(int index);
+  void finishRename(bool keep);
+  void openMenu(int index);
+
+  DjontProcessor& processor_;
+  std::vector<std::unique_ptr<SceneChip>> chips_;
+  Chip add_;
+  juce::TextEditor editor_;
+  int renaming_ = -1;
+};
+
 // Everything you see, laid out at its design size (kWidth x kHeight). The
 // editor scales it to the window, so resizing keeps the layout.
 class DjontView : public juce::Component, private juce::Timer {
 public:
-  static constexpr int kWidth = 1290, kHeight = 490;
+  static constexpr int kWidth = 1290, kHeight = 536;
 
   explicit DjontView(DjontProcessor& processor);
   ~DjontView() override;
@@ -429,7 +482,7 @@ private:
   void showOverlay(juce::Component* overlay);  // settings, manual, or nullptr for the controls
   void paintOverChildren(juce::Graphics& g) override;
   juce::Component* learnTarget_ = nullptr;
-  juce::String learnName_, confirm_;
+  juce::String learnName_, learnId_, confirm_;
   int confirmTicks_ = 0, learnedSeen_ = 0;
 
   DjontProcessor& processor_;
@@ -438,6 +491,9 @@ private:
   GearButton gear_;
   HelpButton help_;
   Chip hushChip_;
+  PresetBar presetBar_;
+  SceneBar sceneBar_;
+  int presetSeen_ = -1, sceneSeen_ = -1;
   WhamModule wham_;
   SustainModule sustain_;
   std::vector<std::unique_ptr<Module>> modules_;
@@ -448,6 +504,7 @@ private:
   float photoScaledAt_ = 0.0f;
   float meterDb_ = -60.0f;
   juce::Rectangle<int> meterBox_, ioPlate_, hintBox_;
+  void startLearn(juce::Component* target, const juce::String& id);
   juce::String hint_;
 };
 

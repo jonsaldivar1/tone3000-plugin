@@ -2,7 +2,9 @@
 
 A pedalboard plugin for guitar that goes in front of your amp sim: **Wham** (a virtual whammy), **Sustain** (Hold and Sustainer), **Tight**, **Grit**, **Sub** and **Lo-Fi**, plus **Hush**, a de-noiser for your DI. VST3 plugin and standalone app, Windows 10 / 11 (64-bit).
 
-**New in 0.8:** **Tight** has a second voicing, **FOCUS**: the classic tight boost in front of a high-gain amp (low cut, mid push, a little clipping, no added latency). Flip it with the PUNCH / FOCUS switch. And a global **Blend** knob in the header: the whole board against your dry DI, lined up even when Wham adds delay.
+**New in 0.9: presets and scenes.** The header's **PRESET** bar saves your whole board under a name: SAVE edits the current one, ••• saves a new one, renames, deletes or reorders. The **SCENES** row (A to H, + to add) switches everything at once: modules on / off, knobs, Input, Output and Hush. Presets and scenes follow MIDI: a Program Change loads the preset at that number, and a CC learned on a scene picks scenes by value (0 = A, 1 = B ...), so one Quad Cortex footswitch can switch dJONt and T3KJ together. The manual has a new page on automating dJONt in REAPER.
+
+**Also in 0.8:** **Tight** has a second voicing, **FOCUS**: the classic tight boost in front of a high-gain amp (low cut, mid push, a little clipping, no added latency). Flip it with the PUNCH / FOCUS switch. And a global **Blend** knob in the header: the whole board against your dry DI, lined up even when Wham adds delay.
 
 **Also in 0.7: HUSH**, a zero-latency de-noiser on your DI.
 

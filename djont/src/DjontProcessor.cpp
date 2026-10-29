@@ -154,6 +154,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout DjontProcessor::createLayout
   layout.add(hertz("lofiTone", "Lo-Fi Tone", 300.0f, 3000.0f, 1000.0f));
   layout.add(percent("lofiBlend", "Lo-Fi Blend", 100.0f));
   hushui::addParameters(layout);
+  // Scenes: which one is active (host automation / MIDI pick it by value).
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID{"scene", 1}, "Scene", juce::StringArray{"A", "B", "C", "D", "E", "F", "G", "H"}, 0));
   return layout;
 }
 
@@ -161,8 +164,12 @@ DjontProcessor::DjontProcessor()
     : AudioProcessor(BusesProperties()
                          .withInput("Input", juce::AudioChannelSet::stereo(), true)
                          .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
-      params(*this, nullptr, "dJONt", createLayout()) {
-  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer"})
+      params(*this, nullptr, "dJONt", createLayout()),
+      presets_([this](const juce::String& id) {
+        auto* p = params.getParameter(id);
+        return p != nullptr ? p->convertFrom0to1(p->getDefaultValue()) : 0.0f;
+      }) {
+  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer", "scene"})
     params.addParameterListener(id, this);
   for (auto* p : getParameters())
     if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(p)) midiParams_.push_back(ranged);
@@ -175,13 +182,24 @@ DjontProcessor::DjontProcessor()
 }
 
 DjontProcessor::~DjontProcessor() {
-  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer"})
+  for (const char* id : {"whamOn", "whamAlgo", "whamInterval", "whamGrain", "whamBuffer", "scene"})
     params.removeParameterListener(id, this);
   cancelPendingUpdate();
 }
 
-void DjontProcessor::parameterChanged(const juce::String&, float) { triggerAsyncUpdate(); }
-void DjontProcessor::handleAsyncUpdate() { updateLatency(); }
+void DjontProcessor::parameterChanged(const juce::String& id, float value) {
+  if (id == "scene") pendingScene_.store(juce::roundToInt(value));
+  triggerAsyncUpdate();
+}
+
+void DjontProcessor::handleAsyncUpdate() {
+  updateLatency();
+  if (const int program = pendingProgram_.exchange(-1); program >= 0) setCurrentProgram(program);
+  if (const int scene = pendingScene_.exchange(-1); scene >= 0 && scene != activeScene_ && !applyingScene_) {
+    if (scene < sceneCount_) selectScene(scene);
+    else syncSceneParam();  // past the last scene: snap back
+  }
+}
 
 // Wham's delay while it replaces the dry (Custom / Whammy). Harmony and
 // Detune keep the dry on time and add a voice, so they report none.
@@ -243,8 +261,7 @@ void DjontProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 
 void DjontProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) {
   juce::ScopedNoDenormals noDenormals;
-  handleMidi(midi);
-  midi.clear();
+  handleMidi(midi);  // and leaves the MIDI in the buffer for whatever comes next
   const int n = buffer.getNumSamples();
   if (n <= 0 || buffer.getNumChannels() == 0) return;
 
@@ -408,6 +425,11 @@ void DjontProcessor::forget(const juce::String& id) {
 void DjontProcessor::handleMidi(const juce::MidiBuffer& midi) {
   for (const auto meta : midi) {
     const auto m = meta.getMessage();
+    if (m.isProgramChange()) {
+      pendingProgram_.store(m.getProgramChangeNumber());
+      triggerAsyncUpdate();
+      continue;
+    }
     if (!m.isController()) continue;
     const int cc = m.getControllerNumber(), v = m.getControllerValue();
     const auto ucc = static_cast<size_t>(juce::jlimit(0, 127, cc));
@@ -425,7 +447,11 @@ void DjontProcessor::handleMidi(const juce::MidiBuffer& midi) {
     auto* param = midiParams_[static_cast<size_t>(index)];
     const auto id = param->getParameterID();
     float normalised = static_cast<float>(v) / 127.0f;
-    if (dynamic_cast<juce::AudioParameterBool*>(param) != nullptr) {
+    if (id == "scene") {
+      // By value, like T3KJ: 0 = A, 1 = B, ... (past H: ignored).
+      if (v >= kMaxScenes) continue;
+      normalised = param->convertTo0to1(static_cast<float>(v));
+    } else if (dynamic_cast<juce::AudioParameterBool*>(param) != nullptr) {
       if (id == "holdOn" && value("holdLatch") > 0.5f) {
         if (!(prev < 64 && v >= 64)) continue;  // flip on the press only
         normalised = param->getValue() > 0.5f ? 0.0f : 1.0f;
@@ -535,16 +561,267 @@ juce::AudioProcessorEditor* DjontProcessor::createEditor() { return new DjontEdi
 void DjontProcessor::getStateInformation(juce::MemoryBlock& dest) {
   writeMidiState();
   hushui::saveFloors(hush, params.state);
-  if (auto xml = params.copyState().createXml()) copyXmlToBinary(*xml, dest);
+  auto state = params.copyState();
+  state.removeChild(state.getChildWithName("Scenes"), nullptr);
+  state.appendChild(sceneTree(), nullptr);
+  if (auto xml = state.createXml()) copyXmlToBinary(*xml, dest);
 }
 
 void DjontProcessor::setStateInformation(const void* data, int size) {
   if (auto xml = getXmlFromBinary(data, size))
     if (xml->hasTagName(params.state.getType())) {
-      params.replaceState(juce::ValueTree::fromXml(*xml));
+      auto state = juce::ValueTree::fromXml(*xml);
+      const auto scenes = state.getChildWithName("Scenes").createCopy();
+      state.removeChild(state.getChildWithName("Scenes"), nullptr);
+      applyingScene_ = true;
+      params.replaceState(state);
+      applySceneTree(scenes);
+      applyingScene_ = false;
+      pendingScene_.store(-1);
       readMidiState();
       hushui::loadFloors(hush, params.state);
+      presetRevision.fetch_add(1);
     }
+}
+
+// ---------------------------------------------------------------- scenes
+const juce::StringArray& DjontProcessor::sceneParamIds() {
+  // Everything but the scene pick itself and the performance controls
+  // (HOLD, the Wham pedal's position): those follow your feet, not the scene.
+  // (A test checks this covers every other parameter.)
+  static const juce::StringArray ids{
+      "input", "output", "blend",
+      "whamOn", "whamMode", "whamHeel", "whamToe", "whamRate", "whamShape", "whamRetrig", "whamAlgo",
+      "whamInterval", "whamMix", "whamTone", "whamGrain", "whamBuffer", "whamGlide",
+      "sustainOn", "sustainMode", "holdType", "holdLatch", "holdFade", "holdLevel", "holdShimmer", "holdLowCut",
+      "holdTone", "sustainerType", "sustainerAmount", "sustainerBloom", "sustainerInterval", "sustainerFloor",
+      "sustainerResponse", "sustainerTone",
+      "tightOn", "tightAmount", "tightFreq", "tightMode",
+      "gritOn", "gritDrive", "gritFreq", "gritBlend",
+      "subOn", "subMode", "subBlend", "subTone",
+      "lofiOn", "lofiTone", "lofiBlend",
+      "hushOn", "hushStrength", "hushSensitivity", "hushRelease"};
+  return ids;
+}
+
+DjontProcessor::SceneSlot DjontProcessor::captureScene() const {
+  SceneSlot slot;
+  slot.stored = true;
+  for (const auto& id : sceneParamIds())
+    if (auto* p = params.getParameter(id)) slot.values.emplace_back(id, p->convertFrom0to1(p->getValue()));
+  return slot;
+}
+
+void DjontProcessor::applyScene(const SceneSlot& slot) {
+  if (!slot.stored) return;
+  for (const auto& [id, value] : slot.values)
+    if (auto* p = params.getParameter(id)) {
+      const float norm = p->convertTo0to1(value);
+      if (std::abs(norm - p->getValue()) > 1.0e-6f) p->setValueNotifyingHost(norm);
+    }
+}
+
+void DjontProcessor::syncSceneParam() {
+  if (auto* p = params.getParameter("scene")) {
+    const float norm = p->convertTo0to1(static_cast<float>(activeScene_));
+    if (std::abs(norm - p->getValue()) > 1.0e-6f) {
+      const juce::ScopedValueSetter<bool> guard(applyingScene_, true);
+      p->setValueNotifyingHost(norm);
+    }
+  }
+}
+
+juce::String DjontProcessor::sceneName(int index) const {
+  return index >= 0 && index < kMaxScenes ? sceneNames_[static_cast<size_t>(index)] : juce::String();
+}
+
+bool DjontProcessor::selectScene(int index) {
+  if (index < 0 || index >= sceneCount_) return false;
+  if (index != activeScene_) {
+    scenes_[static_cast<size_t>(activeScene_)] = captureScene();
+    activeScene_ = index;
+    const juce::ScopedValueSetter<bool> guard(applyingScene_, true);
+    applyScene(scenes_[static_cast<size_t>(index)]);
+  }
+  syncSceneParam();
+  sceneRevision.fetch_add(1);
+  return true;
+}
+
+bool DjontProcessor::addScene() {
+  if (sceneCount_ >= kMaxScenes) return false;
+  const auto slot = static_cast<size_t>(sceneCount_);
+  scenes_[slot] = {};
+  sceneNames_[slot] = {};
+  ++sceneCount_;
+  return selectScene(sceneCount_ - 1);  // never visited: a copy of where you were
+}
+
+bool DjontProcessor::removeScene(int index) {
+  if (index < 0 || index >= sceneCount_ || sceneCount_ <= 1) return false;
+  const int last = sceneCount_ - 1;
+  const SceneSlot* recall = nullptr;
+  SceneSlot target;
+  if (index == activeScene_) {
+    // The live settings are the scene being removed: land on the one after
+    // it (or before, when it was the last) and recall that scene.
+    target = scenes_[static_cast<size_t>(index < last ? index + 1 : index - 1)];
+    recall = &target;
+    activeScene_ = index < last ? index : index - 1;
+  } else if (index < activeScene_) {
+    --activeScene_;
+  }
+  for (int i = index; i < last; ++i) {
+    scenes_[static_cast<size_t>(i)] = scenes_[static_cast<size_t>(i + 1)];
+    sceneNames_[static_cast<size_t>(i)] = sceneNames_[static_cast<size_t>(i + 1)];
+  }
+  scenes_[static_cast<size_t>(last)] = {};
+  sceneNames_[static_cast<size_t>(last)] = {};
+  sceneCount_ = last;
+  if (recall != nullptr) {
+    const juce::ScopedValueSetter<bool> guard(applyingScene_, true);
+    applyScene(*recall);
+  }
+  syncSceneParam();
+  sceneRevision.fetch_add(1);
+  return true;
+}
+
+bool DjontProcessor::renameScene(int index, const juce::String& name) {
+  if (index < 0 || index >= sceneCount_) return false;
+  sceneNames_[static_cast<size_t>(index)] = name.trim().substring(0, 40);
+  sceneRevision.fetch_add(1);
+  return true;
+}
+
+// <Scenes count active><Scene index name stored><P id v/>...</Scene></Scenes>.
+// The active scene's slot is written from the live settings.
+juce::ValueTree DjontProcessor::sceneTree() const {
+  juce::ValueTree tree("Scenes");
+  tree.setProperty("count", sceneCount_, nullptr);
+  tree.setProperty("active", activeScene_, nullptr);
+  for (int i = 0; i < sceneCount_; ++i) {
+    const auto slot = i == activeScene_ ? captureScene() : scenes_[static_cast<size_t>(i)];
+    juce::ValueTree scene("Scene");
+    scene.setProperty("index", i, nullptr);
+    scene.setProperty("name", sceneNames_[static_cast<size_t>(i)], nullptr);
+    scene.setProperty("stored", slot.stored, nullptr);
+    for (const auto& [id, value] : slot.values) {
+      juce::ValueTree p("P");
+      p.setProperty("id", id, nullptr);
+      p.setProperty("v", value, nullptr);
+      scene.appendChild(p, nullptr);
+    }
+    tree.appendChild(scene, nullptr);
+  }
+  return tree;
+}
+
+// Sets the scene list only; the live parameters are the caller's (they are
+// the active scene's). A missing tree = four scenes, all copies.
+void DjontProcessor::applySceneTree(const juce::ValueTree& tree) {
+  sceneCount_ = juce::jlimit(1, kMaxScenes, static_cast<int>(tree.getProperty("count", 4)));
+  activeScene_ = juce::jlimit(0, sceneCount_ - 1, static_cast<int>(tree.getProperty("active", 0)));
+  for (auto& s : scenes_) s = {};
+  for (auto& n : sceneNames_) n = {};
+  for (const auto& scene : tree) {
+    const int i = scene.getProperty("index", -1);
+    if (i < 0 || i >= sceneCount_) continue;
+    auto& slot = scenes_[static_cast<size_t>(i)];
+    sceneNames_[static_cast<size_t>(i)] = scene.getProperty("name").toString();
+    slot.stored = static_cast<bool>(scene.getProperty("stored", false));
+    for (const auto& p : scene)
+      slot.values.emplace_back(p.getProperty("id").toString(), static_cast<float>(static_cast<double>(p.getProperty("v"))));
+  }
+  syncSceneParam();
+  sceneRevision.fetch_add(1);
+}
+
+// ---------------------------------------------------------------- presets
+bool DjontProcessor::loadPreset(const juce::String& name) {
+  presets_.reload();
+  const auto* preset = presets_.find(name);
+  if (preset == nullptr) return false;
+  const auto data = preset->data;
+  const auto scenes = data.getChildWithName("Scenes");
+  const int active = juce::jlimit(0, kMaxScenes - 1, static_cast<int>(scenes.getProperty("active", 0)));
+  // The live settings = the preset's active scene (else its base settings).
+  juce::ValueTree live = data.getChildWithName("Params");
+  for (const auto& scene : scenes)
+    if (static_cast<int>(scene.getProperty("index", -1)) == active && static_cast<bool>(scene.getProperty("stored", false)))
+      live = scene;
+  {
+    const juce::ScopedValueSetter<bool> guard(applyingScene_, true);
+    for (const auto& id : sceneParamIds())
+      if (auto* p = params.getParameter(id)) {
+        float v = p->convertFrom0to1(p->getDefaultValue());
+        for (const auto& item : live)
+          if (item.getProperty("id").toString() == id) v = static_cast<float>(static_cast<double>(item.getProperty("v")));
+        p->setValueNotifyingHost(p->convertTo0to1(v));
+      }
+    applySceneTree(scenes);
+  }
+  pendingScene_.store(-1);
+  params.state.setProperty("presetName", name, nullptr);
+  presetRevision.fetch_add(1);
+  updateHostDisplay(ChangeDetails{}.withProgramChanged(true));
+  return true;
+}
+
+bool DjontProcessor::savePreset(const juce::String& name) {
+  juce::ValueTree data("Preset");
+  juce::ValueTree values("Params");
+  for (const auto& [id, value] : captureScene().values) {
+    juce::ValueTree p("P");
+    p.setProperty("id", id, nullptr);
+    p.setProperty("v", value, nullptr);
+    values.appendChild(p, nullptr);
+  }
+  data.appendChild(values, nullptr);
+  data.appendChild(sceneTree(), nullptr);
+  if (!presets_.put(name, data)) return false;
+  params.state.setProperty("presetName", name.trim().substring(0, 60), nullptr);
+  presetRevision.fetch_add(1);
+  updateHostDisplay(ChangeDetails{}.withProgramChanged(true));
+  return true;
+}
+
+bool DjontProcessor::renamePreset(const juce::String& from, const juce::String& to) {
+  if (!presets_.rename(from, to)) return false;
+  if (currentPreset() == from) params.state.setProperty("presetName", to.trim().substring(0, 60), nullptr);
+  presetRevision.fetch_add(1);
+  updateHostDisplay(ChangeDetails{}.withProgramChanged(true));
+  return true;
+}
+
+bool DjontProcessor::deletePreset(const juce::String& name) {
+  if (!presets_.remove(name)) return false;
+  if (currentPreset() == name) params.state.setProperty("presetName", "", nullptr);
+  presetRevision.fetch_add(1);
+  updateHostDisplay(ChangeDetails{}.withProgramChanged(true));
+  return true;
+}
+
+int DjontProcessor::getCurrentProgram() {
+  return juce::jmax(0, presets_.indexOf(currentPreset()));
+}
+
+void DjontProcessor::setCurrentProgram(int index) {
+  if (!juce::MessageManager::existsAndIsCurrentThread()) {
+    pendingProgram_.store(index);
+    triggerAsyncUpdate();
+    return;
+  }
+  presets_.reload();
+  const auto& all = presets_.all();
+  if (index < 0 || index >= static_cast<int>(all.size())) return;  // empty slot: ignore
+  if (all[static_cast<size_t>(index)].name == currentPreset()) return;  // host echo
+  loadPreset(all[static_cast<size_t>(index)].name);
+}
+
+const juce::String DjontProcessor::getProgramName(int index) {
+  const auto& all = presets_.all();
+  return index >= 0 && index < static_cast<int>(all.size()) ? all[static_cast<size_t>(index)].name : juce::String();
 }
 
 }  // namespace djont

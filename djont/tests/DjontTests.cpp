@@ -458,9 +458,155 @@ int main(int argc, char** argv) {
     check(mdiff < 1.0e-4f, "Blend 50% is halfway between the dry DI and the board");
   }
   {
+    // Scenes: everything but HOLD and the Wham pedal follows the scene.
+    const auto pump = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil(60); };
+    auto p = make({});
+    const auto set = [&](const char* id, float v) {
+      auto* param = p->params.getParameter(id);
+      param->setValueNotifyingHost(param->convertTo0to1(v));
+    };
+    const auto get = [&](const char* id) {
+      auto* param = p->params.getParameter(id);
+      return param->convertFrom0to1(param->getValue());
+    };
+    bool covers = true;
+    for (auto* param : p->getParameters())
+      if (auto* r = dynamic_cast<juce::RangedAudioParameter*>(param)) {
+        const auto id = r->getParameterID();
+        const bool skip = id == "scene" || id == "holdOn" || id == "whamPedal";
+        if (skip == DjontProcessor::sceneParamIds().contains(id)) {
+          std::printf("  scene list: %s\n", id.toRawUTF8());
+          covers = false;
+        }
+      }
+    check(covers, "scenes keep every setting except the scene pick, HOLD and the Wham pedal");
+
+    set("lofiOn", 1);
+    set("output", 3);
+    set("whamPedal", 40);
+    check(p->selectScene(2) && p->activeScene() == 2, "switching to scene C");
+    check(get("lofiOn") > 0.5f && std::abs(get("output") - 3.0f) < 0.05f, "a scene never visited starts as a copy");
+    set("lofiOn", 0);
+    set("sustainOn", 1);
+    set("output", -6);
+    set("hushOn", 1);
+    set("whamPedal", 80);
+    p->selectScene(0);
+    check(get("lofiOn") > 0.5f && get("sustainOn") < 0.5f && std::abs(get("output") - 3.0f) < 0.05f && get("hushOn") < 0.5f,
+          "scene A recalls its own modules, Output and Hush");
+    check(std::abs(get("whamPedal") - 80.0f) < 0.5f, "the Wham pedal stays where your foot left it");
+    p->selectScene(2);
+    check(get("lofiOn") < 0.5f && get("sustainOn") > 0.5f && std::abs(get("output") + 6.0f) < 0.05f,
+          "scene C recalls its tweaks");
+
+    check(p->addScene() && p->sceneCount() == 5 && p->activeScene() == 4, "+ adds scene E and switches to it");
+    while (p->addScene()) {}
+    check(p->sceneCount() == 8, "up to eight scenes");
+    p->renameScene(2, "Chorus");
+    p->selectScene(7);
+    check(p->removeScene(1) && p->sceneCount() == 7 && p->sceneName(1) == "Chorus" && p->activeScene() == 6,
+          "deleting B moves the later scenes up a letter");
+
+    // MIDI: learn CC 30 on the scene switch, then values pick scenes.
+    p->startLearn("scene");
+    juce::MidiBuffer midi;
+    juce::AudioBuffer<float> buf(2, 64);
+    buf.clear();
+    midi.addEvent(juce::MidiMessage::controllerEvent(1, 30, 127), 0);
+    p->processBlock(buf, midi);
+    check(midi.getNumEvents() == 1, "MIDI passes through dJONt to whatever comes next");
+    midi.clear();
+    midi.addEvent(juce::MidiMessage::controllerEvent(1, 30, 1), 0);
+    p->processBlock(buf, midi);
+    pump();
+    check(p->activeScene() == 1 && get("lofiOn") < 0.5f && get("sustainOn") > 0.5f, "MIDI CC value 1 picks scene B (the old C)");
+    // Host automation of the Scene parameter.
+    set("scene", 0);
+    pump();
+    check(p->activeScene() == 0 && get("lofiOn") > 0.5f, "automating the Scene parameter switches scenes");
+    while (p->sceneCount() > 3) p->removeScene(p->sceneCount() - 1);
+    set("scene", 6);
+    pump();
+    check(p->activeScene() == 0 && juce::roundToInt(get("scene")) == 0, "a scene past the last one is ignored");
+
+    // Saved with the plugin state.
+    p->selectScene(1);
+    juce::MemoryBlock state;
+    p->getStateInformation(state);
+    DjontProcessor q;
+    q.setStateInformation(state.getData(), static_cast<int>(state.getSize()));
+    pump();
+    const auto qget = [&](const char* id) {
+      auto* param = q.params.getParameter(id);
+      return param->convertFrom0to1(param->getValue());
+    };
+    check(q.sceneCount() == 3 && q.activeScene() == 1 && q.sceneName(1) == "Chorus" && qget("sustainOn") > 0.5f,
+          "scenes survive the DAW project / standalone state");
+    q.selectScene(0);
+    check(qget("lofiOn") > 0.5f && qget("sustainOn") < 0.5f, "and each restored scene recalls its settings");
+  }
+  {
+    // Presets: yours first (PC 0, 1, ...), then starters; save, edit, rename,
+    // reorder, delete; Program Change loads by list position.
+    const auto pump = [] { juce::MessageManager::getInstance()->runDispatchLoopUntil(60); };
+    const auto file = djont::PresetStore::defaultFile();
+    const bool had = file.existsAsFile();
+    const auto backup = file.loadFileAsString();
+    file.deleteFile();
+    {
+      auto p = make({});
+      const auto set = [&](const char* id, float v) {
+        auto* param = p->params.getParameter(id);
+        param->setValueNotifyingHost(param->convertTo0to1(v));
+      };
+      const auto get = [&](const char* id) {
+        auto* param = p->params.getParameter(id);
+        return param->convertFrom0to1(param->getValue());
+      };
+      set("gritOn", 1);
+      p->selectScene(1);
+      set("gritOn", 0);
+      set("lofiOn", 1);
+      p->renameScene(1, "Bridge");
+      check(p->savePreset("My Song") && p->presets().indexOf("My Song") == 0, "save a preset: yours come first (PC 0)");
+      set("lofiOn", 0);
+      p->selectScene(0);
+      set("output", -3);
+      check(p->savePreset("My Song"), "SAVE again edits it in place");
+      check(p->savePreset("Other") && p->presets().indexOf("Other") == 1, "a second one is PC 1");
+      check(!p->savePreset("Starter: Mine"), "starter names are reserved");
+      set("gritOn", 0);
+      set("output", 0);
+      check(p->loadPreset("My Song") && get("gritOn") > 0.5f && std::abs(get("output") + 3.0f) < 0.05f,
+            "loading brings back the settings");
+      p->selectScene(1);
+      check(get("lofiOn") < 0.5f && p->sceneName(1) == "Bridge", "and its scenes, as last saved");
+      check(p->presets().move("Other", -1) && p->presets().indexOf("Other") == 0, "move up changes its PC number");
+      check(p->renamePreset("Other", "Intro") && p->currentPreset() == "My Song", "rename");
+      // Program Change: VST3 (host program) and raw MIDI.
+      const int songs = p->presets().indexOf("Starter: Song Sections");
+      p->setCurrentProgram(songs);
+      check(p->currentPreset() == "Starter: Song Sections" && p->sceneCount() == 4 && p->sceneName(2) == "Lo-Fi Intro",
+            "a host program change loads that preset, scenes and all");
+      p->selectScene(2);
+      check(get("lofiOn") > 0.5f && get("tightOn") < 0.5f, "the starter's Lo-Fi Intro scene");
+      juce::MidiBuffer midi;
+      juce::AudioBuffer<float> buf(2, 64);
+      buf.clear();
+      midi.addEvent(juce::MidiMessage::programChange(1, p->presets().indexOf("My Song")), 0);
+      p->processBlock(buf, midi);
+      pump();
+      check(p->currentPreset() == "My Song", "a MIDI Program Change loads the preset at that number");
+      check(p->deletePreset("Intro") && p->presets().indexOf("Intro") < 0, "delete one of yours");
+      check(!p->deletePreset("Starter: Tight Boost"), "starters can't be deleted");
+    }
+    file.deleteFile();
+    if (had) file.replaceWithText(backup);
+  }
+  {
     // The manual: every topic parses, with the parts the panel shows.
     const auto sections = djont::ManualPanel::load();
-    check(sections.size() >= 10, "the manual has all its topics");
+    check(sections.size() >= 13, "the manual has all its topics");
     bool complete = true;
     for (const auto& s : sections)
       complete = complete && s.title.isNotEmpty() && s.what.isNotEmpty() && s.how.isNotEmpty() && !s.tries.isEmpty();
@@ -473,6 +619,7 @@ int main(int argc, char** argv) {
   int width = 0, manual = -1;
   bool hushPanel = false;
   juce::StringArray sets;  // --set id=value (real units), any number
+  juce::StringArray sceneNames;  // --scenes "Verse,Chorus,..." (adds scenes as needed)
   for (int i = 1; i < argc; ++i) {
     const juce::String arg(argv[i]);
     if (arg == "--snapshot" && i + 1 < argc) snapshotPath = argv[++i];
@@ -483,6 +630,7 @@ int main(int argc, char** argv) {
     else if (arg == "--hush") hushPanel = true;
     else if (arg == "--width" && i + 1 < argc) width = juce::String(argv[++i]).getIntValue();
     else if (arg == "--set" && i + 1 < argc) sets.add(argv[++i]);
+    else if (arg == "--scenes" && i + 1 < argc) sceneNames = juce::StringArray::fromTokens(argv[++i], ",", "");
   }
   if (snapshotPath.isNotEmpty()) {
     DjontProcessor p;
@@ -492,6 +640,11 @@ int main(int argc, char** argv) {
     for (const auto& kv : sets)
       if (auto* param = p.params.getParameter(kv.upToFirstOccurrenceOf("=", false, false)))
         param->setValueNotifyingHost(param->convertTo0to1(kv.fromFirstOccurrenceOf("=", false, false).getFloatValue()));
+    for (int i = 0; i < sceneNames.size(); ++i) {
+      while (p.sceneCount() <= i) p.addScene();
+      p.renameScene(i, sceneNames[i]);
+    }
+    if (!sceneNames.isEmpty()) p.selectScene(0);
     std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());
     if (auto* e = dynamic_cast<djont::DjontEditor*>(editor.get())) {
       e->setLook(look);

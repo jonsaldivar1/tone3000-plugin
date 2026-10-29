@@ -16,6 +16,14 @@
       ],
       "controls": [
         [
+          "PRESET",
+          "Your presets and the starters, with their MIDI PC numbers. SAVE edits the current one; ••• for save as new, rename, delete, reorder."
+        ],
+        [
+          "SCENES",
+          "Up to eight versions of the board (A to H) above the hint bar. Click to switch, + to add."
+        ],
+        [
           "HUSH",
           "The de-noiser on your DI, before Wham (zero latency). Click HUSH in the header."
         ],
@@ -323,6 +331,69 @@
       ]
     },
     {
+      "id": "presets",
+      "title": "Presets",
+      "tagline": "Your whole board, every scene, under one name.",
+      "what": "A preset stores everything dJONt is doing: every module's power and knobs, Input, Blend, Output, Hush's settings, and all of your scenes with their names. Your presets come first in the list, then a few starters. The list order is also the MIDI Program Change map: PC 0 loads the first preset, PC 1 the second, and so on.",
+      "how": "The PRESET bar is in the header. Click the name for the list (each shows its PC number), or step with ‹ and ›. SAVE stores what you hear into the current preset, so editing a preset is just changing things and pressing SAVE. With no preset (or a starter) loaded, SAVE asks for a name and makes a new one. The ••• menu has Save as new, Rename, Delete and Move up / down; moving a preset changes its PC number. Presets live on this computer in %APPDATA%\\dJONt\\presets.xml and every dJONt (plugin and standalone) shares them. What a preset leaves alone: your MIDI mappings, Hush's learned noise, the look and the window size.",
+      "sound": "One preset per song is the easy way to work: its scenes are the song's sections.",
+      "try": [
+        "Set up a sound, click •••, Save as new preset, type a name, Enter.",
+        "Change a knob and press SAVE: that's an edit.",
+        "Keep the same order in dJONt and T3KJ: then one Quad Cortex preset change (it sends a Program Change) switches both plugins together.",
+        "Starters are read-only. Load one, tweak it, and Save as new to keep your version."
+      ],
+      "controls": [
+        [
+          "Name",
+          "The list, with PC numbers. Check mark = the current preset."
+        ],
+        [
+          "‹ ›",
+          "Previous / next preset."
+        ],
+        [
+          "SAVE",
+          "Save into the current preset (or name a new one)."
+        ],
+        [
+          "•••",
+          "Save as new, Rename, Delete, Move up / down."
+        ]
+      ]
+    },
+    {
+      "id": "scenes",
+      "title": "Scenes",
+      "tagline": "Up to eight versions of the board, switched in one click or one footswitch.",
+      "what": "A scene is a full snapshot of the board inside a preset: which modules are on, every knob, Input, Blend, Output and Hush. Switch scenes for the sections of a song: Tight and Grit for the verse, Sustainer for the lead, Lo-Fi for the intro, Wham an octave down for the breakdown. Two things never change with a scene because they follow your feet: the HOLD button and the Wham pedal's position. Hush's learned noise is also shared, since it's your rig's noise, not a sound.",
+      "how": "The SCENES row is above the hint bar. Click a scene to switch; there's no save step: whatever you change while in a scene is what that scene keeps. + adds a scene (up to eight, A to H) that starts as a copy of the one you're in. Double-click a scene to name it; right-click it to rename, delete (later scenes move up a letter) or MIDI-learn the scene switch. Switching is instant and glitch-free: modules glide in and out over about 20 ms. Scenes are saved with the preset and with your DAW project.",
+      "sound": "The letters use the same colors as T3KJ's scenes, so Scene B in dJONt and Scene B in T3KJ can be the same section of the song.",
+      "try": [
+        "Build scene A, click +, change a few things: that's scene B. Click A and B to compare.",
+        "Right-click a scene, MIDI Learn: scene switch, then send a CC from your controller. From then on the CC's value picks the scene: 0 = A, 1 = B, 2 = C...",
+        "Map the same CC to Scene in T3KJ too: one footswitch on the Quad Cortex switches both plugins."
+      ],
+      "controls": [
+        [
+          "Click",
+          "Switch to that scene."
+        ],
+        [
+          "Double-click",
+          "Name it."
+        ],
+        [
+          "Right-click",
+          "Rename, Delete, MIDI Learn."
+        ],
+        [
+          "+",
+          "Add a scene (copy of the current one)."
+        ]
+      ]
+    },
+    {
       "id": "midi",
       "title": "MIDI & footswitches",
       "tagline": "Put any control on a footswitch or expression pedal.",
@@ -342,6 +413,33 @@
         [
           "Hint bar",
           "Shows a control's CC when it's mapped."
+        ]
+      ]
+    },
+    {
+      "id": "reaper",
+      "title": "Automating in REAPER",
+      "tagline": "Turn Sustain or Lo-Fi on for one section, then off again.",
+      "what": "Every dJONt control is a REAPER parameter, so you can draw it as an automation envelope: no MIDI needed. You can also drive dJONt with MIDI from a MIDI item on the same track, or switch whole scenes from the timeline.",
+      "how": "Envelope (simplest): in dJONt click the control you want (for example Lo-Fi's power light) so it's the last one touched, then in REAPER's FX window click Param > Show track envelope. A lane appears under the track. Set its points to square so it switches instead of fading, then draw high = on, low = off: on where the section starts, off where it ends. Keep the track's automation mode on Read. To switch whole scenes, do the same with the Scene parameter (each step is one scene). MIDI instead: right-click the control in dJONt, MIDI Learn, and send it a CC (or draw one CC event in a MIDI item and play it once while learning). Then put an empty MIDI item on the same track over the section, open it, add that CC's lane and draw 127 where the section starts and 0 where it ends: power lights follow the value (64 and up = on), so they never get out of sync. For scenes, the CC's value picks the scene (0 = A, 1 = B, ...). MIDI keeps going down the FX chain, so the same MIDI item can drive T3KJ after dJONt.",
+      "sound": "Automation is exact to the sample grid and repeats every playback; a footswitch is for playing live.",
+      "try": [
+        "Lo-Fi on for a 4-bar intro: Param > Show track envelope on Lo-Fi, square points, high for 4 bars, low after.",
+        "A whole-song plan: set up scenes A to D, then automate Scene: A verse, B chorus, C bridge.",
+        "Recording live with the Quad Cortex: arm the track with the QC as MIDI input and REAPER records your footswitch CCs into a MIDI item you can edit later."
+      ],
+      "controls": [
+        [
+          "Param > Show track envelope",
+          "Envelope for the last control you touched."
+        ],
+        [
+          "CC 64-127 / 0-63",
+          "Power on / off."
+        ],
+        [
+          "Scene CC value",
+          "0 = A, 1 = B, 2 = C ..."
         ]
       ]
     },

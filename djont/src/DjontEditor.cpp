@@ -587,7 +587,7 @@ WhamModule::WhamModule(DjontProcessor& processor)
   power_.onPower = [this](bool on) { setPowered(on); };
   setPowered(power_.getToggleState());
 
-  presets_.setTextWhenNothingSelected("Presets");
+  presets_.setTextWhenNothingSelected("Wham presets");
   presets_.setTitle("Wham presets");
   presets_.setHelpText(juce::String(juce::CharPointer_UTF8("Wham \xc2\xb7 Presets: pick one to load its Heel / Toe / Rate / Shape / Retrig / Mode.")));
   presets_.onChange = [this] {
@@ -1232,7 +1232,7 @@ void ManualPanel::paint(juce::Graphics& g) {
 
 void ManualPanel::resized() {
   done_.setBounds(122, 16, 72, 26);
-  const int step = juce::jmax(20, (getHeight() - 58) / juce::jmax(1, tabs_.size()));
+  const int step = juce::jmax(16, (getHeight() - 62) / juce::jmax(1, tabs_.size()));
   for (int i = 0; i < tabs_.size(); ++i) tabs_[i]->setBounds(14, 54 + i * step, 180, step - 3);
   viewport_.setBounds(220, 10, getWidth() - 228, getHeight() - 20);
   showSection(current_);
@@ -1282,6 +1282,363 @@ void ManualPanel::Page::paint(juce::Graphics& g) {
 }
 
 // ---------------------------------------------------------------- editor
+// ---------------------------------------------------------------- presets
+PresetBar::PresetBar(DjontProcessor& processor)
+    : processor_(processor),
+      prev_(juce::String(juce::CharPointer_UTF8("\xe2\x80\xb9")), "Previous preset.", 26),
+      next_(juce::String(juce::CharPointer_UTF8("\xe2\x80\xba")), "Next preset.", 26),
+      save_("SAVE", "Save: store everything (all scenes) in this preset. A starter or no preset: name a new one.", 52),
+      more_(juce::String(juce::CharPointer_UTF8("\xe2\x80\xa2\xe2\x80\xa2\xe2\x80\xa2")),
+            "More: save as a new preset, rename, delete, or move this preset up or down the list (the list order is "
+            "the MIDI Program Change order).",
+            40) {
+  for (auto* c : std::initializer_list<juce::Component*>{&prev_, &next_, &save_, &more_, &name_}) addAndMakeVisible(c);
+  addChildComponent(editor_);
+  name_.setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  name_.setHelpText("Presets: click for the list. PC n = the MIDI Program Change that loads it (keep the same order in "
+                    "T3KJ and one Quad Cortex preset change switches both).");
+  name_.onClick = [this] { showList(); };
+  prev_.onClick = [this] { step(-1); };
+  next_.onClick = [this] { step(1); };
+  save_.onClick = [this] { save(); };
+  more_.onClick = [this] { showMore(); };
+  editor_.onReturnKey = [this] { finishNaming(true); };
+  editor_.onEscapeKey = [this] { finishNaming(false); };
+  editor_.onFocusLost = [this] { finishNaming(false); };
+  refresh();
+}
+
+juce::String PresetBar::hint() const { return name_.getHelpText(); }
+
+void PresetBar::refresh() {
+  const auto current = processor_.currentPreset();
+  const int pc = processor_.presets().indexOf(current);
+  name_.setButtonText(current.isEmpty() ? "Presets" : (pc >= 0 ? "PC " + juce::String(pc) + "   " : juce::String()) + current);
+}
+
+void PresetBar::step(int delta) {
+  auto& store = processor_.presets();
+  store.reload();
+  const auto& all = store.all();
+  if (all.empty()) return;
+  const int count = static_cast<int>(all.size());
+  int i = store.indexOf(processor_.currentPreset());
+  i = i < 0 ? (delta > 0 ? 0 : count - 1) : (i + delta + count) % count;
+  const auto name = all[static_cast<size_t>(i)].name;
+  processor_.loadPreset(name);
+  message("Loaded " + name + ".");
+  refresh();
+}
+
+void PresetBar::showList() {
+  auto& store = processor_.presets();
+  store.reload();
+  const auto current = processor_.currentPreset();
+  const auto& all = store.all();
+  juce::PopupMenu menu;
+  if (store.userCount() > 0) menu.addSectionHeader("YOURS");
+  for (size_t i = 0; i < all.size(); ++i) {
+    if (static_cast<int>(i) == store.userCount()) menu.addSectionHeader("STARTERS");
+    menu.addItem(static_cast<int>(i) + 1, "PC " + juce::String(static_cast<int>(i)) + "   " + all[i].name, true,
+                 all[i].name == current);
+  }
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&name_),
+                     [safe = juce::Component::SafePointer<PresetBar>(this)](int result) {
+                       if (safe == nullptr || result <= 0) return;
+                       const auto& list = safe->processor_.presets().all();
+                       if (result - 1 >= static_cast<int>(list.size())) return;
+                       const auto name = list[static_cast<size_t>(result - 1)].name;
+                       safe->processor_.loadPreset(name);
+                       safe->message("Loaded " + name + ".");
+                       safe->refresh();
+                     });
+}
+
+void PresetBar::save() {
+  const auto current = processor_.currentPreset();
+  auto& store = processor_.presets();
+  if (current.isEmpty() || store.find(current) == nullptr || store.isFactory(current)) {
+    beginNaming(Naming::saveAs);
+    return;
+  }
+  processor_.savePreset(current);
+  message("Saved " + current + ".");
+  refresh();
+}
+
+void PresetBar::showMore() {
+  const auto current = processor_.currentPreset();
+  auto& store = processor_.presets();
+  const bool mine = current.isNotEmpty() && store.find(current) != nullptr && !store.isFactory(current);
+  const int index = store.indexOf(current);
+  juce::PopupMenu menu;
+  menu.addItem(1, "Save as new preset...");
+  menu.addItem(2, "Rename...", mine);
+  menu.addItem(3, "Delete " + (mine ? current : juce::String("preset")), mine);
+  menu.addSeparator();
+  menu.addItem(4, "Move up (lower PC number)", mine && index > 0);
+  menu.addItem(5, "Move down (higher PC number)", mine && index < store.userCount() - 1);
+  menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&more_),
+                     [safe = juce::Component::SafePointer<PresetBar>(this), current](int result) {
+                       if (safe == nullptr || result <= 0) return;
+                       auto& p = safe->processor_;
+                       if (result == 1) safe->beginNaming(Naming::saveAs);
+                       else if (result == 2) safe->beginNaming(Naming::rename);
+                       else if (result == 3) {
+                         juce::AlertWindow::showAsync(
+                             juce::MessageBoxOptions::makeOptionsOkCancel(juce::MessageBoxIconType::QuestionIcon,
+                                                                          "Delete preset", "Delete " + current + "?",
+                                                                          "Delete", "Cancel", safe.getComponent()),
+                             [safe, current](int ok) {
+                               if (safe == nullptr || ok != 1) return;
+                               if (safe->processor_.deletePreset(current)) safe->message("Deleted " + current + ".");
+                               safe->refresh();
+                             });
+                       } else if (result == 4 || result == 5) {
+                         p.presets().move(current, result == 4 ? -1 : 1);
+                         p.presetRevision.fetch_add(1);
+                         safe->message(current + " is now PC " + juce::String(p.presets().indexOf(current)) + ".");
+                       }
+                       safe->refresh();
+                     });
+}
+
+void PresetBar::beginNaming(Naming mode) {
+  naming_ = mode;
+  const auto current = processor_.currentPreset();
+  editor_.setText(mode == Naming::rename ? current : juce::String(), false);
+  editor_.setTextToShowWhenEmpty(mode == Naming::rename ? "New name, Enter to rename" : "Preset name, Enter to save",
+                                 DjontLookAndFeel::lookOf(*this).ink.withAlpha(0.5f));
+  editor_.setVisible(true);
+  name_.setVisible(false);
+  editor_.grabKeyboardFocus();
+  editor_.selectAll();
+}
+
+void PresetBar::finishNaming(bool keep) {
+  if (!editor_.isVisible()) return;
+  const auto mode = naming_;
+  naming_ = Naming::none;
+  const auto name = editor_.getText().trim();
+  editor_.setVisible(false);
+  name_.setVisible(true);
+  if (!keep || name.isEmpty()) return;
+  auto& store = processor_.presets();
+  if (store.isFactory(name)) {
+    message("Names starting with \"Starter:\" are for the starters; pick another.");
+    return;
+  }
+  if (mode == Naming::rename) {
+    const auto from = processor_.currentPreset();
+    if (processor_.renamePreset(from, name)) message("Renamed to " + name + ".");
+    else message("Couldn't rename: " + name + " is taken.");
+  } else {
+    const bool replacing = store.find(name) != nullptr;
+    if (processor_.savePreset(name))
+      message((replacing ? "Saved over " : "Saved ") + name + " (PC " + juce::String(store.indexOf(name)) + ").");
+  }
+  refresh();
+}
+
+void PresetBar::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  g.setColour(L.plate);
+  g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
+  g.setColour(L.plateBorder);
+  g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
+  g.setColour(L.ink.withAlpha(0.6f));
+  g.setFont(DjontLookAndFeel::label(9.0f));
+  g.drawText("PRESET", 12, 10, 100, 12, juce::Justification::centredLeft, false);
+}
+
+void PresetBar::resized() {
+  const int h = 30, y = getHeight() - h - 12;
+  prev_.setBounds(10, y, 26, h);
+  const int right = getWidth() - 10;
+  more_.setBounds(right - 40, y, 40, h);
+  save_.setBounds(more_.getX() - 6 - 52, y, 52, h);
+  next_.setBounds(save_.getX() - 10 - 26, y, 26, h);
+  name_.setBounds(prev_.getRight() + 4, y, next_.getX() - 4 - prev_.getRight() - 4, h);
+  editor_.setBounds(name_.getBounds());
+}
+
+// ---------------------------------------------------------------- scenes
+namespace {
+// T3KJ's scene colours (ForkColors.h), so a letter means the same scene.
+juce::Colour sceneColour(int i) {
+  static const juce::Colour c[] = {juce::Colour(0xffff5a4f), juce::Colour(0xff4c8dff), juce::Colour(0xffffd23f),
+                                   juce::Colour(0xffb76bff), juce::Colour(0xff34d399), juce::Colour(0xffff9f45),
+                                   juce::Colour(0xff5ce1e6), juce::Colour(0xffff8fd0)};
+  return c[juce::jlimit(0, 7, i)];
+}
+juce::String sceneLetter(int i) { return juce::String::charToString(static_cast<juce::juce_wchar>('A' + juce::jlimit(0, 7, i))); }
+constexpr int kSceneH = 46, kChipH = 30, kDot = 22;
+}  // namespace
+
+class SceneBar::SceneChip : public juce::Button, public HintSource {
+public:
+  SceneChip(SceneBar& bar, int index) : juce::Button(sceneLetter(index)), bar_(bar), index_(index) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+  }
+  juce::String hint() const override {
+    return "Scene " + sceneLetter(index_) + (name_.isNotEmpty() ? ": " + name_ : juce::String()) +
+           ". Click to switch. Everything you change in a scene stays in it (not HOLD or the Wham pedal). "
+           "Double-click to rename; right-click to rename, delete or MIDI-learn the scene switch.";
+  }
+  void set(const juce::String& name, bool active, bool compact) {
+    name_ = name;
+    active_ = active;
+    compact_ = compact;
+    setSize(compact ? kDot + 12 : fullWidth(), kChipH);
+    repaint();
+  }
+  int fullWidth() const {
+    const auto label = name_.isNotEmpty() ? name_ : "Scene " + sceneLetter(index_);
+    return 6 + kDot + 8 + juce::roundToInt(juce::GlyphArrangement::getStringWidth(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)), label)) + 14;
+  }
+  bool active() const { return active_; }
+  void paintButton(juce::Graphics& g, bool highlighted, bool) override {
+    const auto& L = DjontLookAndFeel::lookOf(*this);
+    const auto box = getLocalBounds().toFloat().reduced(0.5f);
+    const auto colour = sceneColour(index_);
+    g.setColour(active_ ? colour : (highlighted ? L.ink.withAlpha(0.14f) : L.plate));
+    g.fillRoundedRectangle(box, box.getHeight() / 2);
+    g.setColour(active_ ? colour : L.plateBorder);
+    g.drawRoundedRectangle(box, box.getHeight() / 2, 1.0f);
+    const auto dot = juce::Rectangle<float>(5.0f, (getHeight() - kDot) / 2.0f, kDot, kDot);
+    g.setColour(active_ ? juce::Colours::black.withAlpha(0.2f) : colour);
+    g.fillEllipse(dot);
+    g.setColour(juce::Colours::black);
+    g.setFont(juce::Font(juce::FontOptions(12.0f, juce::Font::bold)));
+    g.drawText(sceneLetter(index_), dot, juce::Justification::centred, false);
+    if (compact_) return;
+    g.setColour(active_ ? juce::Colours::black : L.ink);
+    g.setFont(juce::Font(juce::FontOptions(13.0f, active_ ? juce::Font::bold : juce::Font::plain)));
+    g.drawText(name_.isNotEmpty() ? name_ : "Scene " + sceneLetter(index_),
+               juce::Rectangle<int>(6 + kDot + 8, 0, getWidth() - (6 + kDot + 8) - 8, getHeight()),
+               juce::Justification::centredLeft, true);
+  }
+  void clicked() override { bar_.processor_.selectScene(index_); }
+  void mouseDown(const juce::MouseEvent& e) override {
+    if (e.mods.isPopupMenu()) {
+      bar_.openMenu(index_);
+      return;
+    }
+    juce::Button::mouseDown(e);
+  }
+  void mouseUp(const juce::MouseEvent& e) override {
+    if (e.mods.isPopupMenu()) return;
+    juce::Button::mouseUp(e);
+  }
+  void mouseDoubleClick(const juce::MouseEvent&) override { bar_.beginRename(index_); }
+
+private:
+  SceneBar& bar_;
+  int index_;
+  juce::String name_;
+  bool active_ = false, compact_ = false;
+};
+
+SceneBar::SceneBar(DjontProcessor& processor)
+    : processor_(processor), add_("+", "Add a scene (up to 8): it starts as a copy of the one you're in.", kChipH) {
+  for (int i = 0; i < DjontProcessor::kMaxScenes; ++i) {
+    chips_.push_back(std::make_unique<SceneChip>(*this, i));
+    addChildComponent(*chips_.back());
+  }
+  addChildComponent(add_);
+  add_.setSize(kChipH, kChipH);
+  add_.onClick = [this] { processor_.addScene(); };
+  addChildComponent(editor_);
+  editor_.onReturnKey = [this] { finishRename(true); };
+  editor_.onEscapeKey = [this] { finishRename(false); };
+  editor_.onFocusLost = [this] { finishRename(true); };
+  refresh();
+}
+
+juce::String SceneBar::hint() const {
+  return "Scenes: switch everything at once (modules on / off, knobs, Input, Output, Hush). MIDI: right-click a scene, "
+         "MIDI Learn; then CC value 0 = A, 1 = B, and so on. REAPER can also automate the Scene parameter.";
+}
+
+void SceneBar::refresh() {
+  const int count = processor_.sceneCount();
+  for (int i = 0; i < DjontProcessor::kMaxScenes; ++i) chips_[static_cast<size_t>(i)]->setVisible(i < count);
+  add_.setVisible(count < DjontProcessor::kMaxScenes);
+  resized();
+  repaint();
+}
+
+void SceneBar::resized() {
+  const int count = processor_.sceneCount();
+  const int cy = (getHeight() - kChipH) / 2;
+  const int x0 = 86, gap = 8;
+  int full = 0;
+  for (int i = 0; i < count; ++i) {
+    auto& chip = *chips_[static_cast<size_t>(i)];
+    chip.set(processor_.sceneName(i), i == processor_.activeScene(), false);
+    full += chip.fullWidth() + gap;
+  }
+  const bool compact = x0 + full + kChipH > getWidth() - 10;
+  int x = x0;
+  for (int i = 0; i < count; ++i) {
+    auto& chip = *chips_[static_cast<size_t>(i)];
+    chip.set(processor_.sceneName(i), chip.active(), compact && !chip.active());
+    chip.setTopLeftPosition(x, cy);
+    x += chip.getWidth() + gap;
+  }
+  add_.setTopLeftPosition(x, cy);
+  if (renaming_ >= 0)
+    editor_.setBounds(chips_[static_cast<size_t>(renaming_)]->getX(), cy, 180, kChipH);
+}
+
+void SceneBar::paint(juce::Graphics& g) {
+  const auto& L = DjontLookAndFeel::lookOf(*this);
+  g.setColour(L.plate);
+  g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
+  g.setColour(L.plateBorder);
+  g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
+  g.setColour(L.ink.withAlpha(0.6f));
+  g.setFont(DjontLookAndFeel::label(9.0f));
+  g.drawText("SCENES", 14, 0, 70, getHeight(), juce::Justification::centredLeft, false);
+}
+
+void SceneBar::beginRename(int index) {
+  renaming_ = index;
+  editor_.setText(processor_.sceneName(index), false);
+  editor_.setTextToShowWhenEmpty("Scene " + sceneLetter(index) + " name, Enter", DjontLookAndFeel::lookOf(*this).ink.withAlpha(0.5f));
+  editor_.setVisible(true);
+  resized();
+  editor_.toFront(true);
+  editor_.grabKeyboardFocus();
+  editor_.selectAll();
+}
+
+void SceneBar::finishRename(bool keep) {
+  if (renaming_ < 0) return;
+  const int index = renaming_;
+  renaming_ = -1;
+  editor_.setVisible(false);
+  if (keep) processor_.renameScene(index, editor_.getText());
+  refresh();
+}
+
+void SceneBar::openMenu(int index) {
+  juce::PopupMenu menu;
+  menu.addSectionHeader("Scene " + sceneLetter(index));
+  menu.addItem(1, "Rename...");
+  menu.addItem(2, "Delete scene", processor_.sceneCount() > 1);
+  menu.addSeparator();
+  menu.addItem(3, "MIDI Learn: scene switch");
+  menu.showMenuAsync(juce::PopupMenu::Options().withMousePosition(),
+                     [safe = juce::Component::SafePointer<SceneBar>(this), index](int result) {
+                       if (safe == nullptr) return;
+                       if (result == 1) safe->beginRename(index);
+                       else if (result == 2) safe->processor_.removeScene(index);
+                       else if (result == 3 && safe->onLearnScene) safe->onLearnScene();
+                       safe->refresh();
+                     });
+}
+
 DjontView::DjontView(DjontProcessor& processor)
     : processor_(processor),
       input_(processor.params, "input", "Input", 44, "Input: level into dJONt."),
@@ -1290,6 +1647,8 @@ DjontView::DjontView(DjontProcessor& processor)
              "Blend: the whole board against your dry DI (after Hush). 100% is all dJONt; lower keeps your amp's own tone under the effects."),
       hushChip_("HUSH", "Hush: the de-noiser on your DI, before everything (zero latency). Opens its panel: on / off, "
                         "LEARN, Strength, Sensitivity, Release.", 74),
+      presetBar_(processor),
+      sceneBar_(processor),
       wham_(processor),
       sustain_(processor),
       settings_(processor, [this](const juce::String& id) { setLook(id); }),
@@ -1307,6 +1666,13 @@ DjontView::DjontView(DjontProcessor& processor)
   help_.onClick = [this] { showManual(!manual_.isVisible()); };
   addAndMakeVisible(hushChip_);
   hushChip_.onClick = [this] { showHush(!hushPanel_.isVisible()); };
+  addAndMakeVisible(presetBar_);
+  presetBar_.onMessage = [this](const juce::String& m) {
+    confirm_ = m;
+    confirmTicks_ = 120;
+  };
+  addAndMakeVisible(sceneBar_);
+  sceneBar_.onLearnScene = [this] { startLearn(&sceneBar_, "scene"); };
 
   auto& s = processor.params;
   auto tight = std::make_unique<Module>(s, "TIGHT", "tightOn", "Pick-attack punch for palm mutes, or a tight boost into your amp.");
@@ -1411,11 +1777,20 @@ void DjontView::timerCallback() {
   wham_.tick();
   sustain_.tick();
   hushChip_.setButtonText(processor_.params.getRawParameterValue("hushOn")->load() > 0.5f ? "HUSH ON" : "HUSH");
+  if (const int r = processor_.presetRevision.load(); r != presetSeen_) {
+    presetSeen_ = r;
+    presetBar_.refresh();
+  }
+  if (const int r = processor_.sceneRevision.load(); r != sceneSeen_) {
+    sceneSeen_ = r;
+    sceneBar_.refresh();
+    presetBar_.refresh();
+  }
   // MIDI learn: a CC arrived for the control waiting for one.
   if (const int learned = processor_.learnedCount.load(); learned != learnedSeen_) {
     learnedSeen_ = learned;
     if (learnTarget_ != nullptr) {
-      const auto id = learnTarget_->getProperties()[kParamIdProp].toString();
+      const auto id = learnId_;
       confirm_ = learnName_ + " is on MIDI CC " + juce::String(processor_.ccFor(id)) + ". Right-click it to forget.";
       confirmTicks_ = 120;
     }
@@ -1495,16 +1870,22 @@ void DjontView::mouseDown(const juce::MouseEvent& e) {
                        } else if (safeTarget != nullptr && (result == 1 || result == 2)) {
                          const auto id = safeTarget->getProperties()[kParamIdProp].toString();
                          if (result == 1) {
-                           auto* param = processor_.params.getParameter(id);
-                           learnName_ = param != nullptr ? param->getName(64) : id;
-                           learnTarget_ = safeTarget.getComponent();
-                           processor_.startLearn(id);
+                           startLearn(safeTarget.getComponent(), id);
                          } else {
                            processor_.forget(id);
                          }
                        }
                        repaint();
                      });
+}
+
+void DjontView::startLearn(juce::Component* target, const juce::String& id) {
+  auto* param = processor_.params.getParameter(id);
+  learnName_ = param != nullptr ? param->getName(64) : id;
+  learnTarget_ = target;
+  learnId_ = id;
+  processor_.startLearn(id);
+  repaint();
 }
 
 void DjontView::paintOverChildren(juce::Graphics& g) {
@@ -1592,9 +1973,11 @@ void DjontView::resized() {
   input_.setTopRightPosition(blend_.getX() - 2, output_.getY());
   hushChip_.setTopRightPosition(input_.getX() - 8, (kHeaderH - hushChip_.getHeight()) / 2);
   ioPlate_ = juce::Rectangle<int>(hushChip_.getX() - 10, 14, right - hushChip_.getX() + 10, kHeaderH - 28);
+  presetBar_.setBounds(ioPlate_.getX() - 24 - 400, 14, 400, kHeaderH - 28);
 
   const int top = kBodyTop + 10;
-  const int bottom = hintBox_.getY() - 10;
+  sceneBar_.setBounds(18, hintBox_.getY() - 8 - kSceneH, getWidth() - 36, kSceneH);
+  const int bottom = sceneBar_.getY() - 8;
   const int left = 18, gap = 10;
   wham_.setBounds(left, top, WhamModule::kWidth, bottom - top);
   sustain_.setBounds(wham_.getRight() + gap, top, SustainModule::kWidth, bottom - top);
