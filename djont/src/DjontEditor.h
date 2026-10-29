@@ -33,7 +33,8 @@ struct Look {
   juce::Colour bg, ink, accent, plate, plateBorder, rule, faceHi, faceLo, knobRing, track, hintBg, hintText;
 };
 const Look& lookFor(const juce::String& id);  // unknown ids get Chrome
-extern const char* const kLookIds[2];         // "chrome", "redfoil"
+constexpr int kNumLooks = 6;
+extern const char* const kLookIds[kNumLooks];  // "chrome", "redfoil", "shards", "circuit", "copper", "neon"
 
 class DjontLookAndFeel : public juce::LookAndFeel_V4 {
 public:
@@ -345,7 +346,7 @@ private:
 
   DjontProcessor& processor_;
   juce::AudioDeviceManager* devices_ = nullptr;  // standalone only
-  Segmented look_;
+  juce::ComboBox look_;
   juce::TextButton done_{"DONE"};
   juce::ToggleButton hear_{"Hear yourself"};
   juce::Viewport viewport_;

@@ -35,10 +35,37 @@ const Look kRedFoil{"redfoil", "Red Foil",
                     juce::Colour(0xff1d2236), juce::Colour(0xff070912), rgba(130, 160, 255, 0.22f),
                     rgba(242, 236, 240, 0.14f), rgba(4, 5, 10, 0.90f), juce::Colour(0xffcfc9d8)};
 
+// Photos: crumpled chrome and red foil, black glass shards, a dark
+// circuit of lit cubes, folded copper sheet, neon lines on black.
+const Look kShards{"shards", "Shards",
+                   juce::Colour(0xff07090c), juce::Colour(0xffe8eef4), juce::Colour(0xff3fd2ff),
+                   rgba(6, 8, 12, 0.76f), rgba(200, 230, 255, 0.16f), rgba(232, 238, 244, 0.26f),
+                   juce::Colour(0xff25292f), juce::Colour(0xff0b0d10), rgba(63, 210, 255, 0.18f),
+                   rgba(232, 238, 244, 0.16f), rgba(6, 8, 10, 0.90f), juce::Colour(0xffcdd5dd)};
+const Look kCircuit{"circuit", "Circuit",
+                    juce::Colour(0xff050a0b), juce::Colour(0xffe9f1f0), juce::Colour(0xffff3b2f),
+                    rgba(4, 10, 12, 0.76f), rgba(120, 220, 210, 0.18f), rgba(233, 241, 240, 0.26f),
+                    juce::Colour(0xff1d2a2c), juce::Colour(0xff060c0d), rgba(255, 59, 47, 0.18f),
+                    rgba(233, 241, 240, 0.15f), rgba(3, 8, 9, 0.90f), juce::Colour(0xffc9d6d4)};
+const Look kCopper{"copper", "Copper",
+                   juce::Colour(0xff0e0905), juce::Colour(0xfff3e9dc), juce::Colour(0xffff9d3a),
+                   rgba(14, 9, 5, 0.76f), rgba(255, 190, 130, 0.16f), rgba(243, 233, 220, 0.26f),
+                   juce::Colour(0xff2e2620), juce::Colour(0xff100b08), rgba(255, 157, 58, 0.18f),
+                   rgba(243, 233, 220, 0.15f), rgba(10, 7, 4, 0.90f), juce::Colour(0xffd9cbbb)};
+const Look kNeon{"neon", "Neon",
+                 juce::Colour(0xff040606), juce::Colour(0xffeaf7f2), juce::Colour(0xff2ee6c0),
+                 rgba(4, 6, 6, 0.76f), rgba(46, 230, 192, 0.18f), rgba(234, 247, 242, 0.26f),
+                 juce::Colour(0xff1c2624), juce::Colour(0xff060908), rgba(46, 230, 192, 0.18f),
+                 rgba(234, 247, 242, 0.15f), rgba(3, 5, 5, 0.90f), juce::Colour(0xffc8d8d3)};
+
 juce::Image loadPhoto(const juce::String& lookId) {
-  if (lookId == "redfoil")
-    return juce::ImageFileFormat::loadFrom(DjontBinary::djontredfoil_jpg, DjontBinary::djontredfoil_jpgSize);
-  return juce::ImageFileFormat::loadFrom(DjontBinary::djontchrome_jpg, DjontBinary::djontchrome_jpgSize);
+  using namespace DjontBinary;
+  if (lookId == "redfoil") return juce::ImageFileFormat::loadFrom(djontredfoil_jpg, djontredfoil_jpgSize);
+  if (lookId == "shards") return juce::ImageFileFormat::loadFrom(djontshards_jpg, djontshards_jpgSize);
+  if (lookId == "circuit") return juce::ImageFileFormat::loadFrom(djontcircuit_jpg, djontcircuit_jpgSize);
+  if (lookId == "copper") return juce::ImageFileFormat::loadFrom(djontcopper_jpg, djontcopper_jpgSize);
+  if (lookId == "neon") return juce::ImageFileFormat::loadFrom(djontneon_jpg, djontneon_jpgSize);
+  return juce::ImageFileFormat::loadFrom(djontchrome_jpg, djontchrome_jpgSize);
 }
 
 #if DJONT_HAS_STANDALONE_HOLDER
@@ -49,9 +76,13 @@ juce::StandalonePluginHolder* holder(const juce::AudioProcessor& p) {
 #endif
 }  // namespace
 
-const char* const kLookIds[2] = {"chrome", "redfoil"};
+const char* const kLookIds[kNumLooks] = {"chrome", "redfoil", "shards", "circuit", "copper", "neon"};
 
-const Look& lookFor(const juce::String& id) { return id == "redfoil" ? kRedFoil : kChrome; }
+const Look& lookFor(const juce::String& id) {
+  for (const auto* l : {&kRedFoil, &kShards, &kCircuit, &kCopper, &kNeon})
+    if (l->id == id) return *l;
+  return kChrome;
+}
 
 // ---------------------------------------------------------------- look
 DjontLookAndFeel::DjontLookAndFeel()
@@ -1007,9 +1038,15 @@ juce::String whamLatencyLine(const DjontProcessor& p) {
 
 SettingsPanel::SettingsPanel(DjontProcessor& processor, std::function<void(const juce::String&)> onLook)
     : processor_(processor),
-      look_({"CHROME", "RED FOIL"}, "Look: the photo and accent color. Saved with the plugin's state.", 200) {
+      look_("Look") {
+  for (int i = 0; i < kNumLooks; ++i) look_.addItem(lookFor(kLookIds[i]).name, i + 1);
+  look_.setTooltip({});
+  look_.setHelpText("Look: the photo and accent color. Saved with the plugin's state.");
+  look_.setSize(220, 28);
   addAndMakeVisible(look_);
-  look_.onSelect = [onLook](int i) { onLook(kLookIds[i]); };
+  look_.onChange = [this, onLook] {
+    if (const int i = look_.getSelectedId() - 1; i >= 0 && i < kNumLooks) onLook(kLookIds[i]);
+  };
   addAndMakeVisible(done_);
   done_.onClick = [this] {
     if (onClose) onClose();
@@ -1040,7 +1077,10 @@ SettingsPanel::SettingsPanel(DjontProcessor& processor, std::function<void(const
 
 SettingsPanel::~SettingsPanel() { viewport_.setViewedComponent(nullptr, false); }
 
-void SettingsPanel::syncLook(const juce::String& lookId) { look_.setIndex(lookId == "redfoil" ? 1 : 0); }
+void SettingsPanel::syncLook(const juce::String& lookId) {
+  for (int i = 0; i < kNumLooks; ++i)
+    if (lookId == kLookIds[i]) look_.setSelectedId(i + 1, juce::dontSendNotification);
+}
 
 juce::String SettingsPanel::hint() const {
   if (devices_ == nullptr)

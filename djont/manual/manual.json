@@ -37,7 +37,7 @@
         ],
         [
           "Gear",
-          "Settings: the look (Chrome or Red Foil), and in the standalone app your audio interface, MIDI inputs and latency."
+          "Settings: the look (Chrome, Red Foil, Shards, Circuit, Copper or Neon), and in the standalone app your audio interface, MIDI inputs and latency."
         ],
         [
           "?",
@@ -457,7 +457,7 @@
       "controls": [
         [
           "Look",
-          "Chrome or Red Foil. Saved with the plugin's state."
+          "Chrome, Red Foil, Shards, Circuit, Copper or Neon: the photo and accent color. Saved with the plugin's state."
         ],
         [
           "Hear yourself",
